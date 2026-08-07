@@ -1,21 +1,17 @@
 import { Analytics } from '@hcengineering/analytics'
 import client from '@hcengineering/client'
 import { setCurrentEmployee, type Employee } from '@hcengineering/contact'
-import core, {
+import {
   ClientConnectEvent,
-  concatLink,
   setCurrentAccount,
-  versionToString,
   type Account,
   type Client,
   type PersonId,
-  type Ref,
-  type Version
+  type Ref
 } from '@hcengineering/core'
 import login, { type WorkspaceLoginInfo } from '@hcengineering/login'
 import { getMetadata, getResource, setMetadata } from '@hcengineering/platform'
 import presentation, {
-  loadServerConfig,
   refreshClient,
   setClient,
   setCommunicationClient,
@@ -27,7 +23,6 @@ import { writable } from 'svelte/store'
 
 export const versionError = writable<string | undefined>(undefined)
 export const invalidError = writable<boolean>(false)
-const versionStorageKey = 'last_server_version'
 
 let _token: string | undefined
 let _client: Client | undefined
@@ -84,7 +79,6 @@ export async function connect (title: string): Promise<Client | undefined> {
   }
   _token = exchangedToken
 
-  let version: Version | undefined
   const clientFactory = await getResource(client.function.GetClient)
   _client = await clientFactory(exchangedToken, workspaceLoginInfo.endpoint, {
     onUpgrade: () => {
@@ -109,41 +103,6 @@ export async function connect (title: string): Promise<Client | undefined> {
         if (event === ClientConnectEvent.Upgraded) {
           window.location.reload()
         }
-
-        void (async () => {
-          if (_client !== undefined) {
-            const newVersion = await _client.findOne<Version>(core.class.Version, {})
-            console.log('Reconnect Model version', newVersion)
-
-            const currentVersionStr = versionToString(version as Version)
-            const reconnectVersionStr = versionToString(newVersion as Version)
-
-            if (currentVersionStr !== reconnectVersionStr) {
-              // It seems upgrade happened
-              location.reload()
-              versionError.set(`${currentVersionStr} != ${reconnectVersionStr}`)
-            }
-            console.log('Server version', reconnectVersionStr)
-            if (reconnectVersionStr !== '' && reconnectVersionStr !== currentVersionStr) {
-              if (typeof sessionStorage !== 'undefined') {
-                if (sessionStorage.getItem(versionStorageKey) !== reconnectVersionStr) {
-                  sessionStorage.setItem(versionStorageKey, reconnectVersionStr)
-                  location.reload()
-                }
-              }
-              versionError.set(`${reconnectVersionStr} => ${currentVersionStr}`)
-            }
-
-            const frontUrl = getMetadata(presentation.metadata.FrontUrl) ?? ''
-            const currentFrontVersion = getMetadata(presentation.metadata.FrontVersion)
-            if (currentFrontVersion !== undefined) {
-              const frontConfig = await loadServerConfig(concatLink(frontUrl, '/config.json'))
-              if (frontConfig?.version !== undefined && frontConfig.version !== currentFrontVersion) {
-                location.reload()
-              }
-            }
-          }
-        })()
       } catch (err) {
         console.error(err)
       }
@@ -174,31 +133,6 @@ export async function connect (title: string): Promise<Client | undefined> {
     console.log('login: employee account', me)
     setCurrentAccount(me)
     setCurrentEmployee('' as Ref<Employee>)
-  }
-
-  try {
-    version = await _client.findOne<Version>(core.class.Version, {})
-    console.log('Model version', version)
-
-    const requiredVersion = getMetadata(presentation.metadata.ModelVersion)
-    if (requiredVersion !== undefined && version !== undefined) {
-      console.log('checking min model version', requiredVersion)
-      const versionStr = versionToString(version)
-
-      if (version === undefined || requiredVersion !== versionStr) {
-        versionError.set(`${versionStr} => ${requiredVersion}`)
-        return undefined
-      }
-    }
-  } catch (err: any) {
-    Analytics.handleError(err)
-    console.error(err)
-    const requirdVersion = getMetadata(presentation.metadata.ModelVersion)
-    console.log('checking min model version', requirdVersion)
-    if (requirdVersion !== undefined) {
-      versionError.set(`'unknown' => ${requirdVersion}`)
-      return undefined
-    }
   }
 
   invalidError.set(false)

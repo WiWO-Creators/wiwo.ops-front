@@ -14,15 +14,22 @@
 //
 
 import { type AnalyticProvider, Analytics } from '@hcengineering/analytics'
-import { AnalyticsCollectorProvider } from './analyticsCollector'
 import { type AnalyticsConfig } from './types'
 
 export * from './analyticsCollector'
 export * from './utils'
 export * from './types'
 
+/**
+ * Registra los proveedores de analítica del cliente.
+ *
+ * Este fork no envía telemetría a ningún colector externo, por lo que la lista
+ * de proveedores queda vacía y los eventos de Analytics no salen del navegador.
+ *
+ * @param config configuración de analítica cargada desde el servidor
+ */
 export function configureAnalyticsProviders (config: AnalyticsConfig): void {
-  const providers: AnalyticProvider[] = [new AnalyticsCollectorProvider()]
+  const providers: AnalyticProvider[] = []
 
   for (const provider of providers) {
     Analytics.init(provider, config)

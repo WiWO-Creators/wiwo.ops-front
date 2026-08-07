@@ -7,7 +7,6 @@ import core, {
   AccountRole,
   type Client,
   ClientConnectEvent,
-  concatLink,
   type Person as GlobalPerson,
   isWorkspaceCreating,
   type MeasureMetricsContext,
@@ -15,8 +14,6 @@ import core, {
   pickPrimarySocialId,
   setCurrentAccount,
   type SocialId,
-  type Version,
-  versionToString,
   SocialIdType,
   type WorkspaceInfoWithStatus
 } from '@hcengineering/core'
@@ -36,7 +33,6 @@ import platform, {
   translateCB
 } from '@hcengineering/platform'
 import presentation, {
-  loadServerConfig,
   purgeClient,
   purgeCommunicationClient,
   refreshClient,
@@ -66,8 +62,6 @@ export interface ErrorAction {
   label: IntlString
   action: () => void
 }
-const versionStorageKey = 'last_server_version'
-
 let _token: string | undefined
 let _client: Client | undefined
 let _clientSet: boolean = false
@@ -228,7 +222,6 @@ export async function connect (title: string): Promise<Client | undefined> {
   _token = token
 
   const clientFactory = await getResource(client.function.GetClient)
-  let version: Version | undefined
   const newClient = await ctx.with(
     'create-client',
     {},
@@ -332,63 +325,6 @@ export async function connect (title: string): Promise<Client | undefined> {
               console.log('reload due to upgrade')
               window.location.reload()
             }
-
-            void (async () => {
-              if (_client !== undefined) {
-                const client = _client
-                const newVersion = await ctx.with(
-                  'find-version',
-                  {},
-                  async () => await client.findOne<Version>(core.class.Version, {})
-                )
-                console.log('Reconnect Model version', newVersion)
-
-                const currentVersionStr = versionToString(version as Version)
-                const reconnectVersionStr = versionToString(newVersion as Version)
-
-                if (currentVersionStr !== reconnectVersionStr) {
-                  // It seems upgrade happened
-                  console.log('reload due to version mismatch')
-                  location.reload()
-                  errorActions.set([])
-                  error.set(`${currentVersionStr} != ${reconnectVersionStr}`)
-                }
-
-                console.log(
-                  'Server version',
-                  reconnectVersionStr,
-                  version !== undefined ? versionToString(version) : ''
-                )
-
-                if (reconnectVersionStr !== '' && currentVersionStr !== reconnectVersionStr) {
-                  if (typeof sessionStorage !== 'undefined') {
-                    if (sessionStorage.getItem(versionStorageKey) !== reconnectVersionStr) {
-                      console.log('reload due to version mismatch')
-                      sessionStorage.setItem(versionStorageKey, reconnectVersionStr)
-                      location.reload()
-                    }
-                  }
-                  error.set(`${currentVersionStr} != ${reconnectVersionStr}`)
-                  errorActions.set([])
-                }
-
-                const frontUrl = getMetadata(presentation.metadata.FrontUrl) ?? ''
-                const currentFrontVersion = getMetadata(presentation.metadata.FrontVersion)
-                if (currentFrontVersion !== undefined) {
-                  try {
-                    const frontConfig = await loadServerConfig(concatLink(frontUrl, '/config.json'))
-                    if (frontConfig?.version !== undefined && frontConfig.version !== currentFrontVersion) {
-                      console.log('reload due to config version mismatch')
-                      location.reload()
-                    }
-                  } catch (err: any) {
-                    // Failed to load server config, reload location
-                    console.log('reload due to config loading error')
-                    location.reload()
-                  }
-                }
-              }
-            })()
           } catch (err) {
             console.error(err)
           }
@@ -488,37 +424,6 @@ export async function connect (title: string): Promise<Client | undefined> {
     await broadcastEvent(PlatformEvent, new Status(Severity.INFO, platform.status.ReadOnlyAccount, {}))
   } else {
     await broadcastEvent(PlatformEvent, new Status(Severity.INFO, platform.status.RegularAccount, {}))
-  }
-
-  try {
-    version = await ctx.with(
-      'find-model-version',
-      {},
-      async () => await newClient.findOne<Version>(core.class.Version, {})
-    )
-    console.log('Model version', version)
-
-    const requiredVersion = getMetadata(presentation.metadata.ModelVersion)
-    if (requiredVersion !== undefined && version !== undefined && requiredVersion !== '') {
-      console.log('checking min model version', requiredVersion)
-      const versionStr = versionToString(version)
-
-      if (version === undefined || requiredVersion !== versionStr) {
-        error.set(`${versionStr} => ${requiredVersion}`)
-        errorActions.set([])
-        return undefined
-      }
-    }
-  } catch (err: any) {
-    console.error(err)
-    Analytics.handleError(err)
-    const requiredVersion = getMetadata(presentation.metadata.ModelVersion)
-    console.log('checking min model version', requiredVersion)
-    if (requiredVersion !== undefined) {
-      error.set(`'unknown' => ${requiredVersion}`)
-      errorActions.set([])
-      return undefined
-    }
   }
 
   error.set(undefined)
