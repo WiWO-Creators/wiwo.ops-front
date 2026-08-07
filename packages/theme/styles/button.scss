@@ -6,6 +6,10 @@
   gap: var(--spacing-1);
   border: 1px solid transparent;
 
+  transition-property: border-color, background-color, color;
+  transition-duration: var(--wiwo-motion-fast);
+  transition-timing-function: var(--wiwo-ease-emphasized);
+
   &:not(:disabled, .disabled, .loading) { cursor: pointer; }
   &.inheritFont { font: inherit; }
 
@@ -25,9 +29,9 @@
   &.type-button-icon { padding: 0; }
   &.large {
     height: var(--global-large-Size);
-    border-radius: var(--medium-BorderRadius);
+    border-radius: var(--control-BorderRadius);
 
-    &.round { border-radius: var(--large-BorderRadius); }
+    &.round { border-radius: var(--control-BorderRadius); }
 
     &.type-button:not(.iconOnly) { padding: 0 var(--spacing-2); }
     &.iconOnly,
@@ -35,9 +39,9 @@
   }
   &.medium {
     height: var(--global-medium-Size);
-    border-radius: var(--medium-BorderRadius);
+    border-radius: var(--control-BorderRadius);
 
-    &.round { border-radius: var(--large-BorderRadius); }
+    &.round { border-radius: var(--control-BorderRadius); }
     &.type-button:not(.iconOnly) { padding: 0 var(--spacing-2); }
     &.iconOnly,
     &.type-button-icon { width: var(--global-medium-Size); }
@@ -45,9 +49,9 @@
   &.small {
     height: var(--global-small-Size);
     gap: var(--spacing-0_5);
-    border-radius: var(--small-BorderRadius);
+    border-radius: var(--control-BorderRadius);
 
-    &.round { border-radius: var(--large-BorderRadius); }
+    &.round { border-radius: var(--control-BorderRadius); }
     &.type-button:not(.iconOnly) { padding: 0 var(--spacing-1); }
     &.iconOnly,
     &.type-button-icon { width: var(--global-small-Size); }
@@ -55,9 +59,9 @@
   &.extra-small {
     height: var(--global-extra-small-Size);
     gap: var(--spacing-0_5);
-    border-radius: var(--extra-small-BorderRadius);
+    border-radius: var(--control-BorderRadius);
 
-    &.round { border-radius: var(--large-BorderRadius); }
+    &.round { border-radius: var(--control-BorderRadius); }
     &.type-button:not(.iconOnly) { padding: 0 var(--spacing-1); }
     &.iconOnly,
     &.type-button-icon { width: var(--global-extra-small-Size); }
@@ -65,7 +69,7 @@
   &.min {
     height: var(--global-min-Size);
     border: 0;
-    border-radius: var(--min-BorderRadius);
+    border-radius: var(--control-BorderRadius);
   }
   &.type-button-icon .icon,
   &.menu .icon {
@@ -358,7 +362,8 @@
   background-color: transparent;
   border: 1px solid transparent;
   transition-property: border, background-color, color, box-shadow;
-  transition-duration: .15s;
+  transition-duration: var(--wiwo-motion-fast);
+  transition-timing-function: var(--wiwo-ease-emphasized);
   &.testing {
     transition-duration: 0;
   }
@@ -411,11 +416,11 @@
 
   &.short { max-width: 8.5rem; }
   &.accent { font-weight: 500; }
-  &.sh-no-shape { border-radius: .375rem; }
-  &.sh-round-small { border-radius: .25rem; }
-  &.sh-round { border-radius: .5rem; }
-  &.sh-round2 { border-radius: .75rem; }
-  &.sh-circle { border-radius: 1rem; }
+  &.sh-no-shape { border-radius: var(--control-BorderRadius); }
+  &.sh-round-small { border-radius: var(--extra-small-BorderRadius); }
+  &.sh-round { border-radius: var(--small-BorderRadius); }
+  &.sh-round2 { border-radius: var(--medium-BorderRadius); }
+  &.sh-circle { border-radius: var(--control-BorderRadius); }
   &.sh-rectangle-right {
     border-top-left-radius: .25rem;
     border-bottom-left-radius: .25rem;

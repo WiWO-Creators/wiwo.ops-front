@@ -99,7 +99,7 @@ class DrawState {
   eraserWidth = 30
   minLineLength = 6
   fontSize = 20
-  fontFace = '"IBM Plex Sans"'
+  fontFace = '"Plus Jakarta Sans"'
   center: Point = { x: 0, y: 0 }
   offset: Point = { x: 0, y: 0 }
   points: CanvasPoint[] = []

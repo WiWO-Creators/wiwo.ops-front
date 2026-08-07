@@ -76,6 +76,16 @@
 .heading-bold-20 {
   font-weight: 700;
 }
+// Neo: los titulares llevan la tipografia de marca con el tracking cerrado
+// que usa https://neo.wiwo.me. El texto de interfaz se queda en --font-family.
+.heading-medium-16,
+.heading-bold-16,
+.heading-ui-H2,
+.heading-medium-20,
+.heading-bold-20 {
+  font-family: var(--font-brand);
+  letter-spacing: -0.015em;
+}
 .heading-medium-16,
 .heading-bold-16 {
   font-size: 1rem;

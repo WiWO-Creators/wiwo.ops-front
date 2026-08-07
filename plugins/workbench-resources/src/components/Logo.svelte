@@ -57,8 +57,10 @@
       width: 1.75rem;
       height: 1.75rem;
     }
+    // El nombre de la clase viene de upstream; el relleno es el gradiente Neo.
     &.red {
-      background-color: rgb(246, 105, 77);
+      background: var(--wiwo-gradient-primary);
+      color: var(--wiwo-ink);
     }
   }
   .logo-medium {

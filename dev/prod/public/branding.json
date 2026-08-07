@@ -1,6 +1,6 @@
 {
   "huly.local:8080": {
-    "title": "Huly",
+    "title": "WiWO Ops",
     "languages": "en,ru,pl,pt,pt-br,es,zh,fr,de,ja,ko,tr",
     "defaultLanguage": "en",
     "defaultApplication": "tracker",
@@ -29,7 +29,7 @@
     ]
   },
   "huly.local:8087": {
-    "title": "Huly",
+    "title": "WiWO Ops",
     "languages": "en,ru,pl,pt,pt-br,es,zh,fr,de,ja,ko,tr",
     "defaultLanguage": "en",
     "defaultApplication": "tracker",

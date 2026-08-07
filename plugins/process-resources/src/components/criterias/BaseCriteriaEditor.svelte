@@ -133,7 +133,7 @@
     }
 
     &.context {
-      background: #3575de33;
+      background: rgba(66, 66, 255, 0.2);
       border-color: var(--primary-button-default);
     }
   }

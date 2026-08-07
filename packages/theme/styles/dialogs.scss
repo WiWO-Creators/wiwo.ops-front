@@ -30,7 +30,7 @@
   flex-direction: column;
   min-height: 0;
   background: var(--theme-popup-color);
-  border-radius: .5rem;
+  border-radius: var(--large-BorderRadius);
   box-shadow: var(--theme-popup-shadow);
 
   .antiCard-header {

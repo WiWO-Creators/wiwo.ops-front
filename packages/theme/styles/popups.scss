@@ -20,7 +20,7 @@
   max-height: 22.625rem;
   background: var(--theme-popup-color); // var(--global-popover-BackgroundColor);
   border: 1px solid var(--theme-popup-divider); // var(--global-popover-BorderColor);
-  border-radius: var(--small-BorderRadius);
+  border-radius: var(--large-BorderRadius);
   box-shadow:
     var(--global-popover-ShadowX)
     var(--global-popover-ShadowY)
@@ -368,7 +368,7 @@
   &:not(.embedded) {
     max-width: 30rem;
     background: var(--theme-popup-color);
-    border-radius: .5rem;
+    border-radius: var(--large-BorderRadius);
     border: 1px solid var(--theme-popup-divider);
     box-shadow: var(--theme-popup-shadow);
   }

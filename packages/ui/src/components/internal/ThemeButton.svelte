@@ -64,24 +64,24 @@
     border-radius: 6px;
 
     .light-container {
-      background-color: #f5f5f5;
-      border: 1px solid rgba(0, 0, 0, 0.1);
+      background-color: #f1f1f3;
+      border: 1px solid rgba(41, 41, 41, 0.1);
 
       .paper {
-        color: #000000cc;
+        color: rgba(41, 41, 41, 0.8);
         background-color: #fff;
-        border-top: 1px solid rgba(0, 0, 0, 0.2);
-        border-left: 1px solid rgba(0, 0, 0, 0.2);
+        border-top: 1px solid rgba(41, 41, 41, 0.2);
+        border-left: 1px solid rgba(41, 41, 41, 0.2);
       }
     }
     .dark-container {
-      background-color: #3f3f3f;
+      background-color: #3b3c38;
 
       .paper {
-        color: #ffffffcc;
-        background-color: #161516;
-        border-top: 1px solid rgba(255, 255, 255, 0.2);
-        border-left: 1px solid rgba(255, 255, 255, 0.2);
+        color: rgba(248, 250, 215, 0.8);
+        background-color: #20211f;
+        border-top: 1px solid rgba(248, 250, 215, 0.2);
+        border-left: 1px solid rgba(248, 250, 215, 0.2);
       }
     }
     .light-container,
@@ -130,12 +130,12 @@
 
     &:hover:not(:focus) {
       .light-container .paper {
-        color: #000;
-        background-color: #f2f2f2;
+        color: #292929;
+        background-color: #f4f4f6;
       }
       .dark-container .paper {
-        color: #fff;
-        background-color: #222222;
+        color: #f8fad7;
+        background-color: #292929;
       }
     }
     &.focused::before,

@@ -65,8 +65,8 @@
       --body-font-size: .875rem;
       --status-bar-height: 36px;
       --panel-aside-width: 25rem; // 20rem;
-      --font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto;
-      --mono-font: 'IBM Plex Mono', monospace;
+      --font-family: 'Plus Jakarta Sans', 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto;
+      --mono-font: 'Tomorrow', 'IBM Plex Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
       --timing-shadow: cubic-bezier(0,.65,.35,1);
       --timing-main: cubic-bezier(0.25, 0.46, 0.45, 0.94);
       --timing-rotate: cubic-bezier(.28,1.92,.39,.56);

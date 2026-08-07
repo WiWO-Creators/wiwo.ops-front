@@ -61,7 +61,7 @@
 <style lang="scss">
   .container {
     padding: 0.25rem 0.5rem;
-    background: #3575de33;
+    background: rgba(66, 66, 255, 0.2);
     border: 1px solid var(--primary-button-default);
     border-radius: 0.25rem;
     display: flex;

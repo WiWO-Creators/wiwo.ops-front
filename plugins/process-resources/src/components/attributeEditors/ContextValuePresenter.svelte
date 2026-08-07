@@ -61,7 +61,7 @@
     white-space: nowrap;
     text-overflow: ellipsis;
     color: var(--theme-caption-color);
-    background: #3575de33;
+    background: rgba(66, 66, 255, 0.2);
     border-radius: 0.25rem;
 
     .internal {

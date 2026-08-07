@@ -885,8 +885,10 @@ a.no-line {
 /* Text */
 
 .fs-title {
+  font-family: var(--font-brand);
   font-weight: 500;
   font-size: 1rem;
+  letter-spacing: -0.015em;
   color: var(--theme-caption-color);
   user-select: none;
   -webkit-user-select: none;
