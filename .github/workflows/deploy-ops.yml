@@ -1,0 +1,85 @@
+name: Deploy Front → ops.wiwo.me
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-ops-front
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: common/temp
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies
+        run: node common/scripts/install-run-rush.js install
+
+      - name: Model version
+        run: node common/scripts/install-run-rush.js model-version
+
+      - name: Build
+        run: node common/scripts/install-run-rush.js build
+
+      - name: Bundle front
+        run: |
+          cd pods/front
+          node ../../common/scripts/install-run-rushx.js package
+          node ../../common/scripts/install-run-rushx.js bundle
+
+      - name: Build Docker image
+        run: |
+          cd pods/front
+          VERSION=$(git rev-parse --short HEAD)
+          docker build -t wiwo/ops-front:${VERSION} -t wiwo/ops-front:latest .
+          docker save wiwo/ops-front:${VERSION} | gzip > /tmp/ops-front-${VERSION}.tar.gz
+          echo "IMAGE_TAG=${VERSION}" >> $GITHUB_ENV
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY_OPS }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SSH_HOST_OPS }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Upload image to server
+        run: |
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            /tmp/ops-front-${{ env.IMAGE_TAG }}.tar.gz \
+            ${{ secrets.SSH_USER_OPS }}@${{ secrets.SSH_HOST_OPS }}:/tmp/
+
+      - name: Deploy on server
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ secrets.SSH_USER_OPS }}@${{ secrets.SSH_HOST_OPS }} << 'DEPLOY'
+              set -e
+              IMAGE_TAG="${{ env.IMAGE_TAG }}"
+              docker load < /tmp/ops-front-${IMAGE_TAG}.tar.gz
+              rm -f /tmp/ops-front-${IMAGE_TAG}.tar.gz
+              cd /root/huly-selfhost
+              sed -i "s|image: wiwo/ops-front:.*|image: wiwo/ops-front:${IMAGE_TAG}|" compose.testops.yml
+              docker compose -f compose.yml -f compose.testops.yml up -d front
+              echo "✅ Front deployed: wiwo/ops-front:${IMAGE_TAG}"
+          DEPLOY
