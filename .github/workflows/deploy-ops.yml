@@ -10,60 +10,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          submodules: recursive
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: '.nvmrc'
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: Cache node modules
-        uses: actions/cache@v4
-        with:
-          path: common/temp
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: ${{ runner.os }}-pnpm-
-
-      - name: Install dependencies
-        run: node common/scripts/install-run-rush.js install
-
-      - name: Model version
-        run: node common/scripts/install-run-rush.js model-version
-
-      - name: Build
-        run: node common/scripts/install-run-rush.js build
-      
-      
-      - name: Build prod assets
-        run: |
-          cd dev/prod
-          node ../../common/scripts/install-run-rushx.js package
-
-
-      - name: Bundle front
-        run: |
-          cd pods/front
-          node ../../common/scripts/install-run-rushx.js package
-          node ../../common/scripts/install-run-rushx.js bundle
-
-      - name: Build Docker image
-        run: |
-          cd pods/front
-          VERSION=$(git rev-parse --short HEAD)
-          docker build -t wiwo/ops-front:${VERSION} -t wiwo/ops-front:latest .
-          docker save wiwo/ops-front:${VERSION} | gzip > /tmp/ops-front-${VERSION}.tar.gz
-          echo "IMAGE_TAG=${VERSION}" >> $GITHUB_ENV
-
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
@@ -71,22 +21,39 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.SSH_HOST_OPS }} >> ~/.ssh/known_hosts 2>/dev/null
 
-      - name: Upload image to server
-        run: |
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
-            /tmp/ops-front-${{ env.IMAGE_TAG }}.tar.gz \
-            ${{ secrets.SSH_USER_OPS }}@${{ secrets.SSH_HOST_OPS }}:/tmp/
-
-      - name: Deploy on server
+      - name: Build & Deploy on server
         run: |
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
             ${{ secrets.SSH_USER_OPS }}@${{ secrets.SSH_HOST_OPS }} << 'DEPLOY'
               set -e
-              IMAGE_TAG="${{ env.IMAGE_TAG }}"
-              docker load < /tmp/ops-front-${IMAGE_TAG}.tar.gz
-              rm -f /tmp/ops-front-${IMAGE_TAG}.tar.gz
+              cd /root/wiwo.ops-front
+
+              # Pull últimos cambios
+              git fetch origin develop
+              git reset --hard origin/develop
+
+              # Install + build incremental
+              node common/scripts/install-run-rush.js install
+              node common/scripts/install-run-rush.js build
+
+              # Bundle front
+              cd dev/prod
+              node ../../common/scripts/install-run-rushx.js package
+              cd ../../pods/front
+              node ../../common/scripts/install-run-rushx.js package
+              node ../../common/scripts/install-run-rushx.js bundle
+
+              # Docker build
+              VERSION=$(git rev-parse --short HEAD)
+              docker build -t wiwo/ops-front:${VERSION} -t wiwo/ops-front:latest .
+
+              # Restart container
               cd /root/huly-selfhost
-              sed -i "s|image: wiwo/ops-front:.*|image: wiwo/ops-front:${IMAGE_TAG}|" compose.testops.yml
+              sed -i "s|image: wiwo/ops-front:.*|image: wiwo/ops-front:${VERSION}|" compose.testops.yml
               docker compose -f compose.yml -f compose.testops.yml up -d front
-              echo "✅ Front deployed: wiwo/ops-front:${IMAGE_TAG}"
+
+              # Limpiar imágenes viejas
+              docker image prune -f --filter "label=com.docker.compose.service=front" 2>/dev/null || true
+
+              echo "✅ Deployed wiwo/ops-front:${VERSION}"
           DEPLOY
