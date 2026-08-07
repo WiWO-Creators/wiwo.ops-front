@@ -15,6 +15,8 @@
 <script lang="ts">
   import type { FilterCategory, FilterOption, ActiveFilter } from '../types'
   import IconCheck from './icons/Check.svelte'
+  import Label from './Label.svelte'
+  import ui from '../plugin'
 
   export let category: FilterCategory
   export let activeFilters: ActiveFilter[] = []
@@ -64,7 +66,7 @@
     {#if activeFilter}
       <div class="divider"></div>
       <button class="option-item clear-option" on:click={clearFilter}>
-        <span class="option-label">Clear filter</span>
+        <span class="option-label"><Label label={ui.string.ClearFilter} /></span>
       </button>
     {/if}
   </div>

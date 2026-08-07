@@ -154,6 +154,8 @@ export const uis = plugin(uiId, {
     MonthsWOValue: '' as IntlString,
 
     Filter: '' as IntlString,
+    FilterBy: '' as IntlString,
+    ClearFilter: '' as IntlString,
     Clear: '' as IntlString,
 
     ReadOnlyModeWarning: '' as IntlString,
