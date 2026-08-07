@@ -42,6 +42,13 @@ jobs:
 
       - name: Build
         run: node common/scripts/install-run-rush.js build
+      
+      
+      - name: Build prod assets
+        run: |
+          cd dev/prod
+          node ../../common/scripts/install-run-rushx.js package
+
 
       - name: Bundle front
         run: |
