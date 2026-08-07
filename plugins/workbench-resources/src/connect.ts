@@ -44,11 +44,9 @@ import presentation, {
   setClient,
   setCommunicationClient,
   setPresentationCookie,
-  uiContext,
-  upgradeDownloadProgress
+  uiContext
 } from '@hcengineering/presentation'
 import {
-  desktopPlatform,
   getCurrentLocation,
   locationStorageKeyId,
   navigate,
@@ -236,48 +234,6 @@ export async function connect (title: string): Promise<Client | undefined> {
     {},
     async (ctx) =>
       await clientFactory(token, endpoint, {
-        onHello: (serverVersion?: string) => {
-          const frontVersion = getMetadata(presentation.metadata.FrontVersion)
-          if (
-            serverVersion !== undefined &&
-            serverVersion !== '' &&
-            frontVersion !== undefined &&
-            frontVersion !== serverVersion
-          ) {
-            const reloaded = localStorage.getItem(`versionUpgrade:s${serverVersion}:f${frontVersion}`)
-            const isUpgrading = get(upgradeDownloadProgress) >= 0
-
-            if (reloaded === null) {
-              localStorage.setItem(`versionUpgrade:s${serverVersion}:f${frontVersion}`, 't')
-              // It might have been refreshed manually and download has started - do not reload
-              if (!isUpgrading) {
-                console.log('reload due to version upgrade')
-                location.reload()
-              }
-
-              return false
-            } else {
-              errorActions.set([])
-              error.set(`Front version ${frontVersion} is not in sync with server version ${serverVersion}`)
-
-              if (!desktopPlatform || !isUpgrading) {
-                setTimeout(() => {
-                  // It might be possible that this callback will fire after the user has spent some time
-                  // in the upgrade !modal! dialog and clicked upgrade - check again and do not reload
-                  if (get(upgradeDownloadProgress) < 0) {
-                    console.log('reload due to upgrade download')
-                    location.reload()
-                  }
-                }, 10000)
-              }
-              // For embedded if the download has started it should download the upgrade and restart the app
-
-              return false
-            }
-          }
-
-          return true
-        },
         onUpgrade: () => {
           console.log('reload due to upgrade')
           location.reload()
