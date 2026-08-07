@@ -22,12 +22,26 @@ export { default as Theme } from './Theme.svelte'
 export { default as InvertedTheme } from './InvertedTheme.svelte'
 export { ThemeVariant, type ThemeVariantType } from './variants'
 
+const LANG_MIGRATION_KEY = 'langMigratedEs'
+
 /**
+ * Establece el idioma inicial de la interfaz.
+ *
+ * Si el usuario todavía no tiene idioma guardado, se le asigna el de la marca.
+ * Si ya lo tiene en inglés y nunca pasó por esta migración, se le aplica una
+ * única vez el idioma de la marca; a partir de ahí su elección manual manda.
+ *
+ * @param language idioma por defecto de la marca (código ISO, p. ej. 'es')
  * @public
  */
 export const setDefaultLanguage = (language: string): void => {
-  if (localStorage.getItem('lang') === null) {
+  const current = localStorage.getItem('lang')
+  const alreadyMigrated = localStorage.getItem(LANG_MIGRATION_KEY) !== null
+  if (current === null || (!alreadyMigrated && current === 'en')) {
     localStorage.setItem('lang', language)
+  }
+  if (!alreadyMigrated) {
+    localStorage.setItem(LANG_MIGRATION_KEY, '1')
   }
 }
 
@@ -58,7 +72,7 @@ export const getCurrentFontSize = (): string =>
  * @public
  */
 export const getCurrentLanguage = (): string => {
-  const lang = localStorage.getItem('lang') ?? getDefaultProps('lang', 'en')
+  const lang = localStorage.getItem('lang') ?? getDefaultProps('lang', 'es')
   Analytics.setTag('language', lang)
   return lang
 }
