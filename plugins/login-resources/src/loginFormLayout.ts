@@ -38,6 +38,14 @@ export function loginFormPaddingInline (docWidth: number, docHeight: number): st
   return getLoginFormLayout(docWidth, docHeight).paddingInline
 }
 
+/**
+ * Vertical part of the form padding. Rows rendered above the form use it to line up
+ * with it and to cancel out its top padding with a negative margin.
+ */
+export function loginFormPaddingBlockStart (docWidth: number, docHeight: number): string {
+  return getLoginFormLayout(docWidth, docHeight).padding.split(' ')[0]
+}
+
 export function loginFormMinHeight (docHeight: number): string {
   if (docHeight <= 880) {
     return '0'

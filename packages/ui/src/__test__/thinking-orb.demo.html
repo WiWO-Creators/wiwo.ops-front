@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>ThinkingOrb — humo visual</title>
+    <style>
+      /* Tokens Neo (copia de packages/theme/styles/_vars.scss) para que el orb
+         resuelva var(--wiwo-*) igual que dentro de la app. */
+      :root {
+        --wiwo-blue: #4242ff;
+        --wiwo-green: #3bff00;
+        --wiwo-purple: #8d7cff;
+        --wiwo-beige: #f8fad7;
+        --wiwo-ink: #292929;
+        --wiwo-ease-expressive: cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      body {
+        margin: 0;
+        padding: 2rem;
+        background: var(--wiwo-ink);
+        color: var(--wiwo-beige);
+        font: 14px/1.5 system-ui, sans-serif;
+      }
+      h1 {
+        font-size: 1rem;
+        font-weight: 600;
+      }
+      table {
+        border-collapse: collapse;
+        margin-top: 1.5rem;
+      }
+      th,
+      td {
+        padding: 1.25rem 1.75rem;
+        text-align: center;
+        border: 1px solid rgba(248, 250, 215, 0.14);
+        vertical-align: middle;
+      }
+      th {
+        font-weight: 500;
+        opacity: 0.7;
+      }
+      td small {
+        display: block;
+        margin-top: 0.5rem;
+        opacity: 0.45;
+      }
+      .cell {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 3.5rem;
+      }
+      #error {
+        color: #ff8a80;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>ThinkingOrb — 5 tamaños × 3 estados</h1>
+    <p>
+      El CSS se lee en vivo de <code>../components/ThinkingOrb.svelte</code>: si el componente cambia, esta página
+      cambia. Servir por HTTP (<code>python3 -m http.server</code> desde <code>packages/ui/src</code>) — con
+      <code>file://</code> el navegador bloquea el fetch.
+    </p>
+    <p>Comprobar: los 5 tamaños animan, el rim se ve a 12px, y con «reducir movimiento» activo todo queda quieto.</p>
+    <p id="error"></p>
+    <div id="grid"></div>
+
+    <script type="module">
+      const TAMANOS = ['inline', 'small', 'medium', 'large', 'x-large']
+      const ESTADOS = ['thinking', 'success', 'error']
+      const DETALLE_COMPLETO = ['large', 'x-large']
+
+      /** Extrae el bloque <style> del componente y lo deja en CSS que el navegador acepta. */
+      function extraerCss (fuenteSvelte) {
+        const bloque = fuenteSvelte.match(/<style lang="scss">([\s\S]*?)<\/style>/)
+        if (bloque === null) {
+          throw new Error('No se encontró el bloque <style lang="scss"> en ThinkingOrb.svelte')
+        }
+        // Único SCSS-ismo del componente: los comentarios `//`. El resto es CSS plano.
+        return bloque[1].replace(/^\s*\/\/.*$/gm, '')
+      }
+
+      /** Replica el marcado del componente para un tamaño y estado dados. */
+      function crearOrb (size, state) {
+        const completo = DETALLE_COMPLETO.includes(size)
+        const capas = completo
+          ? [
+              'orb-pulse',
+              'orb-pulse',
+              'orb-pulse',
+              'orb-liquid-veil',
+              'orb-caustic',
+              'orb-light-field',
+              'orb-aurora orb-aurora-one',
+              'orb-aurora orb-aurora-two',
+              'orb-aurora orb-aurora-three',
+              'orb-rim',
+              'orb-core',
+              'orb-glint',
+              'orb-particle orb-particle-one',
+              'orb-particle orb-particle-two',
+              'orb-particle orb-particle-three'
+            ]
+          : ['orb-rim']
+        const orb = document.createElement('div')
+        orb.className = `wiwo-thinking-orb orb-${size}${completo ? ' detail-full' : ''}`
+        orb.dataset.orbState = state
+        orb.setAttribute('aria-hidden', 'true')
+        orb.innerHTML = capas.map((c) => `<span class="${c}"></span>`).join('')
+        return orb
+      }
+
+      try {
+        const fuente = await (await fetch('../components/ThinkingOrb.svelte')).text()
+        document.head.insertAdjacentHTML('beforeend', `<style>${extraerCss(fuente)}</style>`)
+
+        const tabla = document.createElement('table')
+        tabla.innerHTML = `<tr><th></th>${ESTADOS.map((e) => `<th>${e}</th>`).join('')}</tr>`
+        for (const size of TAMANOS) {
+          const fila = tabla.insertRow()
+          fila.insertCell().textContent = size
+          for (const state of ESTADOS) {
+            const celda = fila.insertCell()
+            const caja = document.createElement('div')
+            caja.className = 'cell'
+            caja.appendChild(crearOrb(size, state))
+            celda.appendChild(caja)
+            celda.insertAdjacentHTML(
+              'beforeend',
+              `<small>${DETALLE_COMPLETO.includes(size) ? 'completo' : 'reducido'}</small>`
+            )
+          }
+        }
+        document.getElementById('grid').appendChild(tabla)
+      } catch (err) {
+        document.getElementById('error').textContent = `No se pudo montar la demo: ${err.message}`
+      }
+    </script>
+  </body>
+</html>

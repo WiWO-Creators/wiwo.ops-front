@@ -56,6 +56,11 @@
     "CommonNotificationCollectionAdded":  "{senderName} añadió {collection}",
     "CommonNotificationCollectionRemoved": "{senderName} eliminó {collection}",
     "NoAccessToObject": "Ya no tienes acceso a este objeto",
-    "ViewIn": "Ver en {app}"
+    "ViewIn": "Ver en {app}",
+    "YouRemovedCollaborators": "Se te ha quitado de los colaboradores",
+    "Unsubscribe": "Cancelar suscripción",
+    "Unreads": "Sin leer",
+    "InboxNotificationsAriaLabel": "Notificaciones de la bandeja de entrada",
+    "InboxSettingsAriaLabel": "Ajustes de la bandeja de entrada"
   }
 }

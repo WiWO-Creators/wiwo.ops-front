@@ -15,6 +15,8 @@
 <script lang="ts">
   import { createQuery, getFileSrcSet, getFileUrl } from '@hcengineering/presentation'
   import setting, { WorkspaceSetting } from '@hcengineering/setting'
+  // Ícono cuadrado de WiWO Ops: fallback cuando el workspace no tiene ícono propio.
+  import wiwoIcon from '../../img/icon.png'
 
   export let mini: boolean = false
   export let workspace: string
@@ -31,17 +33,13 @@
 {#if workspaceSetting?.icon != null && url != null}
   <img class="logo-medium" src={url} {srcset} alt={''} />
 {:else}
-  <div class="antiLogo red" class:mini>{workspace?.toUpperCase()?.[0] ?? ''}</div>
+  <img class="wiwo-logo" class:mini src={wiwoIcon} alt={workspace ?? 'WiWO Ops'} />
 {/if}
 
 <style lang="scss">
-  .antiLogo {
-    display: flex;
-    justify-content: center;
-    align-items: center;
+  .wiwo-logo {
     flex-shrink: 0;
-    font-weight: 500;
-    color: var(--primary-button-color);
+    object-fit: contain;
     border-radius: 0.25rem;
     outline: none;
     cursor: pointer;
@@ -56,11 +54,6 @@
     &.mini {
       width: 1.75rem;
       height: 1.75rem;
-    }
-    // El nombre de la clase viene de upstream; el relleno es el gradiente Neo.
-    &.red {
-      background: var(--wiwo-gradient-primary);
-      color: var(--wiwo-ink);
     }
   }
   .logo-medium {

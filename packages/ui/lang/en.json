@@ -104,6 +104,8 @@
         "WeeksWOValue": "{weeks, plural, =1 {week} other {weeks}}",
         "MonthsWOValue": "{months, plural, =1 {month} other {months}}",
         "Filter": "Filter",
+        "FilterBy": "Filter by",
+        "ClearFilter": "Clear filter",
         "Clear": "Clear",
         "Yesterday": "Yesterday",
         "ThisWeek": "This week",
@@ -111,6 +113,7 @@
         "ThisYear": "This year",
         "EmojiStyle": "Emoji Style",
         "EmojiSystem": "System Default",
+        "ApplicationNotFound": "Application not found: {application}",
         "EmojiNoto": "Noto Color"
     }
 }

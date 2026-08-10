@@ -14,10 +14,26 @@
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte'
-  import { createFocusManager, FocusHandler, Label, ListView, ModernToggle, resizeObserver } from '@hcengineering/ui'
+  import {
+    createFocusManager,
+    FocusHandler,
+    Label,
+    ListView,
+    ModernToggle,
+    resizeObserver,
+    themeStore
+  } from '@hcengineering/ui'
+  import { translate } from '@hcengineering/platform'
+  import notification from '@hcengineering/notification'
   import { SettingItem } from '../../types'
 
   export let items: SettingItem[] = []
+
+  // aria-label es un atributo: necesita el texto ya traducido, no un IntlString
+  let etiquetaAccesible = ''
+  $: void translate(notification.string.InboxSettingsAriaLabel, {}, $themeStore.language).then((texto) => {
+    etiquetaAccesible = texto
+  })
 
   let popupElement: HTMLDivElement | undefined = undefined
 
@@ -100,7 +116,7 @@
   bind:this={popupElement}
   tabindex="0"
   role="dialog"
-  aria-label="Inbox settings"
+  aria-label={etiquetaAccesible}
   use:resizeObserver={() => {
     dispatch('changeContent')
   }}

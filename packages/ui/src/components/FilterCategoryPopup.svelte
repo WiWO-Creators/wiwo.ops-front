@@ -18,6 +18,7 @@
   import IconChevronLeft from './icons/ChevronLeft.svelte'
   import IconCheck from './icons/Check.svelte'
   import Label from './Label.svelte'
+  import ui from '../plugin'
 
   export let categories: FilterCategory[]
   export let activeFilters: ActiveFilter[]
@@ -83,7 +84,7 @@
   {#if view === 'categories'}
     <!-- Categories View -->
     <div class="popup-header">
-      <span class="popup-title">Filter by</span>
+      <span class="popup-title"><Label label={ui.string.FilterBy} /></span>
     </div>
     <div class="category-list">
       {#each categories as category (category.id)}
@@ -127,7 +128,7 @@
       {#if currentActiveFilter !== null}
         <div class="divider"></div>
         <button class="option-item clear-option" on:click={clearCategoryFilter}>
-          <span class="option-label">Clear filter</span>
+          <span class="option-label"><Label label={ui.string.ClearFilter} /></span>
         </button>
       {/if}
     </div>

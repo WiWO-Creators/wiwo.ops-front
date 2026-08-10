@@ -36,6 +36,7 @@
     SearchEdit,
     ticker
   } from '@hcengineering/ui'
+  import ui from '@hcengineering/ui'
   import { workbenchId } from '@hcengineering/workbench'
   import { onDestroy, onMount } from 'svelte'
 
@@ -244,7 +245,8 @@
                           {Math.round(sz)}Mb -
                         {/if}
                       {/if}
-                      ({lastUsageDays} days)
+                      ({lastUsageDays}
+                      <Label label={ui.string.DaysWOValue} params={{ days: lastUsageDays }} />)
                     </div>
                   {/if}
                 </span>

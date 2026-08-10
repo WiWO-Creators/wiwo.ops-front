@@ -341,6 +341,7 @@ export default plugin(settingId, {
     DisableTwoFactorAuth: '' as IntlString,
     TwoFactorAuthEnabled: '' as IntlString,
     TwoFactorAuthDisabled: '' as IntlString,
+    TwoFactorQrCodeAlt: '' as IntlString,
     ShowQRCode: '' as IntlString,
     EnterVerificationCode: '' as IntlString,
     IntegrationFailed: '' as IntlString,

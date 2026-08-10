@@ -27,7 +27,6 @@
     setMetadataLocalStorage,
     themeStore
   } from '@hcengineering/ui'
-  import workbench from '@hcengineering/workbench'
   import { onDestroy, onMount } from 'svelte'
   import Auth from './Auth.svelte'
   import Confirmation from './Confirmation.svelte'
@@ -46,12 +45,6 @@
   import { Pages, getAccount, pages } from '..'
   import login from '../plugin'
 
-  import loginBack from '../../img/login_back.png'
-  import loginBack2x from '../../img/login_back_2x.png'
-  import loginBackAvif from '../../img/login_back.avif'
-  import loginBack2xAvif from '../../img/login_back_2x.avif'
-  import loginBackWebp from '../../img/login_back.webp'
-  import loginBack2xWebp from '../../img/login_back_2x.webp'
   import AdminWorkspaces from './AdminWorkspaces.svelte'
   import ChangePassword from './ChangePassword.svelte'
 
@@ -131,26 +124,13 @@
     class:white={!$themeStore.dark}
   >
     <div class="bg-image clear-mins" class:back={$deviceInfo.docWidth > 768} class:p-4={$deviceInfo.docWidth > 768}>
-      <picture>
-        <source srcset={`${loginBackAvif}, ${loginBack2xAvif} 2x`} type="image/avif" />
-        <source srcset={`${loginBackWebp}, ${loginBack2xWebp} 2x`} type="image/webp" />
-
-        <img
-          class="back-image"
-          src={loginBack}
-          style:display={$deviceInfo.docWidth <= 768 ? 'none' : 'block'}
-          srcset={`${loginBack} 1x, ${loginBack2x} 2x`}
-          alt=""
-        />
-      </picture>
-
+      <!-- El wordmark ya dice "wiwo.Ops": no hace falta el PlatformTitle al lado. -->
       <div
-        style:position="fixed"
+        class="brand"
         style:left={$deviceInfo.docWidth <= 480 ? '.75rem' : '1.75rem'}
         style:top={'calc(3rem + var(--huly-top-indent, 0rem))'}
-        class="flex-row-center"
       >
-        <LoginIcon /><span class="fs-title ml-2">{getMetadata(workbench.metadata.PlatformTitle)}</span>
+        <LoginIcon />
       </div>
 
       <div class="panel-base" class:panel={$deviceInfo.docWidth > 768} class:white={!$themeStore.dark}>
@@ -197,18 +177,23 @@
 {/if}
 
 <style lang="scss">
-  .back-image {
+  // Contenedor del wordmark: logotipo apaisado (~4.4:1), sin texto al lado.
+  .brand {
     position: fixed;
-    top: 32px;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: left top;
+    display: flex;
+    align-items: center;
+    z-index: 1;
   }
   .backd {
     position: relative;
-    background-color: var(--theme-bg-color);
+    // Fondo Neo generado por CSS; reemplaza la fotografia heredada de Huly.
+    // Base: el mismo gradiente de marca del panel, mas dos halos radiales suaves.
+    background-color: #292929;
+    background-image:
+      radial-gradient(55% 45% at 16% 10%, rgba(248, 250, 215, 0.1) 0%, rgba(248, 250, 215, 0) 70%),
+      radial-gradient(70% 60% at 88% 88%, rgba(59, 255, 0, 0.12) 0%, rgba(59, 255, 0, 0) 65%),
+      linear-gradient(135deg, #292929 0%, #4242ff 76%, #3bff00 128%);
+    background-attachment: fixed;
 
     .bg-image {
       display: flex;
