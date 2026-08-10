@@ -16,7 +16,7 @@
   import { onMount } from 'svelte'
   import { Analytics } from '@hcengineering/analytics'
   import { logIn } from '@hcengineering/workbench'
-  import { setMetadata, translate } from '@hcengineering/platform'
+  import { getMetadata, setMetadata, translate } from '@hcengineering/platform'
   import { Loading, Label, getCurrentLocation, navigate } from '@hcengineering/ui'
   import { type LoginInfo } from '@hcengineering/account-client'
   import { loginId } from '@hcengineering/login'
@@ -26,9 +26,12 @@
   import { checkAutoJoin, isWorkspaceLoginInfo, navigateToWorkspace } from '../utils'
   import login from '../plugin'
   import LoginForm from './LoginForm.svelte'
+  import ProvidersOnlyForm from './ProvidersOnlyForm.svelte'
 
   const location = getCurrentLocation()
   Analytics.handleEvent('auto_join_invite_link_activated')
+
+  const localLoginHidden = getMetadata(login.metadata.HideLocalLogin) ?? false
 
   let loading = true
   let email: string | undefined = undefined
@@ -110,6 +113,9 @@
     <div class="title"><Label label={login.string.ProcessingInvite} /></div>
     <Loading />
   </div>
+{:else if localLoginHidden}
+  <!-- Sin acceso local no se pide contrasena: se entra con el proveedor. -->
+  <ProvidersOnlyForm />
 {:else}
   <LoginForm signUpDisabled {email} caption={login.string.SignToProceed} {subtitle} {onLogin} />
 {/if}

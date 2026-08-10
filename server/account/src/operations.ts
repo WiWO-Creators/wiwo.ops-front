@@ -3625,15 +3625,34 @@ export type AccountMethods =
 /**
  * @public
  */
-export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMethods, AccountMethodHandler>> {
+export function getMethods (
+  hasSignUp: boolean = true,
+  hasLocalAuth: boolean = true
+): Partial<Record<AccountMethods, AccountMethodHandler>> {
+  // Con `hasLocalAuth` en false los metodos de correo y contrasena, codigo por
+  // correo e invitado no se registran: dejan de existir para el cliente, no
+  // basta con esconderlos en la interfaz.
+  const localAuth = hasLocalAuth
+    ? {
+        login: wrap(login),
+        loginOtp: wrap(loginOtp),
+        loginAsGuest: wrap(loginAsGuest),
+        validateOtp: wrap(validateOtp),
+        join: wrap(join),
+        signUpJoin: wrap(signUpJoin),
+        checkHasPassword: wrap(checkHasPassword),
+        changePassword: wrap(changePassword),
+        requestPasswordReset: wrap(requestPasswordReset),
+        requestPasswordSetup: wrap(requestPasswordSetup),
+        restorePassword: wrap(restorePassword),
+        ...(hasSignUp ? { signUp: wrap(signUp) } : {}),
+        ...(hasSignUp ? { signUpOtp: wrap(signUpOtp) } : {})
+      }
+    : {}
+
   return {
     /* OPERATIONS */
-    login: wrap(login),
-    loginOtp: wrap(loginOtp),
-    loginAsGuest: wrap(loginAsGuest),
-    ...(hasSignUp ? { signUp: wrap(signUp) } : {}),
-    ...(hasSignUp ? { signUpOtp: wrap(signUpOtp) } : {}),
-    validateOtp: wrap(validateOtp),
+    ...localAuth,
     createWorkspace: wrap(createWorkspace),
     createInvite: wrap(createInvite),
     createInviteLink: wrap(createInviteLink),
@@ -3641,18 +3660,11 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     sendInvite: wrap(sendInvite),
     resendInvite: wrap(resendInvite),
     selectWorkspace: wrap(selectWorkspace),
-    join: wrap(join),
     joinByToken: wrap(joinByToken),
     checkJoin: wrap(checkJoin),
     checkAutoJoin: wrap(checkAutoJoin),
     getInviteInfo: wrap(getInviteInfo),
-    signUpJoin: wrap(signUpJoin),
     confirm: wrap(confirm),
-    checkHasPassword: wrap(checkHasPassword),
-    changePassword: wrap(changePassword),
-    requestPasswordReset: wrap(requestPasswordReset),
-    requestPasswordSetup: wrap(requestPasswordSetup),
-    restorePassword: wrap(restorePassword),
     leaveWorkspace: wrap(leaveWorkspace),
     changeUsername: wrap(changeUsername),
     updateWorkspaceName: wrap(updateWorkspaceName),

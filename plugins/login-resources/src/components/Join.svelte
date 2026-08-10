@@ -34,6 +34,7 @@
     getLoginInfo
   } from '../utils'
   import Form from './Form.svelte'
+  import ProvidersOnlyForm from './ProvidersOnlyForm.svelte'
   import StatusControl from './StatusControl.svelte'
 
   import { Analytics } from '@hcengineering/analytics'
@@ -47,6 +48,7 @@
   Analytics.handleEvent('invite_link_activated', { invite_id: location.query?.inviteId })
 
   const token = getMetadata(presentation.metadata.Token)
+  const localLoginHidden = getMetadata(login.metadata.HideLocalLogin) ?? false
   let page = token != null ? 'login' : 'signUp'
   let checking = true
   let showJoinWithAccount = false
@@ -293,6 +295,9 @@
       </div>
     </div>
   </div>
+{:else if localLoginHidden}
+  <!-- Sin acceso local la invitacion tambien se resuelve con el proveedor. -->
+  <ProvidersOnlyForm />
 {:else}
   <Form
     caption={login.string.JoinWorkspace}

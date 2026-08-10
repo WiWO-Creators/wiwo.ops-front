@@ -17,6 +17,52 @@ import { BrandingMap, concatLink, getBranding, MeasureContext, SocialKey } from 
 import { IncomingHttpHeaders } from 'http'
 import qs from 'querystringify'
 
+/**
+ * Dominios de correo autorizados a entrar por un proveedor externo.
+ * Lista vacia = sin restriccion, para no romper el desarrollo local.
+ */
+const ALLOWED_EMAIL_DOMAINS = new Set(
+  (process.env.ALLOWED_EMAIL_DOMAINS ?? '')
+    .split(',')
+    .map((domain) => domain.trim().toLowerCase())
+    .filter((domain) => domain !== '')
+)
+
+/**
+ * Indica si el correo pertenece a un dominio autorizado.
+ *
+ * @param email correo devuelto por el proveedor de identidad
+ * @returns true si la allowlist esta vacia o el dominio figura en ella
+ */
+export function isEmailDomainAllowed (email: string | undefined): boolean {
+  if (ALLOWED_EMAIL_DOMAINS.size === 0) return true
+  if (email == null || email === '') return false
+
+  const parts = email.trim().toLowerCase().split('@')
+
+  // Solo un `@`: un valor como `a@b@wiwo.me` no debe colar como dominio valido.
+  return parts.length === 2 && ALLOWED_EMAIL_DOMAINS.has(parts[1])
+}
+
+/**
+ * Indica si el dominio hospedado (`hd`) que declara Google esta autorizado.
+ * Un `hd` ausente no invalida: las cuentas personales no lo traen y ya se
+ * filtran por el dominio del correo.
+ *
+ * @param hd valor del claim `hd`
+ */
+export function isHostedDomainAllowed (hd: string | undefined): boolean {
+  if (ALLOWED_EMAIL_DOMAINS.size === 0) return true
+  if (hd == null || hd === '') return true
+
+  return ALLOWED_EMAIL_DOMAINS.has(hd.toLowerCase())
+}
+
+/** Lista de dominios autorizados, para mensajes de error y diagnostico. */
+export function getAllowedEmailDomains (): string[] {
+  return [...ALLOWED_EMAIL_DOMAINS]
+}
+
 export function getHost (headers: IncomingHttpHeaders): string | undefined {
   let host: string | undefined
   const origin = headers.origin ?? headers.referer
@@ -78,6 +124,14 @@ export async function handleProviderAuth (
     let loginInfo: LoginInfo | null
     const state = safeParseAuthState(rawState)
     const branding = getBranding(brandings, state?.branding)
+
+    // Punto unico de control para los tres proveedores (google, github, openid):
+    // un correo de un dominio no autorizado no llega a crear ni a resolver cuenta.
+    if (!isEmailDomainAllowed(email)) {
+      measureCtx.warn('Rejected auth: email domain not allowed', { email, type: providerType })
+
+      return concatLink(branding?.front ?? frontUrl, '/login?authError=domain')
+    }
 
     if (state.inviteId != null && state.inviteId !== '' && state.autoJoin !== true) {
       loginInfo = await joinWithProvider(

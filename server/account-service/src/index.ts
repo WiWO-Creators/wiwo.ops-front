@@ -135,7 +135,11 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
   setMetadata(serverToken.metadata.Service, undefined)
 
   const hasSignUp = process.env.DISABLE_SIGNUP !== 'true'
-  const methods = getMethods(hasSignUp)
+  // En upstream HIDE_LOCAL_LOGIN solo afecta a la interfaz. En este fork tambien
+  // retira del backend los metodos de correo y contrasena, codigo por correo e
+  // invitado: si no, esconder el formulario deja los endpoints abiertos.
+  const hasLocalAuth = process.env.HIDE_LOCAL_LOGIN !== 'true'
+  const methods = getMethods(hasSignUp, hasLocalAuth)
 
   const dbNs = process.env.DB_NS
   const accountsDb = getAccountDB(dbUrl, dbNs)
