@@ -3,7 +3,9 @@
     "RequiredField": "Required field {field}",
     "FieldsDoNotMatch": "{field} don't match {field2}",
     "ConnectingToServer": "Connecting to server....",
-    "IncorrectValue": "Incorrect value {field}"
+    "IncorrectValue": "Incorrect value {field}",
+    "AuthDomainNotAllowed": "That Google account is not in an allowed domain. Sign in with your work email.",
+    "AuthProviderFailed": "Could not complete sign-in with Google. Please try again."
   },
   "string": {
     "ChangePassword": "Change password",
@@ -58,6 +60,8 @@
     "ContinueWith": "Continue with {provider}",
     "OrContinueWithEmail": "or continue with your email",
     "BrandTagline": "Run your whole business from one place.",
+    "SignInWithProvider": "Sign in with your work Google account.",
+    "NoProvidersConfigured": "No sign-in method is configured on this server. Please contact your administrator.",
     "HaventReceivedCode": "Haven't received the code?",
     "ResendCode": "Resend code",
     "WrongEmail": "Wrong email?",
@@ -87,7 +91,6 @@
     "Proceed": "Proceed",
     "SetPasswordLater": "I'll set a password later",
     "SetPasswordNow": "I'll set a password now",
-    "LoginAsGuest": "Continue as a guest",
     "SignUpToCreateWorkspace": "There are no workspaces with guest access. Please sign up to create your own.",
     "WhatIsYourName": "What is your name?",
     "AccessExpired": "Access time expired. Please ask for a new access link.",

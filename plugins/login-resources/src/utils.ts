@@ -106,31 +106,6 @@ export async function doLogin (email: string, password: string): Promise<[Status
   }
 }
 
-export async function doLoginAsGuest (): Promise<[Status, LoginInfo | null]> {
-  try {
-    Analytics.handleEvent(LoginEvents.LoginGuestStarted)
-    const accountClient = getAccountClient(null)
-
-    const loginInfo = await accountClient.loginAsGuest()
-
-    Analytics.handleEvent(LoginEvents.LoginGuestCompleted)
-
-    return [OK, loginInfo]
-  } catch (err: any) {
-    if (err instanceof PlatformError) {
-      Analytics.handleEvent(LoginEvents.LoginGuestError)
-      await handleStatusError('Login error', err.status)
-
-      return [err.status, null]
-    } else {
-      Analytics.handleEvent(LoginEvents.LoginGuestError)
-      Analytics.handleError(err)
-
-      return [unknownError(err), null]
-    }
-  }
-}
-
 export async function signUp (
   email: string,
   password: string,

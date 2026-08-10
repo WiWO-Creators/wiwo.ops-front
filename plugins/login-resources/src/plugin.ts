@@ -24,7 +24,9 @@ export default mergeIds(loginId, login, {
     RequiredField: '' as StatusCode<{ field: string }>,
     FieldsDoNotMatch: '' as StatusCode<{ field: string, field2: string }>,
     ConnectingToServer: '' as StatusCode,
-    IncorrectValue: '' as StatusCode<{ field: string }>
+    IncorrectValue: '' as StatusCode<{ field: string }>,
+    AuthDomainNotAllowed: '' as StatusCode,
+    AuthProviderFailed: '' as StatusCode
   },
   string: {
     CreateWorkspace: '' as IntlString,
@@ -58,6 +60,8 @@ export default mergeIds(loginId, login, {
     ContinueWith: '' as IntlString,
     OrContinueWithEmail: '' as IntlString,
     BrandTagline: '' as IntlString,
+    SignInWithProvider: '' as IntlString,
+    NoProvidersConfigured: '' as IntlString,
     HaventReceivedCode: '' as IntlString,
     ResendCode: '' as IntlString,
     WrongEmail: '' as IntlString,
@@ -66,7 +70,6 @@ export default mergeIds(loginId, login, {
     CanFindCode: '' as IntlString,
     LoginWithCode: '' as IntlString,
     LoginWithPassword: '' as IntlString,
-    LoginAsGuest: '' as IntlString,
     SignUpWithCode: '' as IntlString,
     SignUpWithPassword: '' as IntlString,
     Hello: '' as IntlString,

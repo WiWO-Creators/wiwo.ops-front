@@ -14,11 +14,11 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { type IntlString, Severity, Status } from '@hcengineering/platform'
+  import { type IntlString, Status } from '@hcengineering/platform'
   import { signupStore } from '@hcengineering/analytics-providers'
   import { onMount } from 'svelte'
 
-  import { type BottomAction, doLoginAsGuest, doLoginNavigate, LoginMethods } from '../index'
+  import { type BottomAction, LoginMethods } from '../index'
   import LoginPasswordForm from './LoginPasswordForm.svelte'
   import LoginOtpForm from './LoginOtpForm.svelte'
   import LoginProviders from './LoginProviders.svelte'
@@ -58,30 +58,6 @@
     }
   }
 
-  async function guestLogin (): Promise<void> {
-    let status = new Status(Severity.INFO, login.status.ConnectingToServer, {})
-    const [loginStatus, result] = await doLoginAsGuest()
-    status = loginStatus
-
-    if (onLogin !== undefined) {
-      void onLogin(result, status)
-    } else {
-      await doLoginNavigate(
-        result,
-        (st) => {
-          status = st
-        },
-        navigateUrl
-      )
-    }
-  }
-
-  const loginAsGuest: BottomAction = {
-    i18n: login.string.LoginAsGuest,
-    func: () => {
-      void guestLogin()
-    }
-  }
 </script>
 
 {#if method === LoginMethods.Otp}
@@ -113,16 +89,10 @@
 {/if}
 <div class="actions">
   <BottomActionComponent action={method === LoginMethods.Otp ? loginWithPasswordAction : loginWithCodeAction} />
-  <div class="login-as-guest">
-    <BottomActionComponent action={loginAsGuest} />
-  </div>
 </div>
 
 <style lang="scss">
   .actions {
     margin-top: 1.25rem;
-  }
-  .login-as-guest {
-    margin-top: 0.25rem;
   }
 </style>

@@ -36,24 +36,32 @@ jobs:
               node common/scripts/install-run-rush.js install
               node common/scripts/install-run-rush.js build
 
+              VERSION=$(git rev-parse --short HEAD)
+
               # Bundle front
               cd dev/prod
               node ../../common/scripts/install-run-rushx.js package
               cd ../../pods/front
               node ../../common/scripts/install-run-rushx.js package
               node ../../common/scripts/install-run-rushx.js bundle
-
-              # Docker build
-              VERSION=$(git rev-parse --short HEAD)
               docker build -t wiwo/ops-front:${VERSION} -t wiwo/ops-front:latest .
 
-              # Restart container
+              # Bundle account: el fork modifica el servicio de cuentas (acceso
+              # solo con Google y filtro por dominio de correo), así que no
+              # puede seguir corriendo la imagen upstream.
+              cd ../../pods/account
+              node ../../common/scripts/install-run-rushx.js bundle
+              docker build -t wiwo/ops-account:${VERSION} -t wiwo/ops-account:latest .
+
+              # Restart containers. compose.testops.yml está versionado en el
+              # repo de configuración y fija ambas imágenes a `latest`; `up -d`
+              # recrea el contenedor porque cambió el id de la imagen.
               cd /root/huly-selfhost
-              sed -i "s|image: wiwo/ops-front:.*|image: wiwo/ops-front:${VERSION}|" compose.testops.yml
-              docker compose -f compose.yml -f compose.testops.yml up -d front
+              docker compose -f compose.yml -f compose.testops.yml up -d front account
 
               # Limpiar imágenes viejas
               docker image prune -f --filter "label=com.docker.compose.service=front" 2>/dev/null || true
+              docker image prune -f --filter "label=com.docker.compose.service=account" 2>/dev/null || true
 
-              echo "✅ Deployed wiwo/ops-front:${VERSION}"
+              echo "✅ Deployed wiwo/ops-front y wiwo/ops-account: ${VERSION}"
           DEPLOY

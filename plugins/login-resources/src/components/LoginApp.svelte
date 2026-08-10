@@ -14,7 +14,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { getMetadata, setMetadata } from '@hcengineering/platform'
+  import { getMetadata, setMetadata, Severity, Status } from '@hcengineering/platform'
   import presentation from '@hcengineering/presentation'
   import {
     Label,
@@ -48,6 +48,7 @@
 
   import AdminWorkspaces from './AdminWorkspaces.svelte'
   import ChangePassword from './ChangePassword.svelte'
+  import StatusControl from './StatusControl.svelte'
 
   export let page: Pages = 'signup'
 
@@ -56,6 +57,10 @@
   const useOTP = getMetadata(presentation.metadata.MailUrl) != null && getMetadata(presentation.metadata.MailUrl) !== ''
   let navigateUrl: string | undefined
   let tfaToken: string | undefined = undefined
+  let authError: string | undefined = undefined
+
+  /** Paginas que solo tienen sentido con acceso local por correo y contrasena. */
+  const localOnlyPages: Pages[] = ['signup', 'password', 'recovery']
 
   onDestroy(location.subscribe(updatePageLoc))
 
@@ -83,8 +88,15 @@
       page = account != null ? 'login' : 'signup'
     }
 
+    // Sin acceso local no hay alta ni recuperacion de contrasena que valga:
+    // esas paginas se montaban enteras aunque el formulario estuviera oculto.
+    if (localLoginHidden && localOnlyPages.includes(page)) {
+      page = 'login'
+    }
+
     navigateUrl = loc.query?.navigateUrl ?? undefined
     tfaToken = loc.query?.token ?? undefined
+    authError = loc.query?.authError ?? undefined
   }
 
   async function chooseToken (): Promise<void> {
@@ -117,6 +129,16 @@
 
   // Bajo 768px el panel de marca no cabe: el wordmark se muda a la tarjeta.
   $: compacto = $deviceInfo.docWidth <= 768
+
+  // El proveedor devuelve el motivo del rechazo en la URL para poder explicarlo.
+  $: authStatus =
+    authError === undefined
+      ? undefined
+      : new Status(
+        Severity.ERROR,
+        authError === 'domain' ? login.status.AuthDomainNotAllowed : login.status.AuthProviderFailed,
+        {}
+      )
 </script>
 
 {#if page === 'admin'}
@@ -146,6 +168,9 @@
         {/if}
         <Scroller padding={'0'}>
           <div class="form-content">
+            {#if authStatus !== undefined}
+              <div class="auth-error"><StatusControl status={authStatus} /></div>
+            {/if}
             {#if page === 'login'}
               {#if localLoginHidden}
                 <ProvidersOnlyForm />
@@ -310,6 +335,9 @@
     display: flex;
     justify-content: center;
     margin-bottom: 2rem;
+  }
+  .auth-error {
+    margin-bottom: 1.5rem;
   }
 
   @keyframes card-in {

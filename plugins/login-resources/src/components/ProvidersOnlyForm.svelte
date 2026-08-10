@@ -13,11 +13,51 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import Tabs from './Tabs.svelte'
+  import { Label } from '@hcengineering/ui'
+
   import Providers from './Providers.svelte'
+  import login from '../plugin'
+
+  // Con el acceso local cerrado esta es la unica pantalla de entrada, asi que
+  // tiene que sostenerse sola: titular propio y un estado vacio que explique
+  // que pasa si el servidor no tiene ningun proveedor configurado.
+  let hasProviders = false
 </script>
 
-<div>
-  <Tabs loginState={'login'} signUpDisabled={true} />
-  <Providers />
+<div class="providers-only">
+  <h1 class="title"><Label label={login.string.LogIn} /></h1>
+  <p class="hint"><Label label={login.string.SignInWithProvider} /></p>
+
+  <Providers bind:hasProviders />
+
+  {#if !hasProviders}
+    <p class="empty"><Label label={login.string.NoProvidersConfigured} /></p>
+  {/if}
 </div>
+
+<style lang="scss">
+  .providers-only {
+    display: flex;
+    flex-direction: column;
+  }
+  .title {
+    margin: 0;
+    font-family: var(--font-brand);
+    font-weight: 600;
+    font-size: 1.5rem;
+    letter-spacing: -0.015em;
+    color: var(--theme-caption-color);
+  }
+  .hint {
+    margin: 0.5rem 0 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--theme-content-color);
+  }
+  .empty {
+    margin: 1rem 0 0;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: var(--theme-dark-color);
+  }
+</style>
