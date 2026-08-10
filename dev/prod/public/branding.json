@@ -1,4 +1,33 @@
 {
+  "ops.wiwo.me": {
+    "title": "WiWO Ops",
+    "languages": "en,ru,pl,pt,pt-br,es,zh,fr,de,ja,ko,tr",
+    "defaultLanguage": "es",
+    "defaultApplication": "tracker",
+    "defaultSpace": "tracker:project:DefaultProject",
+    "lastNameFirst": "true",
+    "defaultSpecial": "issues",
+    "links": [
+      {
+        "rel": "manifest",
+        "href": "/huly/site.webmanifest"
+      },
+      {
+        "rel": "icon",
+        "href": "/huly/favicon.svg",
+        "type": "image/svg+xml"
+      },
+      {
+        "rel": "shortcut icon",
+        "href": "/huly/favicon.ico",
+        "sizes": "any"
+      },
+      {
+        "rel": "apple-touch-icon",
+        "href": "/huly/apple-touch-icon.png"
+      }
+    ]
+  },
   "huly.local:8080": {
     "title": "WiWO Ops",
     "languages": "en,ru,pl,pt,pt-br,es,zh,fr,de,ja,ko,tr",
