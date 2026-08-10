@@ -14,7 +14,9 @@
 -->
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte'
-  import SquareSpinner from './icons/SquareSpinner.svelte'
+  // El loader de arranque no pasaba por Spinner, por eso hay que cambiarlo aquí
+  // tambien para que muestre el Thinking Orb.
+  import Spinner from './Spinner.svelte'
 
   export let shrink: boolean = false
   export let label: string = ''
@@ -34,7 +36,7 @@
 
 <div class="spinner-container" class:fullSize={!shrink}>
   <div data-label={label} class="flex-row-center flex-gap-2" class:labeled={label !== ''}>
-    <SquareSpinner {size} />
+    <Spinner {size} />
     <slot />
   </div>
   <slot name="actions" />

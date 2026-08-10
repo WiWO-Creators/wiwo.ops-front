@@ -14,36 +14,13 @@
 -->
 <script lang="ts">
   import type { ButtonSize } from '../types'
+  import ThinkingOrb from './ThinkingOrb.svelte'
 
   export let size: ButtonSize = 'medium'
 </script>
 
 <div class="spinner spinner-{size}">
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-    <linearGradient id="a" gradientUnits="userSpaceOnUse" x1="0" y1="22" x2="0" y2="2">
-      <stop offset="0" stop-color={'var(--caption-color)'} />
-      <stop offset="1" stop-color={'var(--caption-color)'} stop-opacity="0" />
-    </linearGradient>
-    <g>
-      <animateTransform
-        attributeName="transform"
-        attributeType="XML"
-        type="rotate"
-        from="0 12 12"
-        to="360 12 12"
-        dur="1s"
-        repeatCount="indefinite"
-      />
-      <path
-        d="M12,22.5C6.2,22.5,1.5,17.8,1.5,12C1.5,6.2,6.2,1.5,12,1.5v-1C5.6,0.5,0.5,5.6,0.5,12c0,6.4,5.1,11.5,11.5,11.5V22.5z"
-        fill="var(--caption-color)"
-      />
-      <path
-        d="M12,0.5v1c5.8,0,10.5,4.7,10.5,10.5c0,5.8-4.7,10.5-10.5,10.5v1c6.4,0,11.5-5.1,11.5-11.5C23.5,5.6,18.4,0.5,12,0.5z"
-        fill="url(#a)"
-      />
-    </g>
-  </svg>
+  <ThinkingOrb {size} />
 </div>
 
 <style lang="scss">
@@ -51,6 +28,11 @@
     &-inline {
       width: 0.75rem;
       height: 0.75rem;
+    }
+    // 'x-small' existe en ButtonSize pero upstream nunca le dio medida: sin regla, la caja quedaba en cero.
+    &-x-small {
+      width: 0.875rem;
+      height: 0.875rem;
     }
     &-small {
       width: 1rem;

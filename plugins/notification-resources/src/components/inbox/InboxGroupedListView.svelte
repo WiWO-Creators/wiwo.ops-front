@@ -20,7 +20,8 @@
   } from '@hcengineering/notification'
   import { Ref, Timestamp } from '@hcengineering/core'
   import { createEventDispatcher } from 'svelte'
-  import { ListView } from '@hcengineering/ui'
+  import { ListView, themeStore } from '@hcengineering/ui'
+  import { translate } from '@hcengineering/platform'
   import { getClient } from '@hcengineering/presentation'
 
   import { InboxNotificationsClientImpl } from '../../inboxNotificationsClient'
@@ -41,6 +42,12 @@
   let listSelection = 0
   let element: HTMLDivElement | undefined
   let prevArchived = false
+
+  // aria-label es un atributo: necesita el texto ya traducido, no un IntlString
+  let etiquetaAccesible = ''
+  $: void translate(notification.string.InboxNotificationsAriaLabel, {}, $themeStore.language).then((texto) => {
+    etiquetaAccesible = texto
+  })
 
   let archivingContexts = new Set<Ref<DocNotifyContext>>()
   let archivedContexts = new Map<Ref<DocNotifyContext>, Timestamp>()
@@ -164,7 +171,7 @@
   bind:this={element}
   tabindex="0"
   role="listbox"
-  aria-label="Inbox notifications"
+  aria-label={etiquetaAccesible}
   on:keydown={onKeydown}
 >
   <ListView

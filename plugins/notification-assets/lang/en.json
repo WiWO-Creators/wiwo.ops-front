@@ -57,6 +57,8 @@
     "Sound": "Sound",
     "SoundNotificationsDescription": "Receive sound notifications for events.",
     "NoAccessToObject": "You no longer have access to this object",
-    "ViewIn": "View in {app}"
+    "ViewIn": "View in {app}",
+    "InboxNotificationsAriaLabel": "Inbox notifications",
+    "InboxSettingsAriaLabel": "Inbox settings"
   }
 }

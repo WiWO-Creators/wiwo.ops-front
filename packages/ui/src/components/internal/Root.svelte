@@ -302,7 +302,7 @@
         <Component is={application} appLoading={true} props={{}} />
       {:else}
         <div class="error">
-          Application not found: {application}
+          <Label label={uiPlugin.string.ApplicationNotFound} params={{ application }} />
         </div>
       {/if}
     </div>

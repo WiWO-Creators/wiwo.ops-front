@@ -243,6 +243,7 @@
     "DisableTwoFactorAuth": "Disable two-factor authentication",
     "TwoFactorAuthEnabled": "Two-factor authentication is enabled",
     "TwoFactorAuthDisabled": "Two-factor authentication is disabled",
+    "TwoFactorQrCodeAlt": "Two-factor authentication QR code",
     "ShowQRCode": "Show QR code",
     "EnterVerificationCode": "Enter verification code",
     "OverrideAttribute": "Override attribute",

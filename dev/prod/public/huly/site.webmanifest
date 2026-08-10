@@ -2,8 +2,8 @@
   "name": "WiWO Ops",
   "short_name": "WiWO Ops",
   "display": "standalone",
-  "theme_color": "#292929",
-  "background_color": "#292929",
+  "theme_color": "#4242FF",
+  "background_color": "#4242FF",
   "icons": [
     { "src": "/huly/icon-192.png", "type": "image/png", "sizes": "192x192" },
     { "src": "/huly/icon-512.png", "type": "image/png", "sizes": "512x512" },

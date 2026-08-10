@@ -446,7 +446,9 @@ const notification = plugin(notificationId, {
     Sound: '' as IntlString,
     NoAccessToObject: '' as IntlString,
     ViewIn: '' as IntlString,
-    Collaborators: '' as IntlString
+    Collaborators: '' as IntlString,
+    InboxNotificationsAriaLabel: '' as IntlString,
+    InboxSettingsAriaLabel: '' as IntlString
   },
   function: {
     Notify: '' as Resource<NotifyFunc>,

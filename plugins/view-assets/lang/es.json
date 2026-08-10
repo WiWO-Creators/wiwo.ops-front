@@ -150,7 +150,7 @@
     "AutomationOnly": "Solo automatización",
     "CopyLink": "Copiar enlace",
     "ValueIsSet": "El valor está establecido",
-    "RoleLabel": "Role: {role}",
+    "RoleLabel": "Rol: {role}",
     "ForbidAttributeChanges": "Prohibir cambios: ",
     "AllowAttributeChanges": "Permitir cambios: ",
     "RelationshipTable": "Tabla de relaciones"

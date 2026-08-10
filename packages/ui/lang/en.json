@@ -113,6 +113,7 @@
         "ThisYear": "This year",
         "EmojiStyle": "Emoji Style",
         "EmojiSystem": "System Default",
+        "ApplicationNotFound": "Application not found: {application}",
         "EmojiNoto": "Noto Color"
     }
 }

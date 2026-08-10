@@ -27,6 +27,8 @@
   export let caption: IntlString = login.string.LogIn
   export let subtitle: string | undefined = undefined
   export let onLogin: ((loginInfo: LoginInfo | null, status: Status) => void | Promise<void>) | undefined = undefined
+  /** LoginForm los pinta arriba del formulario, asi que le pasa `false`. */
+  export let withProviders: boolean = true
 
   $: fields = [
     { id: 'email', name: 'username', i18n: login.string.Email, disabled: email !== undefined && email !== '' },
@@ -88,5 +90,5 @@
   {isLoading}
   bottomActions={[recoveryAction]}
   ignoreInitialValidation
-  withProviders
+  {withProviders}
 />

@@ -1,16 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 512 512" role="img" aria-label="WiWO">
-  <defs>
-    <linearGradient id="wiwoLoginMark" x1="0" y1="0" x2="1" y2="0.24">
-      <stop offset="0" stop-color="#3BFF00" />
-      <stop offset="1" stop-color="#8D7CFF" />
-    </linearGradient>
-  </defs>
-  <path
-    d="M64 152 L184 400 L256 288 L328 400 L448 152"
-    fill="none"
-    stroke="url(#wiwoLoginMark)"
-    stroke-width="58"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-  />
-</svg>
+<script lang="ts">
+  import { themeStore } from '@hcengineering/ui'
+  // Wordmark "wiwo.Ops": crema para tema oscuro, azul para tema claro.
+  import wordmarkDark from '../../../img/wordmark-dark.png'
+  import wordmarkLight from '../../../img/wordmark-light.png'
+</script>
+
+<img class="wiwo-wordmark" src={$themeStore.dark ? wordmarkDark : wordmarkLight} alt="WiWO Ops" />
+
+<style lang="scss">
+  // El wordmark es apaisado (~4.4:1): se fija la altura y el ancho se deduce.
+  .wiwo-wordmark {
+    display: block;
+    height: 1.75rem;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+    flex-shrink: 0;
+  }
+</style>

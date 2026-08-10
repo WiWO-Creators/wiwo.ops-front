@@ -159,6 +159,7 @@ export const uis = plugin(uiId, {
     Clear: '' as IntlString,
 
     ReadOnlyModeWarning: '' as IntlString,
+    ApplicationNotFound: '' as IntlString,
 
     EmojiStyle: '' as IntlString,
     EmojiSystem: '' as IntlString,

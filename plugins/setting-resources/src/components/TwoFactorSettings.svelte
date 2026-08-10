@@ -15,9 +15,9 @@
 <script lang="ts">
   import QRCode from 'qrcode'
   import { getCurrentAccount } from '@hcengineering/core'
-  import { OK, unknownError, getEmbeddedLabel } from '@hcengineering/platform'
+  import { OK, unknownError, getEmbeddedLabel, translate } from '@hcengineering/platform'
   import setting from '@hcengineering/setting'
-  import { Breadcrumb, Button, EditBox, Header, Label, Spinner, Status } from '@hcengineering/ui'
+  import { Breadcrumb, Button, EditBox, Header, Label, Spinner, Status, themeStore } from '@hcengineering/ui'
   import { getAccountClient } from '../utils'
   import presentation from '@hcengineering/presentation'
 
@@ -30,6 +30,12 @@
   let isLoading = false
 
   const acc = getCurrentAccount()
+
+  // alt es un atributo: necesita el texto ya traducido, no un IntlString
+  let textoAlternativoQr = ''
+  $: void translate(setting.string.TwoFactorQrCodeAlt, {}, $themeStore.language).then((texto) => {
+    textoAlternativoQr = texto
+  })
 
   getAccountClient()
     .getAccountInfo(acc.uuid)
@@ -120,7 +126,7 @@
         {#if !tfaEnabled}
           <div class="flex-col items-center flex-gap-1">
             <div style="width: 200px; height: 200px">
-              <img src={qrCodeUrl} alt="2FA QR Code" width="200" height="200" />
+              <img src={qrCodeUrl} alt={textoAlternativoQr} width="200" height="200" />
             </div>
             <div class="font-mono break-all">
               {secret}

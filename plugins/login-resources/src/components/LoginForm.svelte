@@ -16,14 +16,15 @@
 <script lang="ts">
   import { type IntlString, Severity, Status } from '@hcengineering/platform'
   import { signupStore } from '@hcengineering/analytics-providers'
-  import { deviceOptionsStore as deviceInfo } from '@hcengineering/ui'
+  import { Label, deviceOptionsStore as deviceInfo } from '@hcengineering/ui'
   import { onMount } from 'svelte'
 
-  import { loginFormPaddingInline } from '../loginFormLayout'
+  import { loginFormPaddingBlockStart, loginFormPaddingInline } from '../loginFormLayout'
 
   import { type BottomAction, doLoginAsGuest, doLoginNavigate, LoginMethods } from '../index'
   import LoginPasswordForm from './LoginPasswordForm.svelte'
   import LoginOtpForm from './LoginOtpForm.svelte'
+  import Providers from './Providers.svelte'
   import BottomActionComponent from './BottomAction.svelte'
   import login from '../plugin'
   import { LoginInfo } from '@hcengineering/account-client'
@@ -37,6 +38,14 @@
   export let onLogin: ((loginInfo: LoginInfo | null, status: Status) => void | Promise<void>) | undefined = undefined
 
   let method: LoginMethods = useOTP ? LoginMethods.Otp : LoginMethods.Password
+
+  // Los proveedores externos se pintan arriba del formulario en vez de al final
+  // (`withProviders` del Form). Si el backend no devuelve ninguno, `hasProviders`
+  // queda en false y no se renderiza ni el bloque ni el separador.
+  let hasProviders = false
+
+  $: paddingInline = loginFormPaddingInline($deviceInfo.docWidth, $deviceInfo.docHeight)
+  $: paddingBlockStart = loginFormPaddingBlockStart($deviceInfo.docWidth, $deviceInfo.docHeight)
 
   onMount(() => {
     signupStore.setSignUpFlow(false)
@@ -86,12 +95,48 @@
   }
 </script>
 
+<!--
+  El margen negativo cancela el padding superior del Form para dejar siempre 1.5rem
+  entre el separador y el formulario. Sin proveedores el bloque no ocupa nada.
+-->
+<div
+  class="providers"
+  style:padding-inline={hasProviders ? paddingInline : '0'}
+  style:padding-block-start={hasProviders ? paddingBlockStart : '0'}
+  style:margin-block-end={hasProviders ? `calc(1.5rem - ${paddingBlockStart})` : '0'}
+>
+  <Providers bind:hasProviders />
+  {#if hasProviders}
+    <div class="separator">
+      <span><Label label={login.string.OrContinueWithEmail} /></span>
+    </div>
+  {/if}
+</div>
+
 {#if method === LoginMethods.Otp}
-  <LoginOtpForm {navigateUrl} {signUpDisabled} {email} {caption} {subtitle} {onLogin} on:change={changeMethod} />
+  <LoginOtpForm
+    {navigateUrl}
+    {signUpDisabled}
+    {email}
+    {caption}
+    {subtitle}
+    {onLogin}
+    withProviders={false}
+    on:change={changeMethod}
+  />
 {:else}
-  <LoginPasswordForm {navigateUrl} {signUpDisabled} {email} {caption} {subtitle} {onLogin} on:change={changeMethod} />
+  <LoginPasswordForm
+    {navigateUrl}
+    {signUpDisabled}
+    {email}
+    {caption}
+    {subtitle}
+    {onLogin}
+    withProviders={false}
+    on:change={changeMethod}
+  />
 {/if}
-<div class="actions" style:margin-inline-start={loginFormPaddingInline($deviceInfo.docWidth, $deviceInfo.docHeight)}>
+<div class="actions" style:margin-inline-start={paddingInline}>
   <BottomActionComponent action={method === LoginMethods.Otp ? loginWithPasswordAction : loginWithCodeAction} />
   <div class="login-as-guest">
     <BottomActionComponent action={loginAsGuest} />
@@ -101,5 +146,22 @@
 <style lang="scss">
   .login-as-guest {
     margin-top: 1rem;
+  }
+
+  .separator {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    font-size: 0.75rem;
+    color: var(--theme-dark-color);
+
+    &::before,
+    &::after {
+      content: '';
+      flex-grow: 1;
+      height: 1px;
+      background-color: var(--theme-divider-color);
+    }
   }
 </style>
