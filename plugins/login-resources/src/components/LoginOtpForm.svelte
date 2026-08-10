@@ -75,7 +75,9 @@
     {signUpDisabled}
     ignoreInitialValidation
     {withProviders}
-  />
+  >
+    <svelte:fragment slot="above-form"><slot name="above-form" /></svelte:fragment>
+  </Form>
 {/if}
 
 {#if step === OtpLoginSteps.Otp && formData.username !== ''}

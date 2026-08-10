@@ -56,17 +56,34 @@
 
 <style>
   .title {
-    font-weight: 500;
-    font-size: 1.25rem;
+    font-family: var(--font-brand);
+    font-weight: 600;
+    font-size: 1.5rem;
+    letter-spacing: -0.015em;
     color: var(--theme-caption-color);
+    white-space: nowrap;
   }
+  /* En pantallas angostas las dos pestanas no caben a 1.5rem y se parten. */
+  @media (max-width: 480px) {
+    .title {
+      font-size: 1.25rem;
+    }
+    .caption a:first-child {
+      margin-right: 1.25rem;
+    }
+  }
+  /* El subrayado de la pestana activa es el gradiente de marca, no un solido:
+     por eso se pinta como fondo y no con border-bottom, que no admite gradiente. */
   .caption a {
     padding-bottom: 0.375rem;
-    border-bottom: 2px solid var(--theme-caption-color);
+    background-image: var(--wiwo-gradient-primary);
+    background-size: 100% 2px;
+    background-position: bottom left;
+    background-repeat: no-repeat;
 
     &:not(.selected) {
       color: var(--theme-dark-color);
-      border-bottom-color: transparent;
+      background-image: none;
 
       &:hover {
         color: var(--theme-caption-color);

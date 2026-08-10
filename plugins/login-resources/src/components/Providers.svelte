@@ -120,23 +120,35 @@
     background-color: #ffffff;
     border: 1px solid rgba(31, 31, 31, 0.16);
     border-radius: var(--medium-BorderRadius);
-    box-shadow: 0 8px 24px rgba(66, 66, 255, 0.18);
+    box-shadow: 0 0.5rem 1.5rem color-mix(in srgb, var(--wiwo-blue, #4242ff) 18%, transparent);
     text-decoration: none;
     transition:
-      background-color 0.15s var(--timing-main),
-      box-shadow 0.15s var(--timing-main);
+      background-color var(--wiwo-motion-fast, 160ms) var(--wiwo-ease-emphasized, ease),
+      box-shadow var(--wiwo-motion-fast, 160ms) var(--wiwo-ease-emphasized, ease),
+      transform var(--wiwo-motion-fast, 160ms) var(--wiwo-ease-emphasized, ease);
 
     &:hover {
       background-color: #f5f5f5;
-      box-shadow: 0 10px 28px rgba(66, 66, 255, 0.26);
+      box-shadow: 0 0.625rem 1.75rem color-mix(in srgb, var(--wiwo-blue, #4242ff) 26%, transparent);
+      transform: translateY(-1px);
     }
     &:active {
       background-color: #ececec;
-      box-shadow: 0 4px 12px rgba(66, 66, 255, 0.18);
+      box-shadow: 0 0.25rem 0.75rem color-mix(in srgb, var(--wiwo-blue, #4242ff) 18%, transparent);
+      transform: scale(0.985);
     }
     &:focus-visible {
-      outline: 2px solid var(--primary-button-focused-border, #4242ff);
+      outline: 2px solid var(--wiwo-purple, #8d7cff);
       outline-offset: 2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+
+      &:hover,
+      &:active {
+        transform: none;
+      }
     }
   }
 </style>

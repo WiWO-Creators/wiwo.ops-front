@@ -91,4 +91,6 @@
   bottomActions={[recoveryAction]}
   ignoreInitialValidation
   {withProviders}
-/>
+>
+  <svelte:fragment slot="above-form"><slot name="above-form" /></svelte:fragment>
+</Form>
