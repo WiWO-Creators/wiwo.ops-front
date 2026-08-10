@@ -47,8 +47,18 @@
   span {
     color: var(--theme-darker-color);
   }
+  // El padding vertical agranda el area tactil hasta el minimo de 44px sin
+  // cambiar el aspecto del enlace.
   a {
+    display: inline-block;
+    padding-block: 0.5rem;
     font-weight: 400;
     color: var(--theme-content-color);
+
+    &:focus-visible {
+      outline: 2px solid var(--wiwo-purple, #8d7cff);
+      outline-offset: 2px;
+      border-radius: var(--extra-small-BorderRadius, 0.375rem);
+    }
   }
 </style>

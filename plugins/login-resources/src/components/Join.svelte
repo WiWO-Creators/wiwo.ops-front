@@ -19,7 +19,6 @@
     Label,
     Loading,
     Location,
-    deviceOptionsStore as deviceInfo,
     getCurrentLocation,
     navigate
   } from '@hcengineering/ui'
@@ -42,7 +41,6 @@
   import { logIn, workbenchId } from '@hcengineering/workbench'
   import { onMount } from 'svelte'
   import { loginAction, recoveryAction } from '../actions'
-  import { loginFormMinHeight, loginFormPadding } from '../loginFormLayout'
   import login from '../plugin'
 
   const location = getCurrentLocation()
@@ -258,11 +256,7 @@
     <Label label={login.string.ProcessingInvite} />
   </div>
 {:else if showJoinWithAccount}
-  <div
-    class="join-with-account-container"
-    style:padding={loginFormPadding($deviceInfo.docWidth, $deviceInfo.docHeight)}
-    style:min-height={loginFormMinHeight($deviceInfo.docHeight)}
-  >
+  <div class="join-with-account-container">
     <div class="join-with-account">
       <div class="join-title">
         <Label label={login.string.JoinWorkspace} params={{ workspaceName: inviteWorkspaceName ?? '' }} />

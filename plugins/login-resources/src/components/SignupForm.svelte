@@ -17,9 +17,7 @@
   import { OK, Severity, Status } from '@hcengineering/platform'
   import { logIn } from '@hcengineering/workbench'
   import { signupStore } from '@hcengineering/analytics-providers'
-  import { deviceOptionsStore as deviceInfo } from '@hcengineering/ui'
 
-  import { loginFormPaddingInline } from '../loginFormLayout'
   import BottomActionComponent from './BottomAction.svelte'
   import login from '../plugin'
   import { getPasswordValidationRules } from '../validations'
@@ -148,7 +146,7 @@
 {/if}
 
 {#if useOTP}
-  <div class="action" style:margin-inline-start={loginFormPaddingInline($deviceInfo.docWidth, $deviceInfo.docHeight)}>
+  <div class="action">
     <BottomActionComponent action={withPasswordAction} />
   </div>
 {:else}
@@ -156,6 +154,9 @@
 {/if}
 
 <style lang="scss">
+  .action {
+    margin-top: 1.5rem;
+  }
   // TODO: Refactor me please
   .placeholder {
     height: 1.125rem;

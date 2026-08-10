@@ -13,17 +13,11 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { deviceOptionsStore as deviceInfo } from '@hcengineering/ui'
-
-  import { loginFormMinHeight, loginFormPadding } from '../loginFormLayout'
   import Tabs from './Tabs.svelte'
   import Providers from './Providers.svelte'
 </script>
 
-<div
-  style:padding={loginFormPadding($deviceInfo.docWidth, $deviceInfo.docHeight)}
-  style:min-height={loginFormMinHeight($deviceInfo.docHeight)}
->
+<div>
   <Tabs loginState={'login'} signUpDisabled={true} />
   <Providers />
 </div>

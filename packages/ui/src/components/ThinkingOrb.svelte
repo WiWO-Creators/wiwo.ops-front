@@ -22,6 +22,12 @@
    */
   export let size: ButtonSize = 'medium'
   export let state: 'thinking' | 'success' | 'error' = 'thinking'
+  /**
+   * Tamano libre (cualquier longitud CSS) para usos fuera del contrato de
+   * Spinner, como el orb ambiental del login. El estilo inline gana sobre la
+   * regla de clase, asi que no hace falta tocar el mapa de tamanos.
+   */
+  export let cssSize: string | undefined = undefined
 
   // ponytail: el nivel completo (backdrop-filter + caustics + particulas) solo
   // se activa en large/x-large. Con 20+ loaders simultaneos en una lista, el
@@ -32,10 +38,17 @@
   // umbral a 'medium' cambiando solo este set.
   const TAMANOS_DETALLE_COMPLETO: ButtonSize[] = ['large', 'x-large']
 
-  $: detalleCompleto = TAMANOS_DETALLE_COMPLETO.includes(size)
+  // Con tamano libre siempre gana el detalle completo: se usa en grande.
+  $: detalleCompleto = cssSize !== undefined || TAMANOS_DETALLE_COMPLETO.includes(size)
 </script>
 
-<div class="wiwo-thinking-orb orb-{size}" class:detail-full={detalleCompleto} data-orb-state={state} aria-hidden="true">
+<div
+  class="wiwo-thinking-orb orb-{size}"
+  class:detail-full={detalleCompleto}
+  style:--orb-size={cssSize}
+  data-orb-state={state}
+  aria-hidden="true"
+>
   {#if detalleCompleto}
     <span class="orb-pulse" />
     <span class="orb-pulse" />

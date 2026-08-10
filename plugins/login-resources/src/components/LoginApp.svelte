@@ -17,15 +17,16 @@
   import { getMetadata, setMetadata } from '@hcengineering/platform'
   import presentation from '@hcengineering/presentation'
   import {
+    Label,
     Location,
     Popup,
     Scroller,
+    ThinkingOrb,
     deviceOptionsStore as deviceInfo,
     fetchMetadataLocalStorage,
     getCurrentLocation,
     location,
-    setMetadataLocalStorage,
-    themeStore
+    setMetadataLocalStorage
   } from '@hcengineering/ui'
   import { onDestroy, onMount } from 'svelte'
   import Auth from './Auth.svelte'
@@ -113,28 +114,37 @@
   }
 
   onMount(chooseToken)
+
+  // Bajo 768px el panel de marca no cabe: el wordmark se muda a la tarjeta.
+  $: compacto = $deviceInfo.docWidth <= 768
 </script>
 
 {#if page === 'admin'}
   <AdminWorkspaces />
 {:else}
-  <div
-    class="theme-dark w-full h-full backd"
-    class:paneld={$deviceInfo.docWidth <= 768}
-    class:white={!$themeStore.dark}
-  >
-    <div class="bg-image clear-mins" class:back={$deviceInfo.docWidth > 768} class:p-4={$deviceInfo.docWidth > 768}>
-      <!-- El wordmark ya dice "wiwo.Ops": no hace falta el PlatformTitle al lado. -->
-      <div
-        class="brand"
-        style:left={$deviceInfo.docWidth <= 480 ? '.75rem' : '1.75rem'}
-        style:top={'calc(3rem + var(--huly-top-indent, 0rem))'}
-      >
-        <LoginIcon />
-      </div>
+  <!--
+    El login es una pieza de marca: se fuerza el tema oscuro sin importar la
+    preferencia del usuario, por eso el wordmark es siempre el crema.
+  -->
+  <div class="theme-dark login-shell" class:compact={compacto}>
+    {#if !compacto}
+      <aside class="brand-pane">
+        <div class="brand-orb" aria-hidden="true">
+          <ThinkingOrb cssSize={'clamp(14rem, 26vw, 21rem)'} />
+        </div>
+        <div class="brand-copy">
+          <LoginIcon height={'2.25rem'} />
+          <p class="tagline"><Label label={login.string.BrandTagline} /></p>
+        </div>
+      </aside>
+    {/if}
 
-      <div class="panel-base" class:panel={$deviceInfo.docWidth > 768} class:white={!$themeStore.dark}>
-        <Scroller padding={'1rem 0'}>
+    <main class="form-pane">
+      <div class="card">
+        {#if compacto}
+          <div class="card-brand"><LoginIcon /></div>
+        {/if}
+        <Scroller padding={'0'}>
           <div class="form-content">
             {#if page === 'login'}
               {#if localLoginHidden}
@@ -170,84 +180,120 @@
           </div>
         </Scroller>
       </div>
+    </main>
 
-      <Popup />
-    </div>
+    <Popup />
   </div>
 {/if}
 
 <style lang="scss">
-  // Contenedor del wordmark: logotipo apaisado (~4.4:1), sin texto al lado.
-  .brand {
-    position: fixed;
-    display: flex;
-    align-items: center;
-    z-index: 1;
-  }
-  .backd {
+  // Alias locales sobre los tokens Neo (mismo patron que ThinkingOrb.svelte):
+  // un solo sitio donde cambiar la marca, y fallback si el tema no cargo.
+  .login-shell {
+    --login-ink: var(--wiwo-ink, #292929);
+    --login-blue: var(--wiwo-blue, #4242ff);
+    --login-green: var(--wiwo-green, #3bff00);
+    --login-beige: var(--wiwo-beige, #f8fad7);
+    --login-purple: var(--wiwo-purple, #8d7cff);
+    --login-ease: var(--wiwo-ease-expressive, cubic-bezier(0.2, 0.8, 0.2, 1));
+    --login-motion: var(--wiwo-motion-medium, 280ms);
+    // Respiro interior de la tarjeta: el unico dueno del padding del formulario.
+    --login-card-padding: 2.5rem;
+
     position: relative;
-    // Fondo Neo generado por CSS; reemplaza la fotografia heredada de Huly.
-    // Base: el mismo gradiente de marca del panel, mas dos halos radiales suaves.
-    background-color: #292929;
+    display: grid;
+    grid-template-columns: 1fr min(36rem, 44%);
+    width: 100%;
+    height: 100%;
+    background-color: var(--login-ink);
+    // Fondo Neo por CSS: gradiente de marca en diagonal mas dos halos suaves.
     background-image:
-      radial-gradient(55% 45% at 16% 10%, rgba(248, 250, 215, 0.1) 0%, rgba(248, 250, 215, 0) 70%),
-      radial-gradient(70% 60% at 88% 88%, rgba(59, 255, 0, 0.12) 0%, rgba(59, 255, 0, 0) 65%),
-      linear-gradient(135deg, #292929 0%, #4242ff 76%, #3bff00 128%);
+      radial-gradient(
+        55% 45% at 16% 10%,
+        color-mix(in srgb, var(--login-beige) 10%, transparent) 0%,
+        transparent 70%
+      ),
+      radial-gradient(
+        70% 60% at 88% 88%,
+        color-mix(in srgb, var(--login-green) 12%, transparent) 0%,
+        transparent 65%
+      ),
+      linear-gradient(135deg, var(--login-ink) 0%, var(--login-blue) 76%, var(--login-green) 128%);
     background-attachment: fixed;
-
-    .bg-image {
-      display: flex;
-      flex-direction: row-reverse;
-      width: 100%;
-      height: 100%;
-    }
-    &.paneld {
-      background: rgba(41, 41, 41, 0.5);
-
-      .panel-base {
-        padding-top: 5rem;
-        padding-bottom: 1rem;
-        width: 100%;
-      }
-    }
   }
 
-  .panel {
+  .brand-pane {
     position: relative;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    width: 50%;
-    height: 100%;
-    min-width: 35rem;
-    max-width: 41rem;
-    background: rgba(41, 41, 41, 0.5);
-    mix-blend-mode: normal;
-    box-shadow: 0 30px 90px rgba(66, 66, 255, 0.24);
-    backdrop-filter: blur(157.855px);
-    border-radius: 1rem;
+    padding: 4rem 3rem 4rem 4rem;
+    min-width: 0;
+    overflow: hidden;
+  }
+  // El orb es marca ambiental: ocupa el vacio a la derecha del texto, no se
+  // pone detras, para no comerle contraste al tagline.
+  .brand-orb {
+    position: absolute;
+    top: 50%;
+    right: 4%;
+    opacity: 0.6;
+    transform: translateY(-50%);
+    pointer-events: none;
+  }
+  .brand-copy {
+    position: relative;
+    max-width: 32rem;
+  }
+  .tagline {
+    margin: 1.5rem 0 0;
+    max-width: 28ch;
+    font-family: var(--font-brand);
+    font-size: 1.75rem;
+    font-weight: 500;
+    line-height: 1.25;
+    letter-spacing: -0.015em;
+    color: var(--theme-caption-color);
+    text-wrap: balance;
+  }
 
-    &::after {
-      overflow: hidden;
-      position: absolute;
-      content: '';
-      inset: 0;
-      background: linear-gradient(135deg, #292929 0%, #4242ff 76%, #3bff00 128%);
-      border-radius: 1rem;
-      z-index: -1;
-    }
+  .form-pane {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 2.5rem;
+    min-width: 0;
+  }
+
+  .card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: var(--login-card-padding);
+    width: 100%;
+    max-width: 30rem;
+    max-height: 100%;
+    background: color-mix(in srgb, var(--login-ink) 62%, transparent);
+    // Upstream traia blur(157.855px): a partir de ~40px no cambia nada y cuesta GPU.
+    backdrop-filter: blur(24px) saturate(1.4);
+    border-radius: var(--large-BorderRadius, 1rem);
+    box-shadow: 0 1.5rem 4rem color-mix(in srgb, var(--login-blue) 24%, transparent);
+    animation: card-in var(--login-motion) var(--login-ease) both;
+
+    // Borde de 1px pintado con un gradiente conico enmascarado.
     &::before {
       position: absolute;
       content: '';
       inset: 0;
       padding: 1px;
       background: conic-gradient(
-          rgba(248, 250, 215, 0.18) 10%,
-          rgba(141, 124, 255, 0.5),
-          rgba(110, 110, 255, 0.5),
-          rgba(248, 250, 215, 0.32),
-          rgba(154, 219, 176, 0.34) 60%,
-          rgba(138, 248, 79, 0.24) 90%
+          color-mix(in srgb, var(--login-beige) 18%, transparent) 10%,
+          color-mix(in srgb, var(--login-purple) 50%, transparent),
+          color-mix(in srgb, var(--login-blue) 46%, transparent),
+          color-mix(in srgb, var(--login-beige) 32%, transparent),
+          color-mix(in srgb, var(--login-green) 26%, transparent) 70%,
+          color-mix(in srgb, var(--login-beige) 18%, transparent) 90%
         )
         border-box;
       -webkit-mask:
@@ -255,29 +301,73 @@
         linear-gradient(#000 0 0);
       -webkit-mask-composite: xor;
       mask-composite: exclude;
-      border-radius: 1rem;
-      transform: rotate(180deg);
-      transition: opacity 0.15s var(--timing-main);
+      border-radius: inherit;
       opacity: 0.7;
+      pointer-events: none;
     }
   }
-  .backd.paneld::after,
-  .panel::after {
-    overflow: hidden;
-    position: absolute;
-    content: '';
-    inset: 0;
-    background: linear-gradient(135deg, #292929 0%, #4242ff 76%, #3bff00 128%);
-    z-index: -1;
+  .card-brand {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 2rem;
   }
-  .panel::after {
-    border-radius: 1rem;
+
+  @keyframes card-in {
+    from {
+      opacity: 0;
+      transform: translateY(0.75rem);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
   }
+
   .form-content {
     display: flex;
     flex-direction: column;
     justify-content: center;
     flex-grow: 1;
     height: max-content;
+  }
+
+  // El orb solo aparece cuando hay ancho de sobra: por debajo estorba y cuesta GPU.
+  @media (max-width: 1024px) {
+    .login-shell {
+      grid-template-columns: 1fr min(30rem, 52%);
+    }
+    .brand-pane {
+      padding: 3rem 2rem;
+    }
+    .brand-orb {
+      display: none;
+    }
+    .tagline {
+      font-size: 1.375rem;
+    }
+  }
+
+  // Movil: una sola columna. El fondo Neo se mantiene (antes se perdia).
+  .login-shell.compact {
+    grid-template-columns: 1fr;
+    --login-card-padding: 1.5rem;
+    background-attachment: scroll; // `fixed` provoca jank de scroll en iOS.
+
+    .form-pane {
+      padding: 1.5rem 1rem;
+      align-items: flex-start;
+    }
+    .card {
+      max-width: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card {
+      animation: none;
+    }
+    .brand-orb {
+      display: none;
+    }
   }
 </style>

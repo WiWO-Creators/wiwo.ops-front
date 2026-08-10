@@ -1,17 +1,18 @@
 <script lang="ts">
-  import { themeStore } from '@hcengineering/ui'
-  // Wordmark "wiwo.Ops": crema para tema oscuro, azul para tema claro.
+  // El login siempre se pinta en tema oscuro (LoginApp fuerza `theme-dark`),
+  // asi que el wordmark es siempre el crema: si conmutara con la preferencia
+  // del usuario, en tema claro saldria el azul sobre fondo oscuro.
   import wordmarkDark from '../../../img/wordmark-dark.png'
-  import wordmarkLight from '../../../img/wordmark-light.png'
+
+  /** Altura del logotipo. El ancho se deduce de la proporcion (~4.4:1). */
+  export let height: string = '1.75rem'
 </script>
 
-<img class="wiwo-wordmark" src={$themeStore.dark ? wordmarkDark : wordmarkLight} alt="WiWO Ops" />
+<img class="wiwo-wordmark" style:height src={wordmarkDark} alt="WiWO Ops" />
 
 <style lang="scss">
-  // El wordmark es apaisado (~4.4:1): se fija la altura y el ancho se deduce.
   .wiwo-wordmark {
     display: block;
-    height: 1.75rem;
     width: auto;
     max-width: 100%;
     object-fit: contain;

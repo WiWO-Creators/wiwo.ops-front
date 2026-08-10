@@ -22,7 +22,8 @@
 </script>
 
 {#if status.severity !== Severity.OK}
-  <div class="flex-row-center container" class:error={status.severity === Severity.ERROR}>
+  <!-- role="alert" para que el lector de pantalla anuncie el error, no solo el color. -->
+  <div class="flex-row-center container" class:error={status.severity === Severity.ERROR} role="alert">
     <StatusControl {status} overflow={false} />
   </div>
 {/if}

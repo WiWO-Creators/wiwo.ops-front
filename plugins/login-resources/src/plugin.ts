@@ -57,6 +57,7 @@ export default mergeIds(loginId, login, {
     ConfirmationSent2: '' as IntlString,
     ContinueWith: '' as IntlString,
     OrContinueWithEmail: '' as IntlString,
+    BrandTagline: '' as IntlString,
     HaventReceivedCode: '' as IntlString,
     ResendCode: '' as IntlString,
     WrongEmail: '' as IntlString,

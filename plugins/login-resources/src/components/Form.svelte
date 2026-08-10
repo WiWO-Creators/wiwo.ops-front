@@ -27,7 +27,6 @@
   import BottomActionComponent from './BottomAction.svelte'
   import Providers from './Providers.svelte'
   import Tabs from './Tabs.svelte'
-  import { loginFormMinHeight, loginFormPadding } from '../loginFormLayout'
 
   interface Action {
     i18n: IntlString
@@ -126,8 +125,6 @@
 <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
 <form
   class="container"
-  style:padding={loginFormPadding($deviceInfo.docWidth, $deviceInfo.docHeight)}
-  style:min-height={loginFormMinHeight($deviceInfo.docHeight)}
   on:keydown={(evt) => {
     if (evt.key === 'Enter') {
       evt.preventDefault()
@@ -155,6 +152,8 @@
       <slot name="region-selector" />
     </div>
   {/if}
+  <!-- Hueco entre el titular y los campos: lo usa el login para el acceso con proveedores. -->
+  <slot name="above-form" />
   <div class="form">
     {#each fields as field (field.name)}
       <div class={field.short !== undefined && !($deviceInfo.docWidth <= 600) ? 'form-col' : 'form-row'}>
@@ -233,15 +232,25 @@
     display: flex;
     flex-direction: column;
 
+    // Titular de marca: Outfit, el mismo tratamiento que las pestanas.
     .title {
-      font-weight: 500;
-      font-size: 1.25rem;
+      font-family: var(--font-brand);
+      font-weight: 600;
+      font-size: 1.5rem;
+      letter-spacing: -0.015em;
       color: var(--theme-caption-color);
     }
     .status {
       padding-top: 1rem;
       grid-column-start: 1;
       grid-column-end: 3;
+
+      // StatusControl no pinta nada cuando el estado es OK. Sin esto queda una
+      // fila vacia de la rejilla (padding + row-gap) entre el ultimo campo y el
+      // boton; hay que quitar la fila entera, no solo su padding.
+      &:empty {
+        display: none;
+      }
     }
 
     .form {

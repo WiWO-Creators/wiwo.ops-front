@@ -14,14 +14,13 @@
 -->
 
 <script lang="ts">
-  import { deviceOptionsStore as deviceInfo, Label, TimeLeft, CodeInput } from '@hcengineering/ui'
+  import { Label, TimeLeft, CodeInput } from '@hcengineering/ui'
   import { OK, Severity, Status } from '@hcengineering/platform'
   import { createEventDispatcher, onDestroy } from 'svelte'
   import { Timestamp } from '@hcengineering/core'
   import { LoginInfo } from '@hcengineering/account-client'
 
   import Tabs from './Tabs.svelte'
-  import { loginFormMinHeight, loginFormPadding } from '../loginFormLayout'
   import { BottomAction, doLoginNavigate, doValidateOtp, OtpLoginSteps, loginOtp } from '../index'
   import login from '../plugin'
   import BottomActionComponent from './BottomAction.svelte'
@@ -236,12 +235,7 @@
   let timer: TimeLeft | undefined
 </script>
 
-<form
-  bind:this={formElement}
-  class="container"
-  style:padding={loginFormPadding($deviceInfo.docWidth, $deviceInfo.docHeight)}
-  style:min-height={loginFormMinHeight($deviceInfo.docHeight)}
->
+<form bind:this={formElement} class="container">
   <div class="header">
     <Tabs {loginState} {signUpDisabled} />
     <div class="description">
