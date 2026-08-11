@@ -16,6 +16,7 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte'
   import Spinner from './Spinner.svelte'
+  import ThinkingOrb from './ThinkingOrb.svelte'
   import { ButtonSize } from '../types'
 
   export let shrink: boolean = false
@@ -36,7 +37,14 @@
 
 <div class="spinner-container" class:fullSize={!shrink}>
   <div data-label={label} class="inner flex-row-center" class:labeled={label !== ''}>
-    <Spinner {size} />
+    {#if shrink}
+      <Spinner {size} />
+    {:else}
+      <!-- En un hueco de carga vacio el orb es lo unico que se ve: se escala
+           al ancho del contenedor (cqi) para que se lea como el Thinking Orb
+           y no como un spinner de 24px perdido en la pantalla. -->
+      <ThinkingOrb cssSize={'clamp(2.5rem, 26cqi, 10rem)'} />
+    {/if}
     <slot />
   </div>
 </div>
@@ -50,6 +58,19 @@
     &.fullSize {
       width: 100%;
       height: 100%;
+      // inline-size (no `size`): contener la altura colapsaria los contenedores
+      // cuyo alto es auto, y aqui solo hace falta el ancho para escalar el orb.
+      container-type: inline-size;
+    }
+  }
+
+  // El orb grande activa su nivel de detalle completo, y ahi el backdrop-filter
+  // obliga al compositor a releer el fondo por instancia. En huecos chicos
+  // (miniaturas, popups) puede haber decenas a la vez: ahi se apaga.
+  @container (max-width: 26rem) {
+    .inner :global(.wiwo-thinking-orb) {
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
     }
   }
 
