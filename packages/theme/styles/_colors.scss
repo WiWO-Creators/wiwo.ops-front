@@ -433,7 +433,7 @@
 
 /* Light Theme */
 .theme-light {
-  --theme-drawing-bg-color: #F7F7F8;
+  --theme-drawing-bg-color: var(--wiwo-beige-100);
   
   --theme-text-primary-color: rgba(41, 41, 41, .84);
   --theme-text-placeholder-color: rgba(41, 41, 41, .42);
@@ -471,7 +471,7 @@
   --theme-button-contrast-disabled-color: rgba(255, 255, 255, .5);
   --theme-button-contrast-border: rgba(41, 41, 41, .18);
 
-  --theme-button-container-color: #F7F7F8;
+  --theme-button-container-color: var(--wiwo-beige-50);
 
   --theme-button-attention-gradient: linear-gradient(135deg, #EC4899, #F97316);
   --theme-button-attention-border: #F97316;
@@ -497,13 +497,13 @@
   --theme-refinput-border: rgba(41, 41, 41, .1);
 
   // Be aware to update defineAlpha() function in colors.ts
-  --theme-bg-color: #FFFFFF;
+  --theme-bg-color: var(--wiwo-almost-white);
   --theme-bg-accent-color: rgba(41, 41, 41, .04);
   --theme-bg-dark-color: rgba(255, 255, 255, .86);
-  --theme-back-color: #F1F1F3;
+  --theme-back-color: var(--wiwo-beige-100);
   --theme-overlay-color: rgba(41, 41, 41, .24);
-  --theme-statusbar-color: #FFFFFF;
-  --theme-navpanel-color: #FAFAFB;
+  --theme-statusbar-color: var(--wiwo-almost-white);
+  --theme-navpanel-color: var(--wiwo-beige-50);
   --theme-navpanel-hovered: rgba(66, 66, 255, .05);
   --theme-navpanel-selected: rgba(66, 66, 255, .1);
   --theme-navpanel-divider: rgba(41, 41, 41, .1);
@@ -511,16 +511,16 @@
   --theme-navpanel-icons-color: #66685F;
   --theme-navpanel-icons-divider: rgba(41, 41, 41, .1);
   --theme-navpanel-shadow-mobile: drop-shadow(0 0 2px rgba(0, 0, 0, .2));
-  --theme-comp-header-color: #FFFFFF;
+  --theme-comp-header-color: var(--wiwo-almost-white);
   --theme-divider-color: rgba(41, 41, 41, .08);
-  --theme-bg-divider-color: #E7E7EA;
+  --theme-bg-divider-color: var(--wiwo-beige-300);
   --theme-mention-bg-color: rgba(66, 66, 255, .1);
   --theme-mention-focused-bg-color: rgba(66, 66, 255, .2);
   --theme-broken-mention-bg-color: rgba(0, 0, 0, .12);
   --theme-broken-mention-color: rgba(0, 0, 0, .4);
   --theme-broken-mention-focused-bg-color: rgba(0, 0, 0, .2);
 
-  --theme-link-preview-bg-color: #F1F1F3;
+  --theme-link-preview-bg-color: var(--wiwo-beige-100);
   --theme-link-preview-description-color: #66685F;
   --theme-link-preview-text-color: var(--wiwo-ink);
 
@@ -534,19 +534,19 @@
 
   --theme-list-border-color: rgba(41, 41, 41, .09);
   --theme-list-header-color: #66685F; //#ECD4CA;
-  --theme-list-subheader-color: #F4F4F6;
-  --theme-list-row-color: #FAFAFB;
+  --theme-list-subheader-color: var(--wiwo-beige-100);
+  --theme-list-row-color: var(--wiwo-beige-50);
   --theme-list-divider-color: rgba(41, 41, 41, .07);
   --theme-list-subheader-divider: rgba(41, 41, 41, .06);
 
-  --theme-list-button-color: #F4F4F6;
-  --theme-list-button-hover: #EBEBEE;
-  --theme-link-button-color: #EDEDF0;
-  --theme-link-button-hover: #E3E3E7;
+  --theme-list-button-color: var(--wiwo-beige-100);
+  --theme-list-button-hover: var(--wiwo-beige);
+  --theme-link-button-color: var(--wiwo-beige-100);
+  --theme-link-button-hover: var(--wiwo-beige);
 
   --theme-table-border-color: rgba(41, 41, 41, .1);
-  --theme-table-header-color: #F4F4F6;
-  --theme-table-row-color: #FAFAFB;
+  --theme-table-header-color: var(--wiwo-beige-100);
+  --theme-table-row-color: var(--wiwo-beige-50);
 
   --theme-kanban-card-bg-color: #FFFFFF;
   --theme-kanban-card-border: rgba(41, 41, 41, .08);

@@ -150,12 +150,12 @@
   --global-ui-active-BackgroundColor: rgba(66, 66, 255, .12);
   --global-ui-highlight-BackgroundColor: rgba(66, 66, 255, .07);
   --global-ui-hover-highlight-BackgroundColor: rgba(66, 66, 255, .12);
-  --global-surface-01-BackgroundColor: #FAFAFB;
-  --global-surface-01-BorderColor: #E7E7EA;
-  --global-surface-01-hover-BackgroundColor: #F1F1F3;
-  --global-surface-02-BackgroundColor: #FFFFFF;
-  --global-surface-02-BorderColor: #EDEDF0;
-  --global-surface-03-hover-BackgroundColor: #F7F7F8;
+  --global-surface-01-BackgroundColor: var(--wiwo-beige-50);
+  --global-surface-01-BorderColor: var(--wiwo-beige-300);
+  --global-surface-01-hover-BackgroundColor: var(--wiwo-beige-100);
+  --global-surface-02-BackgroundColor: var(--wiwo-almost-white);
+  --global-surface-02-BorderColor: var(--wiwo-beige-300);
+  --global-surface-03-hover-BackgroundColor: var(--wiwo-beige-100);
   --global-subtle-ui-BorderColor: rgba(41, 41, 41, .05);
   --global-subtle-BackgroundColor: #C9C9FF;
   --global-popover-BackgroundColor: var(--wiwo-ink);
@@ -170,7 +170,7 @@
   --global-accent-TextColor: var(--wiwo-blue);
   --global-error-TextColor: var(--wiwo-error);
   --global-focus-BorderColor: var(--wiwo-blue);
-  --global-focus-inset-BorderColor: #FFFFFF;
+  --global-focus-inset-BorderColor: var(--wiwo-almost-white);
   --global-popover-ShadowColor: rgba(41, 41, 41, .12);
   --global-modal-ShadowColor: rgba(41, 41, 41, .16);
   --global-accent-SkyText: #C7C7FF;

@@ -28,6 +28,12 @@
   --wiwo-purple-300: #A99BFF;
   --wiwo-ink: #292929;
   --wiwo-beige: #F8FAD7;
+  // Rampa del beige para superficies del tema claro: el beige puro es
+  // demasiado saturado para paneles grandes, estos son mezclas con blanco
+  // (50/100) y con la tinta #292929 (300, para bordes y divisores).
+  --wiwo-beige-50: #FDFEF5;
+  --wiwo-beige-100: #FBFCE7;
+  --wiwo-beige-300: #EDEFCC;
   --wiwo-almost-white: #FFFDF2;
   --wiwo-ok: #1C7A38;
   --wiwo-warning: #D88719;
