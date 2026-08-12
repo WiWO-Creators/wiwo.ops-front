@@ -42,6 +42,8 @@ import {
   ReadOnly,
   TypeCollaborativeDoc,
   TypeDate,
+  TypeEnum,
+  TypeHyperlink,
   TypeMarkup,
   TypeNumber,
   TypeRecord,
@@ -260,6 +262,13 @@ export class TIssue extends TTask implements Issue {
     reports!: number
 
   declare childInfo: IssueChildInfo[]
+
+  @Prop(ArrOf(TypeEnum(tracker.enum.CompanyArea)), tracker.string.CompanyArea)
+  @Index(IndexKind.Indexed)
+    companyArea?: string[]
+
+  @Prop(TypeHyperlink(), tracker.string.DriveLink)
+    driveLink?: string
 
   @Prop(Collection(time.class.ToDo), getEmbeddedLabel('Action Items'))
     todos?: CollectionSize<ToDo>

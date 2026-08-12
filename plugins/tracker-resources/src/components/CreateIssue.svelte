@@ -23,6 +23,8 @@
     Class,
     Doc,
     DocData,
+    type ArrOf,
+    type EnumOf,
     fillDefaults,
     generateId,
     getCurrentAccount,
@@ -80,7 +82,7 @@
     themeStore
   } from '@hcengineering/ui'
   import view from '@hcengineering/view'
-  import { ObjectBox } from '@hcengineering/view-resources'
+  import { EnumArrayEditor, HyperlinkEditor, ObjectBox } from '@hcengineering/view-resources'
   import { createEventDispatcher, onDestroy } from 'svelte'
 
   import { activeComponent, activeMilestone, generateIssueShortLink, updateIssueRelation } from '../issues'
@@ -207,6 +209,8 @@
         assignee: originalIssue.assignee,
         estimation: originalIssue.estimation,
         parentIssue: originalIssue.parents[0]?.parentId,
+        companyArea: originalIssue.companyArea,
+        driveLink: originalIssue.driveLink,
         title: `${originalIssue.title} (copy)`
       }
       void getMarkup(makeDocCollabId(originalIssue, 'description'), originalIssue.description).then((res) => {
@@ -230,6 +234,16 @@
   let currentProject: Project | undefined
 
   let descriptionBox: AttachmentStyledBox | undefined
+
+  const companyAreaType: ArrOf<string> = {
+    _class: core.class.ArrOf,
+    label: tracker.string.CompanyArea,
+    of: {
+      _class: core.class.EnumOf,
+      label: tracker.string.CompanyArea,
+      of: tracker.enum.CompanyArea
+    } as EnumOf
+  }
 
   $: updateIssueStatusId(object, currentProject)
   $: updateAssigneeId(object, currentProject)
@@ -511,7 +525,9 @@
         relations: relatedTo !== undefined ? [{ _id: relatedTo._id, _class: relatedTo._class }] : [],
         childInfo: [],
         kind,
-        identifier
+        identifier,
+        companyArea: object.companyArea,
+        driveLink: object.driveLink
       }
 
       if (!isEmptyMarkup(object.description)) {
@@ -1020,6 +1036,30 @@
         size={'large'}
         notSelected={object.parentIssue === undefined}
         on:click={object.parentIssue != null ? clearParentIssue : setParentIssue}
+      />
+    </div>
+    <div id="company-area-editor" class="new-line">
+      <EnumArrayEditor
+        label={tracker.string.CompanyArea}
+        type={companyAreaType}
+        value={object.companyArea ?? []}
+        onChange={(value) => {
+          object.companyArea = value.length === 0 ? undefined : value
+        }}
+        kind={'regular'}
+        size={'large'}
+      />
+    </div>
+    <div id="drive-link-editor" class="new-line">
+      <HyperlinkEditor
+        placeholder={tracker.string.DriveLink}
+        title={undefined}
+        value={object.driveLink ?? ''}
+        onChange={(value) => {
+          object.driveLink = value === '' ? undefined : value
+        }}
+        kind={'regular'}
+        size={'large'}
       />
     </div>
     <DocCreateExtComponent manager={docCreateManager} kind={'pool'} space={currentProject} props={extraProps} />

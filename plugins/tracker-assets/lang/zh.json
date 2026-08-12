@@ -293,7 +293,9 @@
     "UnsetParentIssue": "取消父问题",
     "ForbidCreateProjectPermission": "禁止创建项目",
     "ForbidCreateProjectPermissionDescription": "禁止用户创建新项目",
-    "AllowCreatingIssues": "允许创建问题"
+    "AllowCreatingIssues": "允许创建问题",
+    "CompanyArea": "Company area",
+    "DriveLink": "Drive link"
   },
   "status": {}
 }

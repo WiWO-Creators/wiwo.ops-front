@@ -276,7 +276,9 @@
     "UnsetParentIssue": "Désélectionner l'issue parent",
     "ForbidCreateProjectPermission": "Interdire la création de projet",
     "ForbidCreateProjectPermissionDescription": "Interdit aux utilisateurs de créer de nouveaux projets",
-    "AllowCreatingIssues": "Autoriser la création d'issues"
+    "AllowCreatingIssues": "Autoriser la création d'issues",
+    "CompanyArea": "Company area",
+    "DriveLink": "Drive link"
   },
   "status": {}
 }

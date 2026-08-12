@@ -290,7 +290,9 @@
     "UnsetParentIssue": "Wyczyść zagadnienie nadrzędne",
     "ForbidCreateProjectPermission": "Zakaż tworzenia projektów",
     "ForbidCreateProjectPermissionDescription": "Zakaż użytkownikom tworzenia nowych projektów.",
-    "AllowCreatingIssues": "Zezwól na tworzenie zadań"
+    "AllowCreatingIssues": "Zezwól na tworzenie zadań",
+    "CompanyArea": "Company area",
+    "DriveLink": "Drive link"
   },
   "status": {}
 }

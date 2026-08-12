@@ -22,6 +22,7 @@ import {
   CollectionSize,
   Data,
   Doc,
+  Enum,
   Markup,
   Mixin,
   Ref,
@@ -228,6 +229,15 @@ export interface Issue extends Task {
 
   childInfo: IssueChildInfo[]
 
+  /**
+   * Áreas de la compañía responsables de la tarea. Admite varias, igual que el campo
+   * equivalente de Perfex; los valores se editan desde Ajustes → Enums.
+   */
+  companyArea?: string[]
+
+  /** Enlace a la carpeta o archivo de Google Drive asociado a la tarea. */
+  driveLink?: string
+
   template?: {
     // A template issue is based on
     template: Ref<IssueTemplate>
@@ -258,6 +268,8 @@ export interface IssueDraft {
   // Estimation in man days
   estimation: number
   parentIssue?: Ref<Issue>
+  companyArea?: string[]
+  driveLink?: string
   attachments?: number
   labels: TagReference[]
   subIssues: IssueDraft[]
@@ -558,7 +570,12 @@ const pluginState = plugin(trackerId, {
     NewProject: '' as IntlString,
     UnsetParentIssue: '' as IntlString,
     ForbidCreateProjectPermission: '' as IntlString,
-    ForbidCreateProjectPermissionDescription: '' as IntlString
+    ForbidCreateProjectPermissionDescription: '' as IntlString,
+    CompanyArea: '' as IntlString,
+    DriveLink: '' as IntlString
+  },
+  enum: {
+    CompanyArea: '' as Ref<Enum>
   },
   extensions: {
     IssueListHeader: '' as ComponentExtensionId,

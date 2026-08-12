@@ -293,7 +293,9 @@
     "UnsetParentIssue": "Übergeordnete Aufgabe entfernen",
     "ForbidCreateProjectPermission": "Projekterstellung verbieten",
     "ForbidCreateProjectPermissionDescription": "Verbietet Benutzern das Erstellen neuer Projekte",
-    "AllowCreatingIssues": "Erstellen von Aufgaben erlauben"
+    "AllowCreatingIssues": "Erstellen von Aufgaben erlauben",
+    "CompanyArea": "Company area",
+    "DriveLink": "Drive link"
   },
   "status": {}
 }

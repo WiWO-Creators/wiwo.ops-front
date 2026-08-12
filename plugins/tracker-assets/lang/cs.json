@@ -283,7 +283,9 @@
     "UnsetParentIssue": "Odebrat nadřazený úkol",
     "ForbidCreateProjectPermission": "Zakázat vytvoření projektu",
     "ForbidCreateProjectPermissionDescription": "Zakazuje uživatelům vytvářet nové projekty",
-    "AllowCreatingIssues": "Povolit vytváření úkolů"
+    "AllowCreatingIssues": "Povolit vytváření úkolů",
+    "CompanyArea": "Company area",
+    "DriveLink": "Drive link"
   },
   "status": {}
 }

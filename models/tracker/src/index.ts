@@ -456,6 +456,36 @@ export function createModel (builder: Builder): void {
     TProjectTargetPreference
   )
 
+  // Áreas de la compañía disponibles en las tareas. Los valores son los mismos que usa el campo
+  // personalizado "Area de la compañía" de Perfex, para que la migración no tenga que traducirlos.
+  // Se pueden editar desde Ajustes → Enums; este documento sólo fija el set inicial.
+  builder.createDoc(
+    core.class.Enum,
+    core.space.Model,
+    {
+      name: 'Área de la compañía',
+      enumValues: [
+        'PR',
+        'TechLab',
+        'Influencer',
+        'CX SAC',
+        'Content Studio',
+        'Digital Creators',
+        'Creatividad',
+        'Storytelling',
+        'Analytics',
+        'Wiwo',
+        'Palta',
+        'HL',
+        'iLuk',
+        'Aima',
+        'Foundaxis',
+        'Inteligencia'
+      ]
+    },
+    tracker.enum.CompanyArea
+  )
+
   builder.mixin(tracker.class.Project, core.class.Class, activity.mixin.ActivityDoc, {})
   builder.mixin(tracker.class.Issue, core.class.Class, activity.mixin.ActivityDoc, {})
   builder.mixin(tracker.class.Milestone, core.class.Class, activity.mixin.ActivityDoc, {})

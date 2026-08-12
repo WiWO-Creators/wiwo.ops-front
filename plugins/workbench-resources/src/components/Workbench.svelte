@@ -1005,7 +1005,7 @@
           >
             <div class="antiPanel-wrap__content hulyNavPanel-container">
               {#if currentApplication}
-                <NavHeader label={currentApplication.label}>
+                <NavHeader label={currentApplication.label} showLogo>
                   {#if currentApplication.navHeaderActions != null}
                     <Component
                       is={currentApplication.navHeaderActions}

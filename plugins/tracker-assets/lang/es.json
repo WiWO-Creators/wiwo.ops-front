@@ -276,7 +276,9 @@
     "UnsetParentIssue": "Desmarcar proceso principal",
     "ForbidCreateProjectPermission": "Prohibir crear proyecto",
     "ForbidCreateProjectPermissionDescription": "Prohíbe a los usuarios crear nuevos proyectos",
-    "AllowCreatingIssues": "Permitir crear procesos"
+    "AllowCreatingIssues": "Permitir crear procesos",
+    "CompanyArea": "Área de empresa",
+    "DriveLink": "Link de Drive"
   },
   "status": {}
 }

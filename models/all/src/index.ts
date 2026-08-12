@@ -256,7 +256,7 @@ export default function buildModel (): Builder {
       {
         label: lead.string.ConfigLabel,
         description: lead.string.ConfigDescription,
-        enabled: false,
+        enabled: true,
         beta: true,
         icon: lead.icon.LeadApplication,
         classFilter: defaultFilter

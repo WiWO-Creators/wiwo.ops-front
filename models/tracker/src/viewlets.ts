@@ -25,11 +25,11 @@ import tracker from './plugin'
 
 export const issuesOptions = (kanban: boolean): ViewOptionsModel => ({
   groupBy: [
+    'space',
     'status',
     'kind',
     'assignee',
     'priority',
-    'space',
     'component',
     'milestone',
     'createdBy',
