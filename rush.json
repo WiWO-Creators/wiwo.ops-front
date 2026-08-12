@@ -1021,6 +1021,11 @@
       "shouldPublish": false
     },
     {
+      "packageName": "@hcengineering/perfex-import",
+      "projectFolder": "dev/perfex-import",
+      "shouldPublish": false
+    },
+    {
       "packageName": "@hcengineering/pod-account",
       "projectFolder": "pods/account",
       "shouldPublish": false
