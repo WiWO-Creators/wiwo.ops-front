@@ -1,0 +1,198 @@
+//
+// Lectura de los clientes de Perfex CRM.
+//
+// El usuario de base de datos debe ser de sólo lectura: este módulo nunca escribe en Perfex.
+//
+import { createConnection, type Connection, type RowDataPacket } from 'mysql2/promise'
+
+/** Parámetros de conexión a la base de Perfex, tomados de variables de entorno. */
+export interface PerfexConfig {
+  host: string
+  port: number
+  user: string
+  password: string
+  database: string
+  /** Prefijo de las tablas de Perfex. Por defecto `tbl`. */
+  prefix: string
+}
+
+/** Persona de contacto de un cliente. */
+export interface PerfexContact {
+  id: number
+  clientId: number
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  /** Perfex marca un contacto principal por cliente. */
+  isPrimary: boolean
+}
+
+export interface PerfexClient {
+  id: number
+  company: string
+  phone: string
+  website: string
+  city: string
+  address: string
+  active: boolean
+  /** Grupos de cliente de Perfex, que son los que definen el ambiente destino. */
+  groups: string[]
+  /** Carpeta de Drive del cliente, del campo personalizado de Perfex. */
+  driveLink?: string
+  contacts: PerfexContact[]
+}
+
+/** Campo personalizado de Perfex con la carpeta de Drive del cliente. */
+const CUSTOM_FIELD_DRIVE = 'Link de Drive'
+
+/**
+ * Lee la configuración de conexión desde el entorno.
+ *
+ * @throws Error si falta alguna variable obligatoria.
+ */
+export function getPerfexConfig (): PerfexConfig {
+  const required = ['PERFEX_DB_HOST', 'PERFEX_DB_USER', 'PERFEX_DB_PASSWORD', 'PERFEX_DB_NAME']
+  const missing = required.filter((name) => (process.env[name] ?? '') === '')
+  if (missing.length > 0) {
+    throw new Error(`Faltan variables de entorno: ${missing.join(', ')}`)
+  }
+  return {
+    host: process.env.PERFEX_DB_HOST as string,
+    port: Number(process.env.PERFEX_DB_PORT ?? 3306),
+    user: process.env.PERFEX_DB_USER as string,
+    password: process.env.PERFEX_DB_PASSWORD as string,
+    database: process.env.PERFEX_DB_NAME as string,
+    prefix: process.env.PERFEX_DB_PREFIX ?? 'tbl'
+  }
+}
+
+/**
+ * Extrae la URL de un campo de tipo enlace de Perfex, que se guarda como HTML
+ * (`<a href="https://...">texto</a>`) y no como URL pelada.
+ */
+export function extractUrl (value: string): string {
+  const href = /href\s*=\s*["']([^"']+)["']/i.exec(value)
+  if (href !== null) return href[1].trim()
+  return value.replace(/<[^>]*>/g, '').trim()
+}
+
+/** Lee los clientes de Perfex con sus contactos, grupos y carpeta de Drive. */
+export class PerfexReader {
+  private constructor (
+    private readonly connection: Connection,
+    private readonly prefix: string
+  ) {}
+
+  static async connect (config: PerfexConfig): Promise<PerfexReader> {
+    const connection = await createConnection({
+      host: config.host,
+      port: config.port,
+      user: config.user,
+      password: config.password,
+      database: config.database
+    })
+    return new PerfexReader(connection, config.prefix)
+  }
+
+  async close (): Promise<void> {
+    await this.connection.end()
+  }
+
+  private async query<T> (sql: string): Promise<T[]> {
+    const [rows] = await this.connection.query<RowDataPacket[]>(sql.replaceAll('{p}', this.prefix))
+    return rows as T[]
+  }
+
+  async getClients (): Promise<PerfexClient[]> {
+    const rows = await this.query<{
+      id: number
+      company: string
+      phonenumber: string | null
+      website: string | null
+      city: string | null
+      address: string | null
+      active: number
+    }>(
+      `SELECT userid AS id, company, phonenumber, website, city, address, active
+       FROM {p}clients ORDER BY company`
+    )
+
+    const groups = await this.getGroups()
+    const drive = await this.getDriveLinks()
+    const contacts = await this.getContacts()
+
+    return rows.map((row) => ({
+      id: row.id,
+      company: row.company.trim(),
+      phone: (row.phonenumber ?? '').trim(),
+      website: (row.website ?? '').trim(),
+      city: (row.city ?? '').trim(),
+      address: (row.address ?? '').trim(),
+      active: row.active === 1,
+      groups: groups.get(row.id) ?? [],
+      driveLink: drive.get(row.id),
+      contacts: contacts.get(row.id) ?? []
+    }))
+  }
+
+  /**
+   * Grupos por cliente. En Perfex la asignación vive en `{p}customer_groups` y el nombre del
+   * grupo en `{p}customers_groups`: sí, los nombres de las dos tablas están cruzados.
+   */
+  private async getGroups (): Promise<Map<number, string[]>> {
+    const rows = await this.query<{ customer_id: number, name: string }>(
+      `SELECT cg.customer_id, g.name
+       FROM {p}customer_groups cg
+       JOIN {p}customers_groups g ON g.id = cg.groupid`
+    )
+    const result = new Map<number, string[]>()
+    for (const row of rows) {
+      const list = result.get(row.customer_id) ?? []
+      const name = row.name.trim()
+      if (!list.includes(name)) list.push(name)
+      result.set(row.customer_id, list)
+    }
+    return result
+  }
+
+  private async getDriveLinks (): Promise<Map<number, string>> {
+    const rows = await this.query<{ relid: number, value: string }>(
+      `SELECT v.relid, v.value
+       FROM {p}customfieldsvalues v
+       JOIN {p}customfields f ON f.id = v.fieldid
+       WHERE f.fieldto = 'customers' AND f.name = '${CUSTOM_FIELD_DRIVE}' AND v.value <> ''`
+    )
+    return new Map(rows.map((row) => [row.relid, extractUrl(row.value)]))
+  }
+
+  private async getContacts (): Promise<Map<number, PerfexContact[]>> {
+    const rows = await this.query<{
+      id: number
+      userid: number
+      firstname: string | null
+      lastname: string | null
+      email: string | null
+      phonenumber: string | null
+      is_primary: number
+    }>(
+      `SELECT id, userid, firstname, lastname, email, phonenumber, is_primary
+       FROM {p}contacts ORDER BY is_primary DESC, id`
+    )
+    const result = new Map<number, PerfexContact[]>()
+    for (const row of rows) {
+      const list = result.get(row.userid) ?? []
+      list.push({
+        id: row.id,
+        clientId: row.userid,
+        firstName: (row.firstname ?? '').trim(),
+        lastName: (row.lastname ?? '').trim(),
+        email: (row.email ?? '').trim(),
+        phone: (row.phonenumber ?? '').trim(),
+        isPrimary: row.is_primary === 1
+      })
+      result.set(row.userid, list)
+    }
+    return result
+  }
+}

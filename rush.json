@@ -1021,8 +1021,8 @@
       "shouldPublish": false
     },
     {
-      "packageName": "@hcengineering/perfex-import",
-      "projectFolder": "dev/perfex-import",
+      "packageName": "@hcengineering/perfex-clients",
+      "projectFolder": "dev/perfex-clients",
       "shouldPublish": false
     },
     {

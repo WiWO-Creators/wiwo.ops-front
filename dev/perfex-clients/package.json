@@ -1,5 +1,5 @@
 {
-  "name": "@hcengineering/perfex-import",
+  "name": "@hcengineering/perfex-clients",
   "version": "0.7.0",
   "main": "lib/index.js",
   "types": "types/index.d.ts",
@@ -12,7 +12,7 @@
     "start": "ts-node src/__start.ts",
     "_phase:bundle": "rushx bundle",
     "bundle": "node ../../common/scripts/esbuild.js --entry=src/__start.ts --keep-names=true --define=MODEL_VERSION --define=GIT_REVISION --sourcemap=external",
-    "run": "rush bundle --to @hcengineering/perfex-import >/dev/null && node --max-old-space-size=8000 ./bundle/bundle.js",
+    "run": "rush bundle --to @hcengineering/perfex-clients >/dev/null && node ./bundle/bundle.js",
     "format": "format src",
     "test": "jest --passWithNoTests --silent --forceExit",
     "_phase:build": "compile transpile src",
@@ -38,16 +38,12 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "@hcengineering/api-client": "workspace:^0.7.19",
     "@hcengineering/contact": "workspace:^0.7.0",
     "@hcengineering/core": "workspace:^0.7.26",
-    "@hcengineering/importer": "workspace:^0.7.0",
     "@hcengineering/platform": "workspace:^0.7.20",
     "@hcengineering/server-client": "workspace:^0.7.16",
-    "@hcengineering/text-html": "workspace:^0.7.19",
-    "@hcengineering/text-markdown": "workspace:^0.7.21",
-    "@hcengineering/tracker": "workspace:^0.7.0",
     "commander": "^14.0.0",
-    "mysql2": "^3.11.0",
-    "@hcengineering/api-client": "workspace:^0.7.19"
+    "mysql2": "^3.11.0"
   }
 }
