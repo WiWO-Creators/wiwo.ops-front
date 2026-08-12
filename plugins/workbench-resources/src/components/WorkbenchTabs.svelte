@@ -23,8 +23,12 @@
     ScrollerBar,
     deviceOptionsStore as deviceInfo,
     checkAdaptiveMatching,
-    showPopup
+    showPopup,
+    themeStore
   } from '@hcengineering/ui'
+  // Logotipo de WiWO Ops: el azul se lee sobre el fondo claro y el crema sobre el oscuro.
+  import wordmarkLight from '../../img/wordmark-light.png'
+  import wordmarkDark from '../../img/wordmark-dark.png'
 
   export let popup: boolean = false
 
@@ -48,6 +52,13 @@
   class={popup ? 'selectPopup' : 'flex-row-center flex-gap-2'}
   style:padding={popup ? '.5rem' : mini ? '.25rem .25rem .25rem 0' : '0 .25rem 0 0'}
 >
+  {#if !popup}
+    <img
+      class="wiwo-wordmark"
+      src={$themeStore?.dark === true ? wordmarkDark : wordmarkLight}
+      alt={'WiWO Ops'}
+    />
+  {/if}
   {#if popup}
     <div class="scroll">
       <div class="box flex-gap-1">
@@ -87,3 +98,15 @@
     />
   {/if}
 </div>
+
+<style lang="scss">
+  .wiwo-wordmark {
+    flex-shrink: 0;
+    height: 1.125rem;
+    width: auto;
+    margin: 0 0.5rem 0 0.25rem;
+    object-fit: contain;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+</style>
