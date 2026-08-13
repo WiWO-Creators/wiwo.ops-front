@@ -1,19 +1,41 @@
 //
 // CLI de migración de clientes de Perfex CRM a Huly.
 //
-import core, { concatLink, TxOperations, type PersonId } from '@hcengineering/core'
+import core, {
+  concatLink,
+  SocialIdType,
+  TxOperations,
+  type PersonId,
+  type Ref,
+  type WorkspaceDataId,
+  type WorkspaceUuid
+} from '@hcengineering/core'
+import { type Person } from '@hcengineering/contact'
+import { createRestClient } from '@hcengineering/api-client'
+import { decodeToken } from '@hcengineering/server-token'
 import { setMetadata } from '@hcengineering/platform'
 import serverClientPlugin, {
   createClient,
   getAccountClient,
   getTransactorEndpoint
 } from '@hcengineering/server-client'
+import { FrontFileUploader, type FileUploader } from '@hcengineering/importer'
 import { program } from 'commander'
 
 import { ENVIRONMENTS, getEnvironment } from './environments'
-import { importClients, type Logger } from './import'
+import { ALL_STAGES, importClients, type Logger, type Stage } from './import'
 import { moveClient } from './move'
 import { getPerfexConfig, PerfexReader } from './perfex'
+
+function parseStages (value: string | undefined): Stage[] {
+  if (value === undefined || value.trim() === '') return ALL_STAGES
+  const stages = value.split(',').map((s) => s.trim()) as Stage[]
+  const invalid = stages.filter((s) => !ALL_STAGES.includes(s))
+  if (invalid.length > 0) {
+    throw new Error(`Partes desconocidas: ${invalid.join(', ')}. Válidas: ${ALL_STAGES.join(', ')}`)
+  }
+  return stages
+}
 
 const consoleLogger: Logger = {
   log: (msg: string) => {
@@ -38,6 +60,7 @@ export function perfexClientsTool (): void {
     .option('-f, --front <url>', 'url del front de Huly (o variable FRONT_URL)')
     .option('--state <file>', 'archivo de estado para poder repetir la corrida (por defecto, uno por ambiente)')
     .option('--incluir-inactivos', 'migra también los clientes dados de baja en Perfex', false)
+    .option('-s, --stages <stages>', `partes a correr, separadas por coma (${ALL_STAGES.join(', ')})`)
     .option('--dry-run', 'no escribe nada en Huly: sólo informa qué haría', false)
     .action(async (cmd) => {
       const environment = getEnvironment(cmd.env)
@@ -45,6 +68,7 @@ export function perfexClientsTool (): void {
       const options = {
         environment,
         statePath,
+        stages: parseStages(cmd.stages),
         dryRun: cmd.dryRun === true,
         includeInactive: cmd.incluirInactivos === true
       }
@@ -64,8 +88,8 @@ export function perfexClientsTool (): void {
         const token = cmd.token ?? process.env.HULY_TOKEN
         await withHulyClient(
           { frontUrl, token, user: cmd.user, password: cmd.password, workspaceUrl: cmd.workspace },
-          async (client) => {
-            await importClients(client, perfex, consoleLogger, options)
+          async (client, uploader, ensurePerson) => {
+            await importClients(client, perfex, consoleLogger, options, uploader, ensurePerson)
           }
         )
       } finally {
@@ -118,17 +142,33 @@ interface Credentials {
  * Acepta dos formas de identificarse: un token del workspace, o usuario y contraseña. Si la
  * instancia entra con Google, la única que sirve es el token, porque no hay contraseña propia.
  */
-async function withHulyClient (credentials: Credentials, f: (client: TxOperations) => Promise<void>): Promise<void> {
+async function withHulyClient (
+  credentials: Credentials,
+  f: (
+    client: TxOperations,
+    uploader: FileUploader,
+    ensurePerson: (email: string, firstName: string, lastName: string) => Promise<Ref<Person>>
+  ) => Promise<void>
+): Promise<void> {
   await setupAccounts(credentials.frontUrl)
 
-  const { endpoint, token, author } =
+  const { endpoint, token, author, workspace, workspaceDataId } =
     credentials.token !== undefined && credentials.token !== ''
       ? await resolveByToken(credentials.token)
       : await resolveByPassword(credentials)
 
+  const uploader = new FrontFileUploader(credentials.frontUrl, workspace, workspaceDataId ?? workspace, token)
+  // ensurePerson vive en la API REST del transactor: crea la persona junto con su identidad de
+  // correo, así cuando esa persona entre con el mismo correo queda vinculada a este contacto.
+  const restClient = createRestClient(endpoint, workspace, token)
+  const ensurePerson = async (email: string, firstName: string, lastName: string): Promise<Ref<Person>> => {
+    const { localPerson } = await restClient.ensurePerson(SocialIdType.EMAIL, email, firstName, lastName)
+    return localPerson as Ref<Person>
+  }
+
   const connection = await createClient(endpoint, token)
   try {
-    await f(new TxOperations(connection, author))
+    await f(new TxOperations(connection, author), uploader, ensurePerson)
   } finally {
     await connection.close()
   }
@@ -151,18 +191,27 @@ async function withTokenClient (token: string, f: (client: TxOperations) => Prom
   }
 }
 
+interface Session {
+  endpoint: string
+  token: string
+  author: PersonId
+  workspace: WorkspaceUuid
+  workspaceDataId?: WorkspaceDataId
+}
+
 /** Conexión con un token ya emitido (`run-tool.sh generate-token <email> <workspace>`). */
-async function resolveByToken (token: string): Promise<{ endpoint: string, token: string, author: PersonId }> {
+async function resolveByToken (token: string): Promise<Session> {
   const endpoint = await getTransactorEndpoint(token, 'external')
+  // El token lleva adentro el workspace: no hace falta pedirlo por separado.
+  // Se decodifica sin verificar la firma, que es cosa del servidor.
+  const { workspace } = decodeToken(token, false)
   // Con un token de servicio no hay identidad social propia: los documentos quedan a nombre
   // del sistema, que es lo esperable para una carga masiva.
-  return { endpoint, token, author: core.account.System }
+  return { endpoint, token, author: core.account.System, workspace }
 }
 
 /** Conexión con usuario y contraseña, para instancias que no usan proveedores externos. */
-async function resolveByPassword (
-  credentials: Credentials
-): Promise<{ endpoint: string, token: string, author: PersonId }> {
+async function resolveByPassword (credentials: Credentials): Promise<Session> {
   const { user, password, workspaceUrl } = credentials
   if (user === undefined || password === undefined) {
     throw new Error('Falta identificarse: pasá --token, o bien --user y --password')
@@ -180,5 +229,11 @@ async function resolveByPassword (
   }
   const selectedWs = await accountClient.selectWorkspace(workspaces[0].url)
 
-  return { endpoint: selectedWs.endpoint, token: selectedWs.token, author: login.socialId }
+  return {
+    endpoint: selectedWs.endpoint,
+    token: selectedWs.token,
+    author: login.socialId,
+    workspace: selectedWs.workspace,
+    workspaceDataId: selectedWs.workspaceDataId
+  }
 }

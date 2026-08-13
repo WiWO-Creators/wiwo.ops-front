@@ -14,17 +14,28 @@ import contact, {
 import { generateId, type Class, type Data, type Ref, type TxOperations } from '@hcengineering/core'
 import { readFileSync, writeFileSync } from 'fs'
 
+import { type FileUploader } from '@hcengineering/importer'
+import { type Issue, type Project } from '@hcengineering/tracker'
+
 import { belongsToEnvironment, type Environment } from './environments'
 import { type PerfexClient, type PerfexContact, type PerfexReader } from './perfex'
+import { importProjects } from './proyectos'
 
 export interface Logger {
   log: (msg: string) => void
   error: (msg: string) => void
 }
 
+/** Partes de la migración. Por defecto se corren todas, en este orden. */
+export type Stage = 'personas' | 'clientes' | 'proyectos'
+
+export const ALL_STAGES: Stage[] = ['personas', 'clientes', 'proyectos']
+
 export interface ImportOptions {
   /** Ambiente destino: define qué clientes entran en esta corrida. */
   environment: Environment
+  /** Partes a correr. */
+  stages: Stage[]
   /** Si es true no escribe nada en Huly: sólo lee Perfex e informa qué haría. */
   dryRun: boolean
   /** Archivo JSON donde se guarda el mapeo Perfex → Huly, para poder repetir la corrida. */
@@ -37,9 +48,13 @@ export interface ImportOptions {
 interface MigrationState {
   organizaciones: Record<string, Ref<Organization>>
   personas: Record<string, Ref<Person>>
+  /** Personas del staff de Perfex, por staffid. */
+  staff: Record<string, Ref<Person>>
+  proyectos: Record<string, Ref<Project>>
+  tareas: Record<string, Ref<Issue>>
 }
 
-const EMPTY_STATE: MigrationState = { organizaciones: {}, personas: {} }
+const EMPTY_STATE: MigrationState = { organizaciones: {}, personas: {}, staff: {}, proyectos: {}, tareas: {} }
 
 function loadState (path: string): MigrationState {
   try {
@@ -70,9 +85,12 @@ export async function importClients (
   client: TxOperations,
   perfex: PerfexReader,
   logger: Logger,
-  options: ImportOptions
+  options: ImportOptions,
+  uploader?: FileUploader,
+  ensurePerson?: (email: string, firstName: string, lastName: string) => Promise<Ref<Person>>
 ): Promise<void> {
   const state = loadState(options.statePath)
+  const stages = new Set(options.stages)
 
   const all = await perfex.getClients()
   const clients = all
@@ -84,6 +102,31 @@ export async function importClients (
     `Ambiente ${options.environment.label}: ${clients.length} de ${all.length} clientes ` +
       `y ${contactCount} contactos`
   )
+
+  // --- Staff: las personas a las que se les asignan tareas -------------------------------------
+  if (stages.has('personas') && ensurePerson !== undefined) {
+    const staff = await perfex.getStaff()
+    let people = 0
+    for (const person of staff) {
+      if (state.staff[person.staffid] !== undefined) continue
+      const email = person.email.trim()
+      if (email === '') {
+        logger.error(`Staff ${person.staffid} sin correo, se omite`)
+        continue
+      }
+      if (!options.dryRun) {
+        state.staff[person.staffid] = await ensurePerson(email, person.firstname.trim(), person.lastname.trim())
+      }
+      people++
+    }
+    logger.log(`Staff: ${people} personas nuevas${options.dryRun ? ' (simulado)' : ''}`)
+    if (!options.dryRun) saveState(options.statePath, state)
+  }
+
+  if (!stages.has('clientes')) {
+    await runProjectsStage(client, perfex, logger, options, state, clients, uploader)
+    return
+  }
 
   let created = 0
   let skipped = 0
@@ -131,8 +174,41 @@ export async function importClients (
           `| contactos: ${sample.contacts.length} | drive: ${sample.driveLink ?? '-'}`
       )
     }
+  }
+
+  await runProjectsStage(client, perfex, logger, options, state, clients, uploader)
+
+  if (options.dryRun) {
     logger.log('Simulación: no se escribió nada en Huly')
   }
+}
+
+/** Corre la parte de proyectos, tareas y comentarios, si está pedida. */
+async function runProjectsStage (
+  client: TxOperations,
+  perfex: PerfexReader,
+  logger: Logger,
+  options: ImportOptions,
+  state: MigrationState,
+  clients: PerfexClient[],
+  uploader?: FileUploader
+): Promise<void> {
+  if (!options.stages.includes('proyectos')) return
+  if (uploader === undefined && !options.dryRun) {
+    throw new Error('Falta el subidor de archivos para migrar proyectos y tareas')
+  }
+
+  await importProjects(client, uploader as FileUploader, perfex, logger, {
+    clientIds: new Set(clients.map((c) => c.id)),
+    isOrphanEnvironment: options.environment.groups.length === 0,
+    peopleByStaffId: state.staff,
+    migratedProjects: state.proyectos,
+    migratedTasks: state.tareas,
+    dryRun: options.dryRun,
+    onProgress: () => {
+      saveState(options.statePath, state)
+    }
+  })
 }
 
 async function createOrganization (client: TxOperations, perfexClient: PerfexClient): Promise<Ref<Organization>> {

@@ -6,22 +6,45 @@ Migra los clientes de Perfex CRM a Huly. Sólo clientes: no toca proyectos, tare
 
 | Perfex | Huly |
 |--------|------|
+| Staff (`tblstaff`) | Persona ligada a su correo. Cuando entre con ese correo, su cuenta queda vinculada |
 | Cliente (`tblclients`) | Organización, con ciudad, teléfono y sitio web |
 | Carpeta de Drive del cliente | Un enlace más en la organización |
-| Contacto del cliente (`tblcontacts`) | Persona con su email y teléfono, asociada a la organización como miembro |
+| Contacto del cliente (`tblcontacts`) | Persona con su correo y teléfono, asociada a la organización como miembro |
+| Proyecto (`tblprojects`) | Proyecto del Tracker; los cerrados quedan archivados |
+| Tarea (`tbltasks`) | Tarea con estado, prioridad, responsable, fechas, área de la compañía y link de Drive |
+| Comentario (`tbltask_comments`) | Comentario de la tarea, con el nombre del autor de Perfex al principio |
+| Tarea sin proyecto | Va al proyecto **Sin proyecto (Perfex)** |
 
-Los clientes dados de baja en Perfex se omiten salvo que se pase `--incluir-inactivos`.
+Los estados de Perfex se crean tal cual: Sin empezar, En progreso, Testing, Esperando feedback y
+Completada.
+
+**Los clientes dados de baja se omiten** salvo que se pase `--incluir-inactivos`, y con ellos
+quedan afuera sus proyectos y tareas: 25 proyectos y 88 tareas. Para una migración completa hay
+que pasar ese flag.
+
+### Límites conocidos
+
+- Una tarea de Perfex puede tener varios asignados; Huly admite un solo responsable. Queda el
+  primero y los demás se listan al final de la descripción, porque los colaboradores de Huly son
+  cuentas de usuario y el staff migrado todavía no las tiene.
+- Los archivos adjuntos no se migran: la base sólo guarda las rutas, los archivos están en el
+  disco del servidor de Perfex.
+- Los comentarios quedan a nombre de quien corre la migración, con el autor original en el texto.
+- Las tareas escriben `companyArea` y `driveLink`, que existen a partir de los cambios de este
+  fork: **hay que desplegarlo antes de migrar**.
 
 ## Ambientes
 
 Cada ambiente es un workspace distinto y se decide por el **grupo de cliente** de Perfex:
 
-| Ambiente (`--env`) | Grupos de Perfex | Clientes activos | Contactos |
-|---|---|---|---|
-| `mgc` | MGC HQ, MGC Andina, MGC Caribe, MGC USA, Aima, Foundaxis, HL, iLuk | 58 | 3 |
-| `palta` | Palta | 10 | 6 |
-| `wiwo` | WIWO | 9 | 1 |
-| `sin-clasificar` | los que no tienen grupo, o un grupo que nadie reclama | 29 | 3 |
+Con `--incluir-inactivos`, que es lo que corresponde a una migración completa:
+
+| Ambiente (`--env`) | Grupos de Perfex | Clientes | Proyectos | Tareas |
+|---|---|---|---|---|
+| `mgc` | MGC HQ, MGC Andina, MGC Caribe, MGC USA, Aima, Foundaxis, HL, iLuk | 67 | 188 | 1665 |
+| `palta` | Palta | 10 | 5 | 1 |
+| `wiwo` | WIWO | 11 | 14 | 59 |
+| `sin-clasificar` | los que no tienen grupo, o un grupo que nadie reclama | 33 | 63 | 751 |
 
 Cada cliente va a un solo ambiente. Hay clientes que están en dos grupos a la vez (MGC HQ y WIWO):
 para esos gana el grupo más específico, según el orden de `ENVIRONMENTS` en `src/environments.ts`.
@@ -64,20 +87,25 @@ cd frontend/dev/perfex-clients
 rushx run import --dry-run -e mgc -w mgc
 ```
 
-Migración real, una corrida por ambiente:
+Migración real. Un solo comando por ambiente: hace staff, clientes, proyectos, tareas y
+comentarios de corrido.
 
 ```bash
 export HULY_TOKEN=$(cd ../../../backend/wiwo.ops && ./run-tool.sh generate-token tu-correo@wiwo.me wiwo)
-rushx run import -e wiwo -w wiwo
+rushx run import -e wiwo -w wiwo --incluir-inactivos
 ```
 
 Y lo mismo para cada ambiente, regenerando el token con el workspace que corresponda:
 
 ```bash
-rushx run import -e mgc            -w mgc
-rushx run import -e palta          -w palta
-rushx run import -e sin-clasificar -w sin-clasificar
+rushx run import -e mgc            -w mgc            --incluir-inactivos
+rushx run import -e palta          -w palta          --incluir-inactivos
+rushx run import -e sin-clasificar -w sin-clasificar --incluir-inactivos
 ```
+
+Si preferís ir por partes, `--stages personas`, `--stages clientes` o `--stages proyectos` corren
+sólo esa parte. El orden importa: las tareas necesitan el staff ya creado para poder asignar
+responsables.
 
 Los workspaces tienen que existir de antes, y el usuario indicado tiene que ser miembro de cada
 uno.
@@ -119,7 +147,8 @@ tras un error o un corte. Si se borra ese archivo, la próxima corrida duplica t
 | `-w, --workspace` | Url del workspace destino |
 | `-e, --env` | Ambiente: `mgc`, `palta`, `wiwo` o `sin-clasificar` |
 | `-f, --front` | Url del front, si no se usa `FRONT_URL` |
-| `--incluir-inactivos` | Migra también los clientes dados de baja |
+| `--incluir-inactivos` | Migra también los clientes dados de baja, con sus proyectos y tareas |
+| `-s, --stages` | `personas`, `clientes`, `proyectos`, separadas por coma |
 | `--state` | Archivo de estado propio |
 | `--dry-run` | Sólo informa qué haría |
 

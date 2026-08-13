@@ -43,8 +43,54 @@ export interface PerfexClient {
   contacts: PerfexContact[]
 }
 
-/** Campo personalizado de Perfex con la carpeta de Drive del cliente. */
+export interface PerfexStaff {
+  staffid: number
+  email: string
+  firstname: string
+  lastname: string
+  active: number
+}
+
+export interface PerfexProject {
+  id: number
+  name: string
+  description: string | null
+  status: number
+  clientid: number
+  start_date: string | null
+  deadline: string | null
+}
+
+export interface PerfexTask {
+  id: number
+  name: string
+  description: string | null
+  priority: number
+  status: number
+  dateadded: Date
+  startdate: string | null
+  duedate: string | null
+  rel_id: number | null
+  rel_type: string | null
+  /** Área(s) de la compañía, del campo personalizado multiselect de Perfex. */
+  companyArea: string[]
+  /** Link de Drive, del campo personalizado de Perfex. */
+  driveLink?: string
+  /** staffid de los asignados, en el orden en que Perfex los devuelve. */
+  assignees: number[]
+}
+
+export interface PerfexComment {
+  id: number
+  taskid: number
+  content: string
+  staffid: number | null
+  dateadded: Date
+}
+
+/** Campos personalizados de Perfex que se migran. */
 const CUSTOM_FIELD_DRIVE = 'Link de Drive'
+const CUSTOM_FIELD_AREA = 'Area de la compañía'
 
 /**
  * Lee la configuración de conexión desde el entorno.
@@ -194,5 +240,72 @@ export class PerfexReader {
       result.set(row.userid, list)
     }
     return result
+  }
+
+  async getStaff (): Promise<PerfexStaff[]> {
+    return await this.query<PerfexStaff>(
+      'SELECT staffid, email, firstname, lastname, active FROM {p}staff ORDER BY staffid'
+    )
+  }
+
+  async getProjects (): Promise<PerfexProject[]> {
+    return await this.query<PerfexProject>(
+      `SELECT id, name, description, status, clientid, start_date, deadline
+       FROM {p}projects ORDER BY id`
+    )
+  }
+
+  /** Tareas con sus asignados y campos personalizados ya resueltos. */
+  async getTasks (): Promise<PerfexTask[]> {
+    const tasks = await this.query<PerfexTask>(
+      `SELECT id, name, description, priority, status, dateadded, startdate, duedate,
+              rel_id, rel_type
+       FROM {p}tasks ORDER BY id`
+    )
+
+    const assigned = await this.query<{ taskid: number, staffid: number }>(
+      'SELECT taskid, staffid FROM {p}task_assigned ORDER BY id'
+    )
+    const assigneesByTask = new Map<number, number[]>()
+    for (const row of assigned) {
+      const list = assigneesByTask.get(row.taskid) ?? []
+      list.push(row.staffid)
+      assigneesByTask.set(row.taskid, list)
+    }
+
+    const customValues = await this.query<{ relid: number, name: string, value: string }>(
+      `SELECT v.relid, f.name, v.value
+       FROM {p}customfieldsvalues v
+       JOIN {p}customfields f ON f.id = v.fieldid
+       WHERE f.fieldto = 'tasks' AND v.value <> ''`
+    )
+    const areaByTask = new Map<number, string[]>()
+    const driveByTask = new Map<number, string>()
+    for (const row of customValues) {
+      if (row.name === CUSTOM_FIELD_AREA) {
+        areaByTask.set(
+          row.relid,
+          row.value
+            .split(',')
+            .map((v) => v.trim())
+            .filter((v) => v !== '')
+        )
+      } else if (row.name === CUSTOM_FIELD_DRIVE) {
+        driveByTask.set(row.relid, extractUrl(row.value))
+      }
+    }
+
+    for (const task of tasks) {
+      task.assignees = assigneesByTask.get(task.id) ?? []
+      task.companyArea = areaByTask.get(task.id) ?? []
+      task.driveLink = driveByTask.get(task.id)
+    }
+    return tasks
+  }
+
+  async getComments (): Promise<PerfexComment[]> {
+    return await this.query<PerfexComment>(
+      'SELECT id, taskid, content, staffid, dateadded FROM {p}task_comments ORDER BY id'
+    )
   }
 }
