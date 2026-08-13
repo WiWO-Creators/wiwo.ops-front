@@ -4,7 +4,9 @@
 import core, {
   concatLink,
   SocialIdType,
+  systemAccountUuid,
   TxOperations,
+  type AccountUuid,
   type PersonId,
   type Ref,
   type WorkspaceDataId,
@@ -222,12 +224,32 @@ interface Session {
 async function resolveByToken (token: string, transactor?: string): Promise<Session> {
   // Con el transactor dado a mano no hace falta preguntarle al servicio de cuentas.
   const endpoint = transactor ?? (await getTransactorEndpoint(token, 'external'))
-  // El token lleva adentro el workspace: no hace falta pedirlo por separado.
+  // El token lleva adentro el workspace y la cuenta: no hace falta pedirlos por separado.
   // Se decodifica sin verificar la firma, que es cosa del servidor.
-  const { workspace } = decodeToken(token, false)
-  // Con un token de servicio no hay identidad social propia: los documentos quedan a nombre
-  // del sistema, que es lo esperable para una carga masiva.
-  return { endpoint, token, author: core.account.System, workspace }
+  const { workspace, account } = decodeToken(token, false)
+
+  return { endpoint, token, workspace, author: await resolveAuthor(token, account) }
+}
+
+/**
+ * Averigua a nombre de quién se van a crear los documentos.
+ *
+ * El servidor exige que cada cambio venga firmado por una identidad de la misma cuenta que emitió
+ * el token; si no coinciden, responde `AccountMismatch`. La cuenta de sistema es la excepción:
+ * puede firmar como sistema. Por eso con un token de usuario hay que usar su identidad real.
+ */
+async function resolveAuthor (token: string, account: AccountUuid): Promise<PersonId> {
+  if (account === systemAccountUuid) return core.account.System
+
+  const info = await getAccountClient(token).getLoginInfoByToken()
+  const socialId = (info as { socialId?: PersonId } | null)?.socialId
+  if (socialId === undefined) {
+    throw new Error(
+      'El token no trae una identidad con la que firmar los documentos. Generá el token para tu ' +
+        'propio correo, o usá el de la cuenta de sistema.'
+    )
+  }
+  return socialId
 }
 
 /** Conexión con usuario y contraseña, para instancias que no usan proveedores externos. */
