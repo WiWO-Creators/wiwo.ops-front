@@ -58,6 +58,10 @@ export function perfexClientsTool (): void {
     .option('-t, --token <token>', 'token del workspace, alternativa al usuario (o variable HULY_TOKEN)')
     .requiredOption('-e, --env <ambiente>', `ambiente a migrar (${ENVIRONMENTS.map((e) => e.id).join(', ')})`)
     .option('-f, --front <url>', 'url del front de Huly (o variable FRONT_URL)')
+    .option(
+      '--transactor <url>',
+      'url directa del transactor, para saltear el proxy (o variable TRANSACTOR_URL)'
+    )
     .option('--state <file>', 'archivo de estado para poder repetir la corrida (por defecto, uno por ambiente)')
     .option('--incluir-inactivos', 'migra también los clientes dados de baja en Perfex', false)
     .option('-s, --stages <stages>', `partes a correr, separadas por coma (${ALL_STAGES.join(', ')})`)
@@ -86,8 +90,9 @@ export function perfexClientsTool (): void {
           throw new Error('Falta la url del front: usá --front o la variable FRONT_URL')
         }
         const token = cmd.token ?? process.env.HULY_TOKEN
+        const transactor = cmd.transactor ?? process.env.TRANSACTOR_URL
         await withHulyClient(
-          { frontUrl, token, user: cmd.user, password: cmd.password, workspaceUrl: cmd.workspace },
+          { frontUrl, token, transactor, user: cmd.user, password: cmd.password, workspaceUrl: cmd.workspace },
           async (client, uploader, ensurePerson) => {
             await importClients(client, perfex, consoleLogger, options, uploader, ensurePerson)
           }
@@ -104,6 +109,7 @@ export function perfexClientsTool (): void {
     .requiredOption('--desde-token <token>', 'token del workspace de origen')
     .requiredOption('--hacia-token <token>', 'token del workspace destino')
     .option('-f, --front <url>', 'url del front de Huly (o variable FRONT_URL)')
+    .option('--transactor <url>', 'url directa del transactor (o variable TRANSACTOR_URL)')
     .option('--solo-copiar', 'copia al destino sin borrar del origen', false)
     .option('--dry-run', 'no escribe nada: sólo informa qué movería', false)
     .action(async (cmd) => {
@@ -113,8 +119,9 @@ export function perfexClientsTool (): void {
       }
       await setupAccounts(frontUrl)
 
-      await withTokenClient(cmd.desdeToken, async (source) => {
-        await withTokenClient(cmd.haciaToken, async (target) => {
+      const transactor = cmd.transactor ?? process.env.TRANSACTOR_URL
+      await withTokenClient(cmd.desdeToken, transactor, async (source) => {
+        await withTokenClient(cmd.haciaToken, transactor, async (target) => {
           await moveClient(source, target, consoleLogger, {
             clientName: cmd.cliente,
             dryRun: cmd.dryRun === true,
@@ -132,6 +139,12 @@ interface Credentials {
   workspaceUrl: string
   /** Token del workspace. Es la unica via cuando el ingreso a Huly es con Google. */
   token?: string
+  /**
+   * Url directa del transactor, por ejemplo `ws://transactor:3333` corriendo dentro de la red de
+   * Docker. Sirve para saltear el proxy cuando éste no deja pasar las peticiones que no son
+   * WebSocket, que es de donde salen los errores 400 en el alta de personas.
+   */
+  transactor?: string
   user?: string
   password?: string
 }
@@ -152,10 +165,12 @@ async function withHulyClient (
 ): Promise<void> {
   await setupAccounts(credentials.frontUrl)
 
-  const { endpoint, token, author, workspace, workspaceDataId } =
+  const session =
     credentials.token !== undefined && credentials.token !== ''
-      ? await resolveByToken(credentials.token)
+      ? await resolveByToken(credentials.token, credentials.transactor)
       : await resolveByPassword(credentials)
+  const { token, author, workspace, workspaceDataId } = session
+  const endpoint = credentials.transactor ?? session.endpoint
 
   const uploader = new FrontFileUploader(credentials.frontUrl, workspace, workspaceDataId ?? workspace, token)
   // ensurePerson vive en la API REST del transactor: crea la persona junto con su identidad de
@@ -181,8 +196,12 @@ async function setupAccounts (frontUrl: string): Promise<void> {
 }
 
 /** Abre una sesión con un token de workspace y la cierra al terminar. */
-async function withTokenClient (token: string, f: (client: TxOperations) => Promise<void>): Promise<void> {
-  const { endpoint, author } = await resolveByToken(token)
+async function withTokenClient (
+  token: string,
+  transactor: string | undefined,
+  f: (client: TxOperations) => Promise<void>
+): Promise<void> {
+  const { endpoint, author } = await resolveByToken(token, transactor)
   const connection = await createClient(endpoint, token)
   try {
     await f(new TxOperations(connection, author))
@@ -200,8 +219,9 @@ interface Session {
 }
 
 /** Conexión con un token ya emitido (`run-tool.sh generate-token <email> <workspace>`). */
-async function resolveByToken (token: string): Promise<Session> {
-  const endpoint = await getTransactorEndpoint(token, 'external')
+async function resolveByToken (token: string, transactor?: string): Promise<Session> {
+  // Con el transactor dado a mano no hace falta preguntarle al servicio de cuentas.
+  const endpoint = transactor ?? (await getTransactorEndpoint(token, 'external'))
   // El token lleva adentro el workspace: no hace falta pedirlo por separado.
   // Se decodifica sin verificar la firma, que es cosa del servidor.
   const { workspace } = decodeToken(token, false)
