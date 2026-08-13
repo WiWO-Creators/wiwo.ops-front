@@ -25,6 +25,7 @@ import { FrontFileUploader, type FileUploader } from '@hcengineering/importer'
 import { program } from 'commander'
 
 import { ENVIRONMENTS, getEnvironment } from './environments'
+import { notifyResult } from './aviso'
 import { ALL_STAGES, importClients, type Logger, type Stage } from './import'
 import { moveClient } from './move'
 import { getPerfexConfig, PerfexReader } from './perfex'
@@ -66,12 +67,18 @@ export function parseSince (desde: string | undefined, ultimosMeses: string | un
   return undefined
 }
 
+/** Se guardan las líneas del registro para poder mandarlas en el aviso de fin. */
+const summary: string[] = []
+
 const consoleLogger: Logger = {
   log: (msg: string) => {
     console.log(msg)
+    // Las marcas de avance no aportan nada en el aviso final.
+    if (!msg.startsWith('  ...')) summary.push(msg)
   },
   error: (msg: string) => {
     console.error(msg)
+    summary.push(msg)
   }
 }
 
@@ -98,6 +105,7 @@ export function perfexClientsTool (): void {
     .option('--ultimos-meses <n>', 'sólo tareas de los últimos n meses')
     .option('--solo-abiertas', 'deja fuera las tareas ya completadas en Perfex', false)
     .option('--dry-run', 'no escribe nada en Huly: sólo informa qué haría', false)
+    .option('--avisar-a <url>', 'url a la que avisar cuando termine (o variable AVISAR_URL)')
     .action(async (cmd) => {
       const environment = getEnvironment(cmd.env)
       const statePath = cmd.state ?? `./perfex-clients-state-${environment.id}.json`
@@ -111,28 +119,44 @@ export function perfexClientsTool (): void {
         onlyOpenTasks: cmd.soloAbiertas === true
       }
 
-      const perfex = await PerfexReader.connect(getPerfexConfig())
+      const avisarA = cmd.avisarA ?? process.env.AVISAR_URL
+      // Todo va dentro del try, incluida la conexión a Perfex: una corrida que se deja en segundo
+      // plano tiene que avisar también cuando falla antes de empezar.
       try {
-        if (options.dryRun) {
-          // La simulación no necesita conexión a Huly: sólo lee Perfex e informa.
-          await importClients(undefined as unknown as TxOperations, perfex, consoleLogger, options)
-          return
+        const perfex = await PerfexReader.connect(getPerfexConfig())
+        try {
+          if (options.dryRun) {
+            // La simulación no necesita conexión a Huly: sólo lee Perfex e informa.
+            await importClients(undefined as unknown as TxOperations, perfex, consoleLogger, options)
+            return
+          }
+
+          const frontUrl = cmd.front ?? process.env.FRONT_URL
+          if (frontUrl === undefined || frontUrl === '') {
+            throw new Error('Falta la url del front: usá --front o la variable FRONT_URL')
+          }
+          const token = cmd.token ?? process.env.HULY_TOKEN
+          const transactor = cmd.transactor ?? process.env.TRANSACTOR_URL
+          await withHulyClient(
+            { frontUrl, token, transactor, user: cmd.user, password: cmd.password, workspaceUrl: cmd.workspace },
+            async (client, uploader, ensurePerson) => {
+              await importClients(client, perfex, consoleLogger, options, uploader, ensurePerson)
+            }
+          )
+        } finally {
+          await perfex.close()
         }
 
-        const frontUrl = cmd.front ?? process.env.FRONT_URL
-        if (frontUrl === undefined || frontUrl === '') {
-          throw new Error('Falta la url del front: usá --front o la variable FRONT_URL')
-        }
-        const token = cmd.token ?? process.env.HULY_TOKEN
-        const transactor = cmd.transactor ?? process.env.TRANSACTOR_URL
-        await withHulyClient(
-          { frontUrl, token, transactor, user: cmd.user, password: cmd.password, workspaceUrl: cmd.workspace },
-          async (client, uploader, ensurePerson) => {
-            await importClients(client, perfex, consoleLogger, options, uploader, ensurePerson)
-          }
+        console.log(`RESULTADO: ok — ambiente ${environment.label}`)
+        await notifyResult(avisarA, { environment: environment.label, ok: true, summary }, consoleLogger)
+      } catch (err: any) {
+        console.error(`RESULTADO: error — ambiente ${environment.label}: ${err.message}`)
+        await notifyResult(
+          avisarA,
+          { environment: environment.label, ok: false, summary, error: err.message },
+          consoleLogger
         )
-      } finally {
-        await perfex.close()
+        process.exitCode = 1
       }
     })
 

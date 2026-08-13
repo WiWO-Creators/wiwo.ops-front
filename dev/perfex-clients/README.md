@@ -166,6 +166,28 @@ grep -E "Staff|Organizaciones|Proyectos|Tareas completadas" migracion-mgc.log   
 El log deja una marca cada 200 tareas, así se ve el avance sin adivinar. Si el proceso muere, el
 archivo de estado permite retomar donde quedó.
 
+La corrida termina siempre con una línea que dice cómo le fue, y sale con código distinto de cero
+si falló, así que se puede encadenar:
+
+```
+RESULTADO: ok — ambiente WiWO
+RESULTADO: error — ambiente WiWO: Access denied for user ...
+```
+
+### Avisar cuando termina
+
+Con `--avisar-a` (o la variable `AVISAR_URL`) manda el resultado por POST a la url indicada, tanto
+si terminó bien como si falló:
+
+```bash
+nohup node bundle.js import -e mgc -w mgc --incluir-inactivos \
+  --avisar-a 'https://hooks.slack.com/services/...' > migracion-mgc.log 2>&1 &
+```
+
+El cuerpo trae un campo `text` con el resumen ya armado —que es lo que muestran Slack y Discord— y
+además `ok`, `environment`, `summary` y `error`, para un webhook propio o un flujo de n8n. Si el
+aviso no se puede entregar, queda anotado en el log y la migración se da por terminada igual.
+
 ## Repetir la corrida
 
 Lo migrado se anota en `perfex-clients-state-<ambiente>.json` (se cambia con `--state`), después de
