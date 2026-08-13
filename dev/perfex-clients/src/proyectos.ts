@@ -24,6 +24,7 @@ import { type PerfexComment, type PerfexReader, type PerfexStaff, type PerfexTas
 import {
   buildProjectIdentifier,
   CLOSED_PROJECT_STATUSES,
+  COMPLETED_TASK_STATUS,
   getPriorityName,
   getStatusName,
   ORPHAN_PROJECT_IDENTIFIER,
@@ -46,6 +47,10 @@ export interface ProjectImportOptions {
   migratedComponents: Record<string, Ref<Component>>
   /** Tareas ya migradas, por id de Perfex. Se completa durante la corrida. */
   migratedTasks: Record<string, Ref<Issue>>
+  /** Sólo tareas creadas desde esta fecha (timestamp). Sin valor, todas. */
+  tasksSince?: number
+  /** Si es true deja fuera las tareas ya completadas en Perfex. */
+  onlyOpenTasks: boolean
   dryRun: boolean
   /** Se llama cuando hay avance que conviene persistir. */
   onProgress: () => void
@@ -114,10 +119,22 @@ export async function importProjects (
   // Entran las tareas de las campañas del ambiente y las que colgaban directo de sus clientes.
   // Las de lead o sin dueño van al ambiente que recoge lo no clasificado.
   const tasks = allTasks.filter((t) => {
+    // Recortes opcionales, para migrar sólo lo reciente o lo que sigue abierto.
+    if (options.tasksSince !== undefined) {
+      const created = toTimestamp(t.dateadded)
+      if (created === null || created < options.tasksSince) return false
+    }
+    if (options.onlyOpenTasks && COMPLETED_TASK_STATUS === t.status) return false
+
     if (t.rel_type === 'project') return t.rel_id != null && campaignIds.has(t.rel_id)
     if (t.rel_type === 'customer') return t.rel_id != null && clientIds.has(t.rel_id)
     return options.isOrphanEnvironment
   })
+
+  const skipped = allTasks.length - tasks.length
+  if (options.tasksSince !== undefined || options.onlyOpenTasks) {
+    logger.log(`Filtro de tareas activo: entran ${tasks.length}, quedan fuera ${skipped}`)
+  }
 
   const commentsByTask = new Map<number, PerfexComment[]>()
   for (const comment of comments) {
@@ -213,8 +230,10 @@ export async function importProjects (
   }
 
   const issueCount = importProjectList.reduce((acc, p) => acc + p.docs.length, 0)
+  // Sólo se crean componentes de campañas con tareas migradas, así que ése es el número a informar.
+  const componentCount = new Set(campaignByTask.values()).size
   logger.log(
-    `Proyectos (uno por cliente): ${importProjectList.length}, con ${campaigns.length} componentes ` +
+    `Proyectos (uno por cliente): ${importProjectList.length}, con ${componentCount} componentes ` +
       `y ${issueCount} tareas` +
       (options.dryRun ? ' (simulado)' : '')
   )
@@ -245,7 +264,10 @@ export async function importProjects (
 
   // Cada proyecto de Perfex pasa a ser un componente dentro del proyecto de su cliente.
   const componentByCampaign = new Map<number, Ref<Component>>()
+  const campaignsWithTasks = new Set(campaignByTask.values())
   for (const campaign of campaigns) {
+    // Sin tareas migradas, el componente sería ruido: no se crea.
+    if (!campaignsWithTasks.has(campaign.id)) continue
     const projectId = options.migratedProjects[campaign.clientid]
     if (projectId === undefined) continue
 
@@ -301,6 +323,11 @@ export async function importProjects (
     }
     await client.updateDoc(tracker.class.Issue, issue.space, issueId, update)
     updated++
+    // Señal de vida en corridas largas, para poder seguirlas por el archivo de log.
+    if (updated % 200 === 0) {
+      logger.log(`  ... ${updated} de ${issueIdByTask.size} tareas completadas`)
+      options.onProgress()
+    }
   }
   logger.log(`Tareas completadas con componente, fechas y campos de Perfex: ${updated}`)
 

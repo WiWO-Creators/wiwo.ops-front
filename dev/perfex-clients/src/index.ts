@@ -39,6 +39,33 @@ function parseStages (value: string | undefined): Stage[] {
   return stages
 }
 
+/**
+ * Resuelve desde cuándo migrar tareas, a partir de una fecha o de una cantidad de meses.
+ *
+ * @throws Error si la fecha no se entiende, para no migrar de más por un tipeo.
+ */
+export function parseSince (desde: string | undefined, ultimosMeses: string | undefined): number | undefined {
+  if (desde !== undefined && desde.trim() !== '') {
+    const date = new Date(`${desde.trim()}T00:00:00`)
+    if (isNaN(date.getTime())) {
+      throw new Error(`Fecha inválida: "${desde}". Se espera AAAA-MM-DD, por ejemplo 2026-08-01`)
+    }
+    return date.getTime()
+  }
+
+  if (ultimosMeses !== undefined && ultimosMeses.trim() !== '') {
+    const months = Number(ultimosMeses)
+    if (!Number.isInteger(months) || months <= 0) {
+      throw new Error(`Cantidad de meses inválida: "${ultimosMeses}". Se espera un entero positivo`)
+    }
+    const date = new Date()
+    date.setMonth(date.getMonth() - months)
+    return date.getTime()
+  }
+
+  return undefined
+}
+
 const consoleLogger: Logger = {
   log: (msg: string) => {
     console.log(msg)
@@ -67,6 +94,9 @@ export function perfexClientsTool (): void {
     .option('--state <file>', 'archivo de estado para poder repetir la corrida (por defecto, uno por ambiente)')
     .option('--incluir-inactivos', 'migra también los clientes dados de baja en Perfex', false)
     .option('-s, --stages <stages>', `partes a correr, separadas por coma (${ALL_STAGES.join(', ')})`)
+    .option('--desde <fecha>', 'sólo tareas creadas desde esta fecha, en formato AAAA-MM-DD')
+    .option('--ultimos-meses <n>', 'sólo tareas de los últimos n meses')
+    .option('--solo-abiertas', 'deja fuera las tareas ya completadas en Perfex', false)
     .option('--dry-run', 'no escribe nada en Huly: sólo informa qué haría', false)
     .action(async (cmd) => {
       const environment = getEnvironment(cmd.env)
@@ -76,7 +106,9 @@ export function perfexClientsTool (): void {
         statePath,
         stages: parseStages(cmd.stages),
         dryRun: cmd.dryRun === true,
-        includeInactive: cmd.incluirInactivos === true
+        includeInactive: cmd.incluirInactivos === true,
+        tasksSince: parseSince(cmd.desde, cmd.ultimosMeses),
+        onlyOpenTasks: cmd.soloAbiertas === true
       }
 
       const perfex = await PerfexReader.connect(getPerfexConfig())

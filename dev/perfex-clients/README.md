@@ -132,6 +132,40 @@ El cliente movido **no** vuelve a aparecer en el ambiente viejo si se repite la 
 archivo de estado recuerda que ya se había creado. Si querés que la próxima corrida lo mande solo
 al ambiente nuevo, corregí su grupo en Perfex.
 
+## Migrar sólo una parte de las tareas
+
+Con miles de tareas la corrida se hace larga. Hay dos recortes, combinables:
+
+```bash
+# sólo lo del último mes
+node bundle.js import -e mgc -w mgc --incluir-inactivos --ultimos-meses 1
+
+# desde una fecha exacta
+node bundle.js import -e mgc -w mgc --incluir-inactivos --desde 2026-08-01
+
+# sólo lo que sigue abierto, sin importar cuándo se creó
+node bundle.js import -e mgc -w mgc --incluir-inactivos --solo-abiertas
+```
+
+Los clientes y sus proyectos se crean igual; lo que se recorta son las tareas, y los componentes
+se crean sólo para las campañas que quedaron con alguna tarea. Después se puede ampliar: correr de
+nuevo con un rango mayor agrega lo que falta sin duplicar lo ya migrado.
+
+## Dejarlo corriendo sin esperar
+
+La corrida no necesita supervisión: basta con lanzarla en segundo plano y revisar el log al final.
+
+```bash
+nohup node bundle.js import -e mgc -w mgc --incluir-inactivos > migracion-mgc.log 2>&1 &
+echo $!            # número de proceso, por si hay que cortarlo
+
+tail -f migracion-mgc.log     # seguirla en vivo
+grep -E "Staff|Organizaciones|Proyectos|Tareas completadas" migracion-mgc.log   # revisar al final
+```
+
+El log deja una marca cada 200 tareas, así se ve el avance sin adivinar. Si el proceso muere, el
+archivo de estado permite retomar donde quedó.
+
 ## Repetir la corrida
 
 Lo migrado se anota en `perfex-clients-state-<ambiente>.json` (se cambia con `--state`), después de
@@ -148,6 +182,9 @@ tras un error o un corte. Si se borra ese archivo, la próxima corrida duplica t
 | `-e, --env` | Ambiente: `mgc`, `palta`, `wiwo` o `sin-clasificar` |
 | `-f, --front` | Url del front, si no se usa `FRONT_URL` |
 | `--incluir-inactivos` | Migra también los clientes dados de baja, con sus proyectos y tareas |
+| `--desde <AAAA-MM-DD>` | Sólo tareas creadas desde esa fecha |
+| `--ultimos-meses <n>` | Sólo tareas de los últimos n meses |
+| `--solo-abiertas` | Deja fuera las tareas ya completadas |
 | `-s, --stages` | `personas`, `clientes`, `proyectos`, separadas por coma |
 | `--state` | Archivo de estado propio |
 | `--dry-run` | Sólo informa qué haría |

@@ -21,6 +21,9 @@ export const TASK_STATUS_ORDER: ImportStatus[] = [
   { name: TASK_STATUSES[5] }
 ]
 
+/** Código de Perfex para una tarea ya terminada. */
+export const COMPLETED_TASK_STATUS = 5
+
 /** Prioridades de Perfex traducidas a las claves de `IssuePriority` de Huly. */
 export const TASK_PRIORITIES: Record<number, string> = {
   1: 'Low',

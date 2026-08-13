@@ -42,6 +42,10 @@ export interface ImportOptions {
   statePath: string
   /** Si es true migra también los clientes marcados como inactivos en Perfex. */
   includeInactive: boolean
+  /** Sólo tareas creadas desde esta fecha (timestamp). Sin valor, todas. */
+  tasksSince?: number
+  /** Si es true deja fuera las tareas ya completadas en Perfex. */
+  onlyOpenTasks: boolean
 }
 
 /** Mapeo de lo ya migrado, para que una segunda corrida no duplique documentos. */
@@ -215,6 +219,8 @@ async function runProjectsStage (
     migratedProjects: state.proyectos,
     migratedComponents: state.componentes,
     migratedTasks: state.tareas,
+    tasksSince: options.tasksSince,
+    onlyOpenTasks: options.onlyOpenTasks,
     dryRun: options.dryRun,
     onProgress: () => {
       saveState(options.statePath, state)
