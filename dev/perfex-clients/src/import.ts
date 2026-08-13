@@ -15,7 +15,7 @@ import { generateId, type Class, type Data, type Ref, type TxOperations } from '
 import { readFileSync, writeFileSync } from 'fs'
 
 import { type FileUploader } from '@hcengineering/importer'
-import { type Issue, type Project } from '@hcengineering/tracker'
+import { type Component, type Issue, type Project } from '@hcengineering/tracker'
 
 import { belongsToEnvironment, type Environment } from './environments'
 import { type PerfexClient, type PerfexContact, type PerfexReader } from './perfex'
@@ -50,11 +50,21 @@ interface MigrationState {
   personas: Record<string, Ref<Person>>
   /** Personas del staff de Perfex, por staffid. */
   staff: Record<string, Ref<Person>>
+  /** Proyectos de Huly, por id de cliente de Perfex. */
   proyectos: Record<string, Ref<Project>>
+  /** Componentes, por id de proyecto de Perfex. */
+  componentes: Record<string, Ref<Component>>
   tareas: Record<string, Ref<Issue>>
 }
 
-const EMPTY_STATE: MigrationState = { organizaciones: {}, personas: {}, staff: {}, proyectos: {}, tareas: {} }
+const EMPTY_STATE: MigrationState = {
+  organizaciones: {},
+  personas: {},
+  staff: {},
+  proyectos: {},
+  componentes: {},
+  tareas: {}
+}
 
 function loadState (path: string): MigrationState {
   try {
@@ -199,10 +209,11 @@ async function runProjectsStage (
   }
 
   await importProjects(client, uploader as FileUploader, perfex, logger, {
-    clientIds: new Set(clients.map((c) => c.id)),
+    clients: clients.map((c) => ({ id: c.id, company: c.company })),
     isOrphanEnvironment: options.environment.groups.length === 0,
     peopleByStaffId: state.staff,
     migratedProjects: state.proyectos,
+    migratedComponents: state.componentes,
     migratedTasks: state.tareas,
     dryRun: options.dryRun,
     onProgress: () => {

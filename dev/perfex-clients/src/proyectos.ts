@@ -17,7 +17,7 @@ import {
 } from '@hcengineering/importer'
 import { htmlToMarkup } from '@hcengineering/text-html'
 import { markupToMarkdown } from '@hcengineering/text-markdown'
-import tracker, { type Issue, type Project } from '@hcengineering/tracker'
+import tracker, { type Component, type Issue, type Project } from '@hcengineering/tracker'
 
 import { type Logger } from './import'
 import { type PerfexComment, type PerfexReader, type PerfexStaff, type PerfexTask } from './perfex'
@@ -34,14 +34,16 @@ import {
 } from './tareas'
 
 export interface ProjectImportOptions {
-  /** Ids de los clientes del ambiente: sólo entran sus proyectos y tareas. */
-  clientIds: Set<number>
+  /** Clientes del ambiente. Cada uno es un proyecto de Huly. */
+  clients: Array<{ id: number, company: string }>
   /** true en el ambiente que recoge lo que no cae en ningún otro. */
   isOrphanEnvironment: boolean
   /** Personas de Huly por staffid de Perfex, para poder asignar responsables. */
   peopleByStaffId: Record<string, Ref<Person>>
-  /** Proyectos ya migrados, por id de Perfex. Se completa durante la corrida. */
+  /** Proyectos de Huly ya creados, por id de cliente de Perfex. */
   migratedProjects: Record<string, Ref<Project>>
+  /** Componentes ya creados, por id de proyecto de Perfex. */
+  migratedComponents: Record<string, Ref<Component>>
   /** Tareas ya migradas, por id de Perfex. Se completa durante la corrida. */
   migratedTasks: Record<string, Ref<Issue>>
   dryRun: boolean
@@ -101,16 +103,19 @@ export async function importProjects (
   const staff = await perfex.getStaff()
   const staffById = new Map(staff.map((s) => [s.staffid, s]))
 
-  const projects = (await perfex.getProjects()).filter((p) => options.clientIds.has(p.clientid))
-  const projectIds = new Set(projects.map((p) => p.id))
+  const clientIds = new Set(options.clients.map((c) => c.id))
+
+  const campaigns = (await perfex.getProjects()).filter((p) => clientIds.has(p.clientid))
+  const campaignIds = new Set(campaigns.map((p) => p.id))
+  const campaignById = new Map(campaigns.map((p) => [p.id, p]))
   const allTasks = await perfex.getTasks()
   const comments = await perfex.getComments()
 
-  // Entran las tareas de los proyectos del ambiente y las que cuelgan directo de sus clientes.
-  // El resto de las sueltas (de lead o sin relación) va al ambiente que recoge lo no clasificado.
+  // Entran las tareas de las campañas del ambiente y las que colgaban directo de sus clientes.
+  // Las de lead o sin dueño van al ambiente que recoge lo no clasificado.
   const tasks = allTasks.filter((t) => {
-    if (t.rel_type === 'project') return t.rel_id != null && projectIds.has(t.rel_id)
-    if (t.rel_type === 'customer') return t.rel_id != null && options.clientIds.has(t.rel_id)
+    if (t.rel_type === 'project') return t.rel_id != null && campaignIds.has(t.rel_id)
+    if (t.rel_type === 'customer') return t.rel_id != null && clientIds.has(t.rel_id)
     return options.isOrphanEnvironment
   })
 
@@ -121,16 +126,29 @@ export async function importProjects (
     commentsByTask.set(comment.taskid, list)
   }
 
-  const tasksByProject = new Map<number, PerfexTask[]>()
-  const orphanTasks: PerfexTask[] = []
+  // La estructura de Perfex era Cliente → Proyecto → Tarea. En Huly el proyecto pasa a ser la
+  // empresa y cada proyecto de Perfex, que en la práctica es una campaña, queda como componente
+  // dentro de ella. Así la barra lateral tiene una entrada por cliente y no una por campaña.
+  const tasksByClient = new Map<number, PerfexTask[]>()
+  const campaignByTask = new Map<number, number>()
+  const leadTasks: PerfexTask[] = []
+
   for (const task of tasks) {
+    let clientId: number | undefined
     if (task.rel_type === 'project' && task.rel_id != null) {
-      const list = tasksByProject.get(task.rel_id) ?? []
-      list.push(task)
-      tasksByProject.set(task.rel_id, list)
-    } else {
-      orphanTasks.push(task)
+      clientId = campaignById.get(task.rel_id)?.clientid
+      campaignByTask.set(task.id, task.rel_id)
+    } else if (task.rel_type === 'customer' && task.rel_id != null) {
+      clientId = task.rel_id
     }
+
+    if (clientId === undefined || !clientIds.has(clientId)) {
+      leadTasks.push(task)
+      continue
+    }
+    const list = tasksByClient.get(clientId) ?? []
+    list.push(task)
+    tasksByClient.set(clientId, list)
   }
 
   // Los ids de las tareas se fijan de antemano para poder completarles después los atributos
@@ -163,35 +181,41 @@ export async function importProjects (
     }
   }
 
+  // Un proyecto de Huly por cliente que tenga campañas o tareas.
+  const clientsWithWork = options.clients.filter(
+    (c) => (tasksByClient.get(c.id)?.length ?? 0) > 0 || campaigns.some((p) => p.clientid === c.id)
+  )
+
   const importProjectList: ImportProject[] = []
-  for (const project of projects) {
-    if (options.migratedProjects[project.id] !== undefined) continue
+  for (const client_ of clientsWithWork) {
+    if (options.migratedProjects[client_.id] !== undefined) continue
     importProjectList.push({
       class: tracker.class.Project,
-      title: project.name.trim() !== '' ? project.name : `Proyecto ${project.id}`,
-      identifier: buildProjectIdentifier(project.name),
+      title: client_.company,
+      identifier: buildProjectIdentifier(client_.company),
       private: false,
       autoJoin: false,
-      description: htmlToMarkdown(project.description),
-      docs: (tasksByProject.get(project.id) ?? []).map(buildIssue)
+      description: '',
+      docs: (tasksByClient.get(client_.id) ?? []).map(buildIssue)
     })
   }
 
-  if (orphanTasks.length > 0 && options.migratedProjects.orphan === undefined) {
+  if (leadTasks.length > 0 && options.migratedProjects.orphan === undefined) {
     importProjectList.push({
       class: tracker.class.Project,
       title: ORPHAN_PROJECT_NAME,
       identifier: ORPHAN_PROJECT_IDENTIFIER,
       private: false,
       autoJoin: false,
-      description: 'Tareas de Perfex que no pertenecían a ningún proyecto.',
-      docs: orphanTasks.map(buildIssue)
+      description: 'Tareas de Perfex que no pertenecían a ningún cliente.',
+      docs: leadTasks.map(buildIssue)
     })
   }
 
   const issueCount = importProjectList.reduce((acc, p) => acc + p.docs.length, 0)
   logger.log(
-    `Proyectos y tareas: ${importProjectList.length} proyectos y ${issueCount} tareas a crear` +
+    `Proyectos (uno por cliente): ${importProjectList.length}, con ${campaigns.length} componentes ` +
+      `y ${issueCount} tareas` +
       (options.dryRun ? ' (simulado)' : '')
   )
   if (options.dryRun) return
@@ -208,7 +232,47 @@ export async function importProjects (
 
   await new WorkspaceImporter(client, logger, uploader, workspaceData).performImport()
 
-  // Fechas y atributos propios del fork, que el importador no escribe.
+  // Se registra el proyecto de cada cliente, para poder colgarle los componentes.
+  for (const client_ of clientsWithWork) {
+    if (options.migratedProjects[client_.id] !== undefined) continue
+    const created = await client.findOne(tracker.class.Project, { name: client_.company })
+    if (created === undefined) {
+      logger.error(`No se encontró el proyecto de "${client_.company}"`)
+      continue
+    }
+    options.migratedProjects[client_.id] = created._id
+  }
+
+  // Cada proyecto de Perfex pasa a ser un componente dentro del proyecto de su cliente.
+  const componentByCampaign = new Map<number, Ref<Component>>()
+  for (const campaign of campaigns) {
+    const projectId = options.migratedProjects[campaign.clientid]
+    if (projectId === undefined) continue
+
+    const existing = options.migratedComponents[campaign.id]
+    if (existing !== undefined) {
+      componentByCampaign.set(campaign.id, existing)
+      continue
+    }
+
+    const componentId = generateId<Component>()
+    await client.createDoc(
+      tracker.class.Component,
+      projectId,
+      {
+        label: campaign.name.trim() !== '' ? campaign.name : `Campaña ${campaign.id}`,
+        description: htmlToMarkdown(campaign.description),
+        lead: null,
+        comments: 0
+      },
+      componentId
+    )
+    options.migratedComponents[campaign.id] = componentId
+    componentByCampaign.set(campaign.id, componentId)
+  }
+  logger.log(`Componentes creados a partir de los proyectos de Perfex: ${componentByCampaign.size}`)
+
+  // Fechas, componente y atributos propios del fork: nada de esto lo escribe el importador.
   const taskById = new Map(tasks.map((t) => [t.id, t]))
   let updated = 0
   for (const [perfexId, issueId] of issueIdByTask) {
@@ -223,6 +287,10 @@ export async function importProjects (
     if (task.companyArea.length > 0) update.companyArea = task.companyArea
     if (task.driveLink !== undefined && task.driveLink !== '') update.driveLink = task.driveLink
 
+    const campaignId = campaignByTask.get(perfexId)
+    const component = campaignId !== undefined ? componentByCampaign.get(campaignId) : undefined
+    if (component !== undefined) update.component = component
+
     options.migratedTasks[perfexId] = issueId
     if (Object.keys(update).length === 0) continue
 
@@ -234,20 +302,15 @@ export async function importProjects (
     await client.updateDoc(tracker.class.Issue, issue.space, issueId, update)
     updated++
   }
-  logger.log(`Tareas completadas con fechas y campos de Perfex: ${updated}`)
+  logger.log(`Tareas completadas con componente, fechas y campos de Perfex: ${updated}`)
 
-  // Se registra cada proyecto creado y se archivan los que en Perfex estaban cerrados.
-  for (const project of projects) {
-    if (options.migratedProjects[project.id] !== undefined) continue
-    const created = await client.findOne(tracker.class.Project, { name: project.name })
-    if (created === undefined) {
-      logger.error(`No se encontró el proyecto importado "${project.name}"`)
-      continue
-    }
-    options.migratedProjects[project.id] = created._id
-    if (CLOSED_PROJECT_STATUSES.has(project.status)) {
-      await client.updateDoc(tracker.class.Project, core.space.Space, created._id, { archived: true })
-    }
+  // Un cliente cuyas campañas están todas cerradas ya no tiene trabajo en curso: se archiva.
+  for (const client_ of clientsWithWork) {
+    const projectId = options.migratedProjects[client_.id]
+    if (projectId === undefined) continue
+    const own = campaigns.filter((c) => c.clientid === client_.id)
+    if (own.length === 0 || !own.every((c) => CLOSED_PROJECT_STATUSES.has(c.status))) continue
+    await client.updateDoc(tracker.class.Project, core.space.Space, projectId, { archived: true })
   }
 
   options.onProgress()
