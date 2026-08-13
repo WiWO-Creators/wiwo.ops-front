@@ -34,6 +34,9 @@ import {
   TASK_TYPE_NAME
 } from './tareas'
 
+/** Cuántas tareas se actualizan a la vez. Más alto satura el servidor sin ganar tiempo. */
+const UPDATE_BATCH = 25
+
 export interface ProjectImportOptions {
   /** Clientes del ambiente. Cada uno es un proyecto de Huly. */
   clients: Array<{ id: number, company: string }>
@@ -49,6 +52,8 @@ export interface ProjectImportOptions {
   migratedTasks: Record<string, Ref<Issue>>
   /** Sólo tareas creadas desde esta fecha (timestamp). Sin valor, todas. */
   tasksSince?: number
+  /** Sólo tareas creadas antes de esta fecha (timestamp). Sin valor, sin tope. */
+  tasksUntil?: number
   /** Si es true deja fuera las tareas ya completadas en Perfex. */
   onlyOpenTasks: boolean
   dryRun: boolean
@@ -120,9 +125,11 @@ export async function importProjects (
   // Las de lead o sin dueño van al ambiente que recoge lo no clasificado.
   const tasks = allTasks.filter((t) => {
     // Recortes opcionales, para migrar sólo lo reciente o lo que sigue abierto.
-    if (options.tasksSince !== undefined) {
+    if (options.tasksSince !== undefined || options.tasksUntil !== undefined) {
       const created = toTimestamp(t.dateadded)
-      if (created === null || created < options.tasksSince) return false
+      if (created === null) return false
+      if (options.tasksSince !== undefined && created < options.tasksSince) return false
+      if (options.tasksUntil !== undefined && created >= options.tasksUntil) return false
     }
     if (options.onlyOpenTasks && COMPLETED_TASK_STATUS === t.status) return false
 
@@ -132,7 +139,7 @@ export async function importProjects (
   })
 
   const skipped = allTasks.length - tasks.length
-  if (options.tasksSince !== undefined || options.onlyOpenTasks) {
+  if (options.tasksSince !== undefined || options.tasksUntil !== undefined || options.onlyOpenTasks) {
     logger.log(`Filtro de tareas activo: entran ${tasks.length}, quedan fuera ${skipped}`)
   }
 
@@ -262,6 +269,25 @@ export async function importProjects (
     options.migratedProjects[client_.id] = created._id
   }
 
+  // A qué proyecto fue a parar cada tarea. Se arma acá para no tener que buscar tarea por tarea
+  // más adelante: todas las de un cliente viven en el proyecto de ese cliente.
+  const spaceByTask = new Map<number, Ref<Project>>()
+  for (const [clientId, clientTasks] of tasksByClient) {
+    const projectId = options.migratedProjects[clientId]
+    if (projectId === undefined) continue
+    for (const task of clientTasks) {
+      spaceByTask.set(task.id, projectId)
+    }
+  }
+  if (leadTasks.length > 0) {
+    const orphanProject = await client.findOne(tracker.class.Project, { name: ORPHAN_PROJECT_NAME })
+    if (orphanProject !== undefined) {
+      for (const task of leadTasks) {
+        spaceByTask.set(task.id, orphanProject._id)
+      }
+    }
+  }
+
   // Cada proyecto de Perfex pasa a ser un componente dentro del proyecto de su cliente.
   const componentByCampaign = new Map<number, Ref<Component>>()
   const campaignsWithTasks = new Set(campaignByTask.values())
@@ -295,11 +321,17 @@ export async function importProjects (
   logger.log(`Componentes creados a partir de los proyectos de Perfex: ${componentByCampaign.size}`)
 
   // Fechas, componente y atributos propios del fork: nada de esto lo escribe el importador.
+  //
+  // Se arma la lista completa y después se manda por tandas en paralelo. Ir de a una tarea, y
+  // encima buscándola antes de tocarla, era lo que hacía eternas las corridas grandes: el espacio
+  // ya se conoce, porque es el proyecto del cliente al que pertenece.
   const taskById = new Map(tasks.map((t) => [t.id, t]))
-  let updated = 0
+  const pending: Array<{ issueId: Ref<Issue>, space: Ref<Project>, update: Record<string, any> }> = []
+
   for (const [perfexId, issueId] of issueIdByTask) {
     const task = taskById.get(perfexId)
     if (task === undefined) continue
+    options.migratedTasks[perfexId] = issueId
 
     const update: Record<string, any> = {}
     const startDate = toTimestamp(task.startdate)
@@ -312,22 +344,25 @@ export async function importProjects (
     const campaignId = campaignByTask.get(perfexId)
     const component = campaignId !== undefined ? componentByCampaign.get(campaignId) : undefined
     if (component !== undefined) update.component = component
-
-    options.migratedTasks[perfexId] = issueId
     if (Object.keys(update).length === 0) continue
 
-    const issue = await client.findOne(tracker.class.Issue, { _id: issueId })
-    if (issue === undefined) {
-      logger.error(`No se encontró la tarea importada ${issueId} (Perfex ${perfexId})`)
-      continue
-    }
-    await client.updateDoc(tracker.class.Issue, issue.space, issueId, update)
-    updated++
+    const space = spaceByTask.get(perfexId)
+    if (space === undefined) continue
+    pending.push({ issueId, space, update })
+  }
+
+  let updated = 0
+  for (let i = 0; i < pending.length; i += UPDATE_BATCH) {
+    const batch = pending.slice(i, i + UPDATE_BATCH)
+    await Promise.all(
+      batch.map(async ({ issueId, space, update }) => {
+        await client.updateDoc(tracker.class.Issue, space, issueId, update)
+      })
+    )
+    updated += batch.length
     // Señal de vida en corridas largas, para poder seguirlas por el archivo de log.
-    if (updated % 200 === 0) {
-      logger.log(`  ... ${updated} de ${issueIdByTask.size} tareas completadas`)
-      options.onProgress()
-    }
+    logger.log(`  ... ${updated} de ${pending.length} tareas completadas`)
+    options.onProgress()
   }
   logger.log(`Tareas completadas con componente, fechas y campos de Perfex: ${updated}`)
 

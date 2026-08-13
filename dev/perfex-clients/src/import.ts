@@ -44,6 +44,8 @@ export interface ImportOptions {
   includeInactive: boolean
   /** Sólo tareas creadas desde esta fecha (timestamp). Sin valor, todas. */
   tasksSince?: number
+  /** Sólo tareas creadas antes de esta fecha (timestamp). Sin valor, sin tope. */
+  tasksUntil?: number
   /** Si es true deja fuera las tareas ya completadas en Perfex. */
   onlyOpenTasks: boolean
 }
@@ -220,6 +222,7 @@ async function runProjectsStage (
     migratedComponents: state.componentes,
     migratedTasks: state.tareas,
     tasksSince: options.tasksSince,
+    tasksUntil: options.tasksUntil,
     onlyOpenTasks: options.onlyOpenTasks,
     dryRun: options.dryRun,
     onProgress: () => {

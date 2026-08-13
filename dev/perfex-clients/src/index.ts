@@ -103,6 +103,7 @@ export function perfexClientsTool (): void {
     .option('-s, --stages <stages>', `partes a correr, separadas por coma (${ALL_STAGES.join(', ')})`)
     .option('--desde <fecha>', 'sólo tareas creadas desde esta fecha, en formato AAAA-MM-DD')
     .option('--ultimos-meses <n>', 'sólo tareas de los últimos n meses')
+    .option('--hasta <fecha>', 'sólo tareas creadas antes de esta fecha, para migrar por tandas')
     .option('--solo-abiertas', 'deja fuera las tareas ya completadas en Perfex', false)
     .option('--dry-run', 'no escribe nada en Huly: sólo informa qué haría', false)
     .option('--avisar-a <url>', 'url a la que avisar cuando termine (o variable AVISAR_URL)')
@@ -116,6 +117,7 @@ export function perfexClientsTool (): void {
         dryRun: cmd.dryRun === true,
         includeInactive: cmd.incluirInactivos === true,
         tasksSince: parseSince(cmd.desde, cmd.ultimosMeses),
+        tasksUntil: parseSince(cmd.hasta, undefined),
         onlyOpenTasks: cmd.soloAbiertas === true
       }
 

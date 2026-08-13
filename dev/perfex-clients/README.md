@@ -151,6 +151,29 @@ Los clientes y sus proyectos se crean igual; lo que se recorta son las tareas, y
 se crean sólo para las campañas que quedaron con alguna tarea. Después se puede ampliar: correr de
 nuevo con un rango mayor agrega lo que falta sin duplicar lo ya migrado.
 
+## Migrar por tandas, de lo nuevo a lo viejo
+
+Con miles de tareas conviene no hacerlo todo de una. La receta:
+
+```bash
+# 1. La estructura primero: personas, clientes y contactos. Es rápido.
+node bundle.js import -e mgc -w mgc --incluir-inactivos --stages personas,clientes
+
+# 2. Las tareas del mes en curso: el sistema ya queda usable.
+node bundle.js import -e mgc -w mgc --incluir-inactivos --stages proyectos --desde 2026-08-01
+
+# 3. El resto, en ventanas hacia atrás, cuando haya tiempo.
+node bundle.js import -e mgc -w mgc --incluir-inactivos --stages proyectos --desde 2026-05-01 --hasta 2026-08-01
+node bundle.js import -e mgc -w mgc --incluir-inactivos --stages proyectos --desde 2026-02-01 --hasta 2026-05-01
+node bundle.js import -e mgc -w mgc --incluir-inactivos --stages proyectos --hasta 2026-02-01
+```
+
+Las ventanas no se pisan: `--desde` incluye la fecha y `--hasta` la excluye, así que las tandas
+cubren todo sin repetir nada. Cada una se puede correr por separado, incluso en días distintos: el
+archivo de estado recuerda lo hecho y los proyectos ya creados se reutilizan.
+
+Entre tanda y tanda el sistema queda usable: lo que ya se migró se ve y se trabaja normal.
+
 ## Dejarlo corriendo sin esperar
 
 La corrida no necesita supervisión: basta con lanzarla en segundo plano y revisar el log al final.
