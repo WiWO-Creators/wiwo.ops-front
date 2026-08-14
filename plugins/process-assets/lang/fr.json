@@ -18,6 +18,7 @@
     "NewState": "Nouvel état",
     "AddAction": "Ajouter une action",
     "CreateProcess": "Créer un processus",
+    "CreateProcessError": "Échec de la création du processus : {error}",
     "UpdateCard": "Mettre à jour la carte",
     "CreateToDo": "Créer une action",
     "NoProcesses": "Aucun processus",

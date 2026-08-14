@@ -18,6 +18,7 @@
     "NewState": "New state",
     "AddAction": "Add action",
     "CreateProcess": "Create process",
+    "CreateProcessError": "Failed to create process: {error}",
     "UpdateCard": "Update card",
     "CreateToDo": "Create Action item",
     "NoProcesses": "No processes",

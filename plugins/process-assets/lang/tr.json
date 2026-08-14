@@ -18,6 +18,7 @@
     "NewState": "Yeni durum",
     "AddAction": "İşlem ekle",
     "CreateProcess": "Süreç oluştur",
+    "CreateProcessError": "Süreç oluşturulamadı: {error}",
     "UpdateCard": "Kartı güncelle",
     "CreateToDo": "Eylem öğesi oluştur",
     "NoProcesses": "Süreç yok",

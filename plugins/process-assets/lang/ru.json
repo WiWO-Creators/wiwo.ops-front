@@ -18,6 +18,7 @@
     "NewState": "Новое состояние",
     "AddAction": "Добавить действие",
     "CreateProcess": "Создать процесс",
+    "CreateProcessError": "Не удалось создать процесс: {error}",
     "UpdateCard": "Обновить карту",
     "CreateToDo": "Создать задачу",
     "NoProcesses": "Нет процессов",

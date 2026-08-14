@@ -18,6 +18,7 @@
     "NewState": "Neuer Status",
     "AddAction": "Aktion hinzufügen",
     "CreateProcess": "Prozess erstellen",
+    "CreateProcessError": "Prozess konnte nicht erstellt werden: {error}",
     "UpdateCard": "Karte aktualisieren",
     "CreateToDo": "Aktionselement erstellen",
     "NoProcesses": "Keine Prozesse",
