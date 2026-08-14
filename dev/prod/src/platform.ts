@@ -154,18 +154,24 @@ import { uiId } from '@hcengineering/ui/src/plugin'
 import { configureAnalytics } from './analytics'
 
 /**
- * Completa cada espacio de trabajo ofrecido con el identificador de su invitación permanente.
+ * Espacios de trabajo que la pantalla de ingreso ofrece a quien todavía no pertenece a ellos.
  *
- * El identificador se toma del entorno del despliegue, con el nombre `OPS_INVITE_<ESPACIO>`
- * —por ejemplo `OPS_INVITE_SIN_CLASIFICAR` para el espacio `sin-clasificar`—, de modo que se
- * pueda rotar sin tocar el repositorio. Si en la configuración ya viene uno escrito, ese manda.
+ * La fuente son las variables `OPS_INVITE_<ESPACIO>` del despliegue —por ejemplo
+ * `OPS_INVITE_SIN_CLASIFICAR` para el espacio `sin-clasificar`—, que llegan al front dentro de su
+ * configuración. Así se pueden rotar sin recompilar y sin depender de que el branding esté
+ * publicado. Si el branding además trae la lista, de ahí se toma el nombre a mostrar.
  */
 function resolveJoinableWorkspaces (branding: Branding, config: Config): JoinableWorkspace[] {
-  return (branding.joinableWorkspaces ?? []).map((workspace) => {
-    const key = `OPS_INVITE_${workspace.url.toUpperCase().replaceAll('-', '_')}`
-    const fromEnv = (config as unknown as Record<string, string | undefined>)[key]
-    return { ...workspace, inviteId: workspace.inviteId !== '' ? workspace.inviteId : (fromEnv ?? '') }
-  })
+  const named = new Map((branding.joinableWorkspaces ?? []).map((w) => [w.url, w.name]))
+  const result: JoinableWorkspace[] = []
+
+  for (const [key, value] of Object.entries(config as unknown as Record<string, string | undefined>)) {
+    if (!key.startsWith('OPS_INVITE_') || value === undefined || value === '') continue
+    const url = key.slice('OPS_INVITE_'.length).toLowerCase().replaceAll('_', '-')
+    result.push({ url, name: named.get(url) ?? url, inviteId: value })
+  }
+
+  return result
 }
 
 export interface Config {
