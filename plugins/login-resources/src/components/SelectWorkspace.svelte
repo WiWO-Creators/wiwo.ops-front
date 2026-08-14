@@ -199,23 +199,22 @@
           <!-- svelte-ignore a11y-click-events-have-key-events -->
           <!-- svelte-ignore a11y-no-static-element-interactions -->
           <div
-            class="workspace flex-center fs-title cursor-pointer focused-button bordered form-row"
+            class="workspace cursor-pointer focused-button bordered form-row"
             on:click={() => select(workspace.url)}
           >
-            <div class="flex flex-col flex-grow">
-              <span class="label overflow-label flex-center">
-                {wsName}
-                {#if isArchivingMode(workspace.mode)}
-                  - <Label label={presentation.string.Archived} />
-                {/if}
-                {#if !isActiveMode(workspace.mode) && !isArchivingMode(workspace.mode)}
-                  ({workspace.processingProgress}%)
-                {/if}
-              </span>
-              {#if neverVisited}
-                <span class="hint flex-center"><Label label={login.string.FirstVisit} /></span>
+            <span class="initial">{wsName.charAt(0).toUpperCase()}</span>
+            <span class="name overflow-label">
+              {wsName}
+              {#if isArchivingMode(workspace.mode)}
+                - <Label label={presentation.string.Archived} />
               {/if}
-            </div>
+              {#if !isActiveMode(workspace.mode) && !isArchivingMode(workspace.mode)}
+                ({workspace.processingProgress}%)
+              {/if}
+            </span>
+            {#if neverVisited}
+              <span class="tag"><Label label={login.string.FirstVisit} /></span>
+            {/if}
           </div>
         {/each}
 
@@ -236,7 +235,7 @@
           </div>
           {#each available as workspace (workspace.url)}
             <div
-              class="workspace available flex-center fs-title cursor-pointer focused-button bordered form-row"
+              class="workspace available cursor-pointer focused-button bordered form-row"
               class:busy={joining !== undefined}
               role="button"
               tabindex="0"
@@ -250,16 +249,13 @@
                 }
               }}
             >
-              <div class="flex flex-col flex-grow">
-                <span class="label overflow-label flex-center">{workspace.name}</span>
-                <span class="hint flex-center">
-                  {#if joining === workspace.url}
-                    <Spinner size={'small'} />
-                  {:else}
-                    <Label label={login.string.Join} />
-                  {/if}
-                </span>
-              </div>
+              <span class="initial">{workspace.name.charAt(0).toUpperCase()}</span>
+              <span class="name overflow-label">{workspace.name}</span>
+              {#if joining === workspace.url}
+                <Spinner size={'small'} />
+              {:else}
+                <span class="tag join"><Label label={login.string.Join} /></span>
+              {/if}
             </div>
           {/each}
         {:else if workspaces.length === 0 && account?.token != null}
@@ -305,8 +301,10 @@
       font-size: 1.5rem;
       color: var(--theme-caption-color);
     }
+    // Sin mensaje que mostrar, el bloque de estado dejaba un hueco fijo enorme entre el título
+    // y la lista. Ahora sólo ocupa lo que necesita.
     .status {
-      min-height: 7.5rem;
+      min-height: 2.5rem;
       max-height: 7.5rem;
       padding-top: 1.25rem;
     }
@@ -324,19 +322,59 @@
       }
 
       .workspace {
-        padding: 1rem;
-        border-radius: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        border-radius: 0.75rem;
 
-        .hint {
+        // La inicial da un punto de anclaje al ojo cuando hay varias filas iguales.
+        .initial {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          width: 2rem;
+          height: 2rem;
+          border-radius: 0.5rem;
+          background-color: var(--theme-button-hovered);
+          font-size: 0.875rem;
+          font-weight: 600;
+          color: var(--theme-caption-color);
+        }
+        .name {
+          flex-grow: 1;
+          min-width: 0;
+          text-align: left;
+          font-size: 1rem;
+          font-weight: 500;
+          color: var(--theme-caption-color);
+        }
+        .tag {
+          flex-shrink: 0;
           font-size: 0.75rem;
           color: var(--theme-dark-color);
         }
       }
       // Los espacios a los que todavía no pertenece pesan menos que los propios, pero se
       // manejan igual: misma tarjeta, mismo gesto.
+      // Los espacios a los que todavía no pertenece pesan menos que los propios, pero se
+      // manejan igual: misma tarjeta, mismo gesto.
       .workspace.available {
         border-style: dashed;
 
+        .initial {
+          background-color: transparent;
+          border: 1px dashed var(--theme-divider-color);
+          color: var(--theme-dark-color);
+        }
+        .name {
+          font-weight: 400;
+          color: var(--theme-content-color);
+        }
+        .tag.join {
+          color: var(--theme-caption-color);
+        }
         &.busy {
           pointer-events: none;
           opacity: 0.6;
