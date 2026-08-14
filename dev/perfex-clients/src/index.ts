@@ -26,6 +26,7 @@ import { program } from 'commander'
 
 import { ENVIRONMENTS, getEnvironment } from './environments'
 import { openProjects } from './abrir'
+import { cleanWorkspace } from './limpiar'
 import { notifyResult } from './aviso'
 import { ALL_STAGES, importClients, type Logger, type Stage } from './import'
 import { moveClient } from './move'
@@ -182,6 +183,34 @@ export function perfexClientsTool (): void {
       const transactor = cmd.transactor ?? process.env.TRANSACTOR_URL
       await withTokenClient(token, transactor, async (client) => {
         await openProjects(client, consoleLogger, { dryRun: cmd.dryRun === true })
+      })
+    })
+
+  program
+    .command('limpiar')
+    .description('borra del workspace todo lo que trajo la migración, para poder importar de cero')
+    .requiredOption('-w, --workspace <workspace>', 'url del workspace')
+    .requiredOption('-t, --token <token>', 'token del workspace (o variable HULY_TOKEN)')
+    .option('-f, --front <url>', 'url del front de Huly (o variable FRONT_URL)')
+    .option('--transactor <url>', 'url directa del transactor (o variable TRANSACTOR_URL)')
+    .option('--si-borrar-todo', 'confirma el borrado; sin esto sólo informa', false)
+    .action(async (cmd) => {
+      const frontUrl = cmd.front ?? process.env.FRONT_URL
+      if (frontUrl === undefined || frontUrl === '') {
+        throw new Error('Falta la url del front: usá --front o la variable FRONT_URL')
+      }
+      await setupAccounts(frontUrl)
+
+      // El borrado no se puede deshacer, así que hay que pedirlo expresamente.
+      const dryRun = cmd.siBorrarTodo !== true
+      if (dryRun) {
+        console.log('Modo informe: no se borra nada. Agregá --si-borrar-todo para hacerlo de verdad.')
+      }
+
+      const token = cmd.token ?? process.env.HULY_TOKEN
+      const transactor = cmd.transactor ?? process.env.TRANSACTOR_URL
+      await withTokenClient(token, transactor, async (client) => {
+        await cleanWorkspace(client, consoleLogger, { dryRun })
       })
     })
 

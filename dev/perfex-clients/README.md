@@ -243,6 +243,32 @@ El cuerpo trae un campo `text` con el resumen ya armado —que es lo que muestra
 además `ok`, `environment`, `summary` y `error`, para un webhook propio o un flujo de n8n. Si el
 aviso no se puede entregar, queda anotado en el log y la migración se da por terminada igual.
 
+## Empezar de cero
+
+Si el workspace quedó con datos repetidos —por ejemplo por haber corrido la migración sin el
+archivo de estado— conviene vaciarlo y volver a importar, en vez de andar cazando duplicados:
+
+```bash
+export HULY_TOKEN='<token del workspace>'
+
+# 1. Ver qué se borraría. Sin --si-borrar-todo no toca nada.
+node bundle.js limpiar -w mgc -t "$HULY_TOKEN"
+
+# 2. Borrar de verdad
+node bundle.js limpiar -w mgc -t "$HULY_TOKEN" --si-borrar-todo
+
+# 3. Borrar el archivo de estado de ese ambiente
+rm -f perfex-clients-state-mgc.json
+
+# 4. Importar de nuevo
+node bundle.js import -e mgc -w mgc --incluir-inactivos
+```
+
+Borra los proyectos con todas sus tareas, componentes e hitos, las empresas y las personas sin
+cuenta. **Las personas con cuenta se conservan**: son el equipo, no vinieron de Perfex.
+
+Es un borrado sin vuelta atrás: si en esos proyectos ya hay trabajo cargado a mano, se pierde.
+
 ## Repetir la corrida
 
 Lo migrado se anota en `perfex-clients-state-<ambiente>.json` (se cambia con `--state`), después de
@@ -265,6 +291,13 @@ tras un error o un corte. Si se borra ese archivo, la próxima corrida duplica t
 | `-s, --stages` | `personas`, `clientes`, `proyectos`, separadas por coma |
 | `--state` | Archivo de estado propio |
 | `--dry-run` | Sólo informa qué haría |
+
+Del comando `limpiar`:
+
+| Opción | Para qué |
+|--------|----------|
+| `-w, --workspace` / `-t, --token` | Workspace y token |
+| `--si-borrar-todo` | Confirma el borrado; sin esto sólo informa |
 
 Del comando `abrir`:
 
