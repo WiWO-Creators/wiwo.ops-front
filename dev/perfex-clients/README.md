@@ -142,6 +142,24 @@ de una persona, generá el token con la cuenta de sistema:
 Los ya migrados conservan el autor con el que se crearon; no afecta a quién puede trabajar sobre
 ellos.
 
+## Invitación permanente para la pantalla de ingreso
+
+La pantalla de ingreso ofrece los workspaces configurados en `dev/prod/public/branding.json`, y de
+cada uno necesita el identificador de una invitación sin vencimiento ni límite de usos. La interfaz
+de Huly no deja crearlas así, pero el servicio de cuentas sí las acepta:
+
+```bash
+export FRONT_URL=https://ops.wiwo.me
+export HULY_TOKEN='<token del workspace>'
+node bundle.js invitacion -t "$HULY_TOKEN"
+```
+
+Devuelve el `inviteId`, que se copia a `joinableWorkspaces` en `branding.json`. Hay que repetirlo
+por cada workspace, con su token.
+
+Para revocar una invitación basta con generar otra y reemplazar el identificador en la
+configuración: la anterior deja de estar publicada.
+
 ## Mover un cliente de un workspace a otro
 
 Huly no mueve documentos entre workspaces: cada uno es una base separada. El comando `mover` copia
@@ -291,6 +309,12 @@ tras un error o un corte. Si se borra ese archivo, la próxima corrida duplica t
 | `-s, --stages` | `personas`, `clientes`, `proyectos`, separadas por coma |
 | `--state` | Archivo de estado propio |
 | `--dry-run` | Sólo informa qué haría |
+
+Del comando `invitacion`:
+
+| Opción | Para qué |
+|--------|----------|
+| `-t, --token` | Token del workspace para el que se crea la invitación |
 
 Del comando `limpiar`:
 

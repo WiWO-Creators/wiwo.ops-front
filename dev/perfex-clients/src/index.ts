@@ -26,6 +26,7 @@ import { program } from 'commander'
 
 import { ENVIRONMENTS, getEnvironment } from './environments'
 import { openProjects } from './abrir'
+import { createPermanentInvite } from './invitacion'
 import { cleanWorkspace } from './limpiar'
 import { notifyResult } from './aviso'
 import { ALL_STAGES, importClients, type Logger, type Stage } from './import'
@@ -212,6 +213,25 @@ export function perfexClientsTool (): void {
       await withTokenClient(token, transactor, async (client) => {
         await cleanWorkspace(client, consoleLogger, { dryRun })
       })
+    })
+
+  program
+    .command('invitacion')
+    .description('crea la invitación permanente de un workspace, para la pantalla de ingreso')
+    .requiredOption('-t, --token <token>', 'token del workspace (o variable HULY_TOKEN)')
+    .option('-f, --front <url>', 'url del front de Huly (o variable FRONT_URL)')
+    .action(async (cmd) => {
+      const frontUrl = cmd.front ?? process.env.FRONT_URL
+      if (frontUrl === undefined || frontUrl === '') {
+        throw new Error('Falta la url del front: usá --front o la variable FRONT_URL')
+      }
+      await setupAccounts(frontUrl)
+
+      const token = cmd.token ?? process.env.HULY_TOKEN
+      if (token === undefined || token === '') {
+        throw new Error('Falta el token: usá --token o la variable HULY_TOKEN')
+      }
+      await createPermanentInvite(token, consoleLogger)
     })
 
   program
