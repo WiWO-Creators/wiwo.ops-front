@@ -81,7 +81,7 @@ export function registerOpenid (
       const branding = getBranding(brandings, state?.branding)
 
       await passport.authenticate('oidc', {
-        failureRedirect: concatLink(branding?.front ?? frontUrl, '/login')
+        failureRedirect: concatLink(branding?.front ?? frontUrl, '/login?authError=provider')
       })(ctx, next)
     },
     async (ctx, next) => {

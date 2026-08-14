@@ -2,7 +2,7 @@ import { type AccountDB } from '@hcengineering/account'
 import { type ProviderInfo } from '@hcengineering/account-client'
 import { BrandingMap, concatLink, MeasureContext, getBranding, SocialIdType } from '@hcengineering/core'
 import Router from 'koa-router'
-import { Strategy as GoogleStrategy } from 'passport-google-oauth20'
+import { Strategy as GoogleStrategy, type Profile, type VerifyCallback } from 'passport-google-oauth20'
 import { Passport } from '.'
 import { encodeState, handleProviderAuth, isEmailDomainAllowed, isHostedDomainAllowed, safeParseAuthState } from './utils'
 
@@ -90,11 +90,17 @@ export function registerGoogle (
         passReqToCallback: true
       },
       // La aridad de 6 es obligatoria: passport-oauth2 solo entrega `params`
-      // —donde viene el id_token— cuando la funcion declara ese argumento.
-      function (req, accessToken, refreshToken, params, profile, done) {
-        // El id_token no figura en los tipos de passport-google-oauth20 aunque
-        // Google lo devuelve siempre que se pide el scope `openid`.
-        const claims = readIdTokenClaims((params as { id_token?: string })?.id_token)
+      // —donde viene el id_token, que no figura en los tipos del paquete aunque Google
+      // lo devuelve siempre que se pide el scope `openid`— cuando la funcion lo declara.
+      function (
+        req: unknown,
+        accessToken: string,
+        refreshToken: string,
+        params: { id_token?: string } | undefined,
+        profile: Profile,
+        done: VerifyCallback
+      ) {
+        const claims = readIdTokenClaims(params?.id_token)
         const rejection = claims === undefined ? 'id_token' : checkIdTokenClaims(claims, GOOGLE_CLIENT_ID)
 
         if (rejection !== undefined) {
@@ -128,7 +134,9 @@ export function registerGoogle (
       measureCtx.info('Auth state', { state })
       const branding = getBranding(brandings, state?.branding)
       measureCtx.info('With branding', { branding })
-      const failureRedirect = concatLink(branding?.front ?? frontUrl, '/login')
+      // Con `/login` a secas —el caso de quien cancela en la pantalla de Google— la
+      // vuelta era muda y no se distinguia de no haber intentado entrar.
+      const failureRedirect = concatLink(branding?.front ?? frontUrl, '/login?authError=provider')
       measureCtx.info('With failure redirect', { failureRedirect })
       await passport.authenticate('google', {
         failureRedirect,

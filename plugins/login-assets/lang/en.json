@@ -5,7 +5,8 @@
     "ConnectingToServer": "Connecting to server....",
     "IncorrectValue": "Incorrect value {field}",
     "AuthDomainNotAllowed": "That Google account is not in an allowed domain. Sign in with your work email.",
-    "AuthProviderFailed": "Could not complete sign-in with Google. Please try again."
+    "AuthProviderFailed": "Could not complete sign-in with Google. Please try again.",
+    "AuthAccountNotEnabled": "Your account is not enabled yet. Ask an administrator for access."
   },
   "string": {
     "ChangePassword": "Change password",

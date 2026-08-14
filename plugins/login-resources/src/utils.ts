@@ -866,7 +866,10 @@ export function getHref (path: Pages): string {
 export async function afterConfirm (clearQuery = false): Promise<void> {
   const joinedWS = await getWorkspaces()
   if (joinedWS.length === 0) {
-    goTo('createWorkspace', clearQuery)
+    // Quien todavia no pertenece a ningun espacio pero tiene invitaciones permanentes
+    // disponibles va a elegir una, no a crear un espacio propio.
+    const joinable = getMetadata(login.metadata.JoinableWorkspaces) ?? []
+    goTo(joinable.length > 0 ? 'selectWorkspace' : 'createWorkspace', clearQuery)
   } else if (joinedWS.length === 1) {
     const result = (await selectWorkspace(joinedWS[0].url, null))[1]
     if (result != null) {

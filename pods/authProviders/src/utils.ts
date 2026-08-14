@@ -63,6 +63,20 @@ export function getAllowedEmailDomains (): string[] {
   return [...ALLOWED_EMAIL_DOMAINS]
 }
 
+/**
+ * Indica si un correo que ya paso la allowlist puede darse de alta.
+ *
+ * La allowlist de dominios es la politica de acceso: quien la pasa esta autorizado, asi
+ * que se le crea la cuenta aunque el alta general este cerrada. Sin allowlist (desarrollo
+ * local, donde cualquier correo entra) se respeta `DISABLE_SIGNUP` tal cual.
+ *
+ * @param signUpDisabled valor de `DISABLE_SIGNUP` con el que arranco el servicio
+ * @returns true si el alta debe seguir bloqueada para este correo
+ */
+export function isSignUpBlocked (signUpDisabled: boolean | undefined): boolean {
+  return signUpDisabled === true && ALLOWED_EMAIL_DOMAINS.size === 0
+}
+
 export function getHost (headers: IncomingHttpHeaders): string | undefined {
   let host: string | undefined
   const origin = headers.origin ?? headers.referer
@@ -133,6 +147,10 @@ export async function handleProviderAuth (
       return concatLink(branding?.front ?? frontUrl, '/login?authError=domain')
     }
 
+    // El correo ya paso la allowlist, que hace de invitacion: el alta solo sigue
+    // bloqueada si no hay dominios autorizados configurados.
+    const signUpBlocked = isSignUpBlocked(signUpDisabled)
+
     if (state.inviteId != null && state.inviteId !== '' && state.autoJoin !== true) {
       loginInfo = await joinWithProvider(
         measureCtx,
@@ -143,7 +161,7 @@ export async function handleProviderAuth (
         last,
         state.inviteId as any,
         socialKey,
-        signUpDisabled
+        signUpBlocked
       )
     } else {
       loginInfo = await loginOrSignUpWithProvider(
@@ -154,7 +172,7 @@ export async function handleProviderAuth (
         first,
         last,
         socialKey,
-        signUpDisabled === true || state.autoJoin === true
+        signUpBlocked || state.autoJoin === true
       )
     }
 
@@ -164,7 +182,7 @@ export async function handleProviderAuth (
         type: providerType,
         user
       })
-      return concatLink(branding?.front ?? frontUrl, '/login')
+      return concatLink(branding?.front ?? frontUrl, '/login?authError=noaccount')
     } else {
       const origin = concatLink(branding?.front ?? frontUrl, '/login/auth')
       const queryObj: any = { token: loginInfo.token }
@@ -181,7 +199,10 @@ export async function handleProviderAuth (
       return `${origin}?${query}`
     }
   } catch (err: any) {
-    measureCtx.error('failed to auth', { err, type: providerType, user })
-    return ''
+    measureCtx.error('failed to auth', { err, email, type: providerType, user })
+
+    // Devolver cadena vacia dejaba al navegador sin redirect, en la URL del callback y
+    // con una respuesta vacia. El fallo se explica en la pantalla de ingreso.
+    return concatLink(frontUrl, '/login?authError=provider')
   }
 }

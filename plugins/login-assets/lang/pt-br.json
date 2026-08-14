@@ -3,7 +3,10 @@
     "RequiredField": "Campo obrigatório {field}",
     "FieldsDoNotMatch": "{field} não coincide com {field2}",
     "ConnectingToServer": "Conectando ao servidor....",
-    "IncorrectValue": "Valor incorreto no campo {field}"
+    "IncorrectValue": "Valor incorreto no campo {field}",
+    "AuthDomainNotAllowed": "Essa conta Google não pertence a um domínio autorizado. Entre com o seu e-mail corporativo.",
+    "AuthProviderFailed": "Não foi possível concluir o acesso com o Google. Tente novamente.",
+    "AuthAccountNotEnabled": "Sua conta ainda não está habilitada. Peça acesso a um administrador."
   },
   "string": {
     "ChangePassword": "Mudar senha",

@@ -3,7 +3,10 @@
     "RequiredField": "Gerekli alan {field}",
     "FieldsDoNotMatch": "{field}, {field2} ile eşleşmiyor",
     "ConnectingToServer": "Sunucuya bağlanılıyor....",
-    "IncorrectValue": "Yanlış değer {field}"
+    "IncorrectValue": "Yanlış değer {field}",
+    "AuthDomainNotAllowed": "Bu Google hesabı izin verilen bir alan adına ait değil. Kurumsal e-postanla giriş yap.",
+    "AuthProviderFailed": "Google ile giriş tamamlanamadı. Lütfen tekrar dene.",
+    "AuthAccountNotEnabled": "Hesabın henüz etkinleştirilmedi. Bir yöneticiden erişim iste."
   },
   "string": {
     "ChangePassword": "Parolayı değiştir",

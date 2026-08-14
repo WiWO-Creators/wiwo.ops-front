@@ -3,7 +3,10 @@
     "RequiredField": "필수 항목: {field}",
     "FieldsDoNotMatch": "{field}이(가) {field2}와(과) 일치하지 않습니다",
     "ConnectingToServer": "서버에 연결 중...",
-    "IncorrectValue": "잘못된 값: {field}"
+    "IncorrectValue": "잘못된 값: {field}",
+    "AuthDomainNotAllowed": "허용된 도메인의 Google 계정이 아닙니다. 회사 이메일로 로그인하세요.",
+    "AuthProviderFailed": "Google 로그인을 완료하지 못했습니다. 다시 시도해 주세요.",
+    "AuthAccountNotEnabled": "계정이 아직 활성화되지 않았습니다. 관리자에게 액세스를 요청하세요."
   },
   "string": {
     "ChangePassword": "비밀번호 변경",

@@ -5,7 +5,8 @@
     "ConnectingToServer": "Conectando al servidor...",
     "IncorrectValue": "Valor incorrecto para {field}",
     "AuthDomainNotAllowed": "Esa cuenta de Google no pertenece a un dominio autorizado. Entra con tu correo corporativo.",
-    "AuthProviderFailed": "No se pudo completar el acceso con Google. Vuelve a intentarlo."
+    "AuthProviderFailed": "No se pudo completar el acceso con Google. Vuelve a intentarlo.",
+    "AuthAccountNotEnabled": "Tu cuenta todavía no está habilitada. Pide acceso a un administrador."
   },
   "string": {
     "ChangePassword": "Cambiar contraseña",

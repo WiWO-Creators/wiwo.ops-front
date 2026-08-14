@@ -51,7 +51,7 @@ export function registerGithub (
       const branding = getBranding(brandings, state?.branding)
 
       await passport.authenticate('github', {
-        failureRedirect: concatLink(branding?.front ?? frontUrl, '/login'),
+        failureRedirect: concatLink(branding?.front ?? frontUrl, '/login?authError=provider'),
         session: true
       })(ctx, next)
     },

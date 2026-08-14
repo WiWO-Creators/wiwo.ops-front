@@ -3,7 +3,10 @@
     "RequiredField": "Требуется заполнить {field}",
     "FieldsDoNotMatch": "{field} не совпадает {field2}",
     "ConnectingToServer": "Подключение к серверу....",
-    "IncorrectValue": "Неправильное значение {field}"
+    "IncorrectValue": "Неправильное значение {field}",
+    "AuthDomainNotAllowed": "Этот аккаунт Google не принадлежит разрешённому домену. Войдите с рабочей почтой.",
+    "AuthProviderFailed": "Не удалось войти через Google. Попробуйте ещё раз.",
+    "AuthAccountNotEnabled": "Ваша учётная запись ещё не активирована. Запросите доступ у администратора."
   },
   "string": {
     "LogIn": "Вход",

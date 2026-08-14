@@ -3,7 +3,10 @@
     "RequiredField": "Champ requis {field}",
     "FieldsDoNotMatch": "{field} ne correspond pas à {field2}",
     "ConnectingToServer": "Connexion au serveur...",
-    "IncorrectValue": "Valeur incorrecte {field}"
+    "IncorrectValue": "Valeur incorrecte {field}",
+    "AuthDomainNotAllowed": "Ce compte Google n'appartient pas à un domaine autorisé. Connectez-vous avec votre e-mail professionnel.",
+    "AuthProviderFailed": "La connexion avec Google n'a pas pu aboutir. Veuillez réessayer.",
+    "AuthAccountNotEnabled": "Votre compte n'est pas encore activé. Demandez l'accès à un administrateur."
   },
   "string": {
     "ChangePassword": "Changer le mot de passe",

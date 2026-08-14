@@ -3,7 +3,10 @@
     "RequiredField": "Campo obbligatorio {field}",
     "FieldsDoNotMatch": "{field} non corrisponde a {field2}",
     "ConnectingToServer": "Connessione al server....",
-    "IncorrectValue": "Valore non corretto {field}"
+    "IncorrectValue": "Valore non corretto {field}",
+    "AuthDomainNotAllowed": "Questo account Google non appartiene a un dominio autorizzato. Accedi con la tua email aziendale.",
+    "AuthProviderFailed": "Non è stato possibile completare l'accesso con Google. Riprova.",
+    "AuthAccountNotEnabled": "Il tuo account non è ancora abilitato. Chiedi accesso a un amministratore."
   },
   "string": {
     "ChangePassword": "Cambia password",

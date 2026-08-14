@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { getCurrentLocation, Label, Loading, TimeLeft } from '@hcengineering/ui'
+  import { getCurrentLocation, Label, Loading, navigate, TimeLeft } from '@hcengineering/ui'
   import { logIn } from '@hcengineering/workbench'
   import { trackOAuthCompletion } from '@hcengineering/analytics-providers'
   import { type LoginInfoRequest, type LoginInfoByToken } from '@hcengineering/account-client'
@@ -11,6 +11,7 @@
     afterConfirm,
     getLoginInfoFromQuery,
     getAutoJoinInfo,
+    getLoc,
     goTo,
     isWorkspaceLoginInfo,
     navigateToWorkspace,
@@ -61,7 +62,12 @@
 
   async function handleLoginInfo (result: LoginInfoByToken): Promise<void> {
     if (result == null) {
-      goTo('login', true)
+      // Sin token utilizable no hay nada que hacer aqui: se vuelve al ingreso, pero
+      // explicando el fallo en vez de dejar la pantalla como si nunca se hubiera
+      // intentado entrar.
+      const loc = getLoc('login')
+      loc.query = { authError: 'provider' }
+      navigate(loc, true)
     } else if (isLoginInfoRequest(result)) {
       request = result
     } else {

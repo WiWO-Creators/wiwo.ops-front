@@ -14,7 +14,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { getMetadata, setMetadata, Severity, Status } from '@hcengineering/platform'
+  import { getMetadata, setMetadata, Severity, Status, type StatusCode } from '@hcengineering/platform'
   import presentation from '@hcengineering/presentation'
   import {
     Label,
@@ -130,15 +130,16 @@
   // Bajo 768px el panel de marca no cabe: el wordmark se muda a la tarjeta.
   $: compacto = $deviceInfo.docWidth <= 768
 
-  // El proveedor devuelve el motivo del rechazo en la URL para poder explicarlo.
+  /** Motivos de rechazo que el proveedor devuelve en la URL, para poder explicarlos. */
+  const authErrorStatus: Record<string, StatusCode> = {
+    domain: login.status.AuthDomainNotAllowed,
+    noaccount: login.status.AuthAccountNotEnabled
+  }
+
   $: authStatus =
     authError === undefined
       ? undefined
-      : new Status(
-        Severity.ERROR,
-        authError === 'domain' ? login.status.AuthDomainNotAllowed : login.status.AuthProviderFailed,
-        {}
-      )
+      : new Status(Severity.ERROR, authErrorStatus[authError] ?? login.status.AuthProviderFailed, {})
 </script>
 
 {#if page === 'admin'}

@@ -3,7 +3,10 @@
     "RequiredField": "{field} - pole wymagane",
     "FieldsDoNotMatch": "Pole {field} nie pasuje do pola {field2}",
     "ConnectingToServer": "Łączenie z serwerem....",
-    "IncorrectValue": "{field} - nieprawidłowa wartość"
+    "IncorrectValue": "{field} - nieprawidłowa wartość",
+    "AuthDomainNotAllowed": "To konto Google nie należy do dozwolonej domeny. Zaloguj się służbowym adresem e-mail.",
+    "AuthProviderFailed": "Nie udało się zalogować przez Google. Spróbuj ponownie.",
+    "AuthAccountNotEnabled": "Twoje konto nie jest jeszcze aktywne. Poproś administratora o dostęp."
   },
   "string": {
     "ChangePassword": "Zmień hasło",

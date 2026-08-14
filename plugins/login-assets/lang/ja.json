@@ -3,7 +3,10 @@
     "RequiredField": "必須フィールド {field}",
     "FieldsDoNotMatch": "{field} が {field2} と一致しません",
     "ConnectingToServer": "サーバーに接続中....",
-    "IncorrectValue": "不正な値 {field}"
+    "IncorrectValue": "不正な値 {field}",
+    "AuthDomainNotAllowed": "この Google アカウントは許可されたドメインではありません。社用メールでサインインしてください。",
+    "AuthProviderFailed": "Google でのサインインを完了できませんでした。もう一度お試しください。",
+    "AuthAccountNotEnabled": "アカウントはまだ有効化されていません。管理者にアクセスを依頼してください。"
   },
   "string": {
     "LogIn": "ログイン",

@@ -26,7 +26,8 @@ export default mergeIds(loginId, login, {
     ConnectingToServer: '' as StatusCode,
     IncorrectValue: '' as StatusCode<{ field: string }>,
     AuthDomainNotAllowed: '' as StatusCode,
-    AuthProviderFailed: '' as StatusCode
+    AuthProviderFailed: '' as StatusCode,
+    AuthAccountNotEnabled: '' as StatusCode
   },
   string: {
     CreateWorkspace: '' as IntlString,
