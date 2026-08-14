@@ -22,6 +22,7 @@
     "NewState": "Nuevo estado",
     "AddAction": "Agregar acción",
     "CreateProcess": "Crear automatización",
+    "CreateProcessError": "No se pudo crear la automatización: {error}",
     "UpdateCard": "Actualizar tarjeta",
     "CreateToDo": "Crear acción",
     "NoProcesses": "Sin automatizaciones",

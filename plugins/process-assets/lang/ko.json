@@ -18,6 +18,7 @@
         "NewState": "새 상태",
         "AddAction": "액션 추가",
         "CreateProcess": "프로세스 생성",
+        "CreateProcessError": "프로세스를 생성하지 못했습니다: {error}",
         "UpdateCard": "카드 업데이트",
         "CreateToDo": "액션 항목 생성",
         "NoProcesses": "프로세스 없음",

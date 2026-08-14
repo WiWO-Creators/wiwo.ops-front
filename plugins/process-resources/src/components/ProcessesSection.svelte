@@ -15,7 +15,7 @@
 <script lang="ts">
   import { MasterTag } from '@hcengineering/card'
   import core, { generateId, Ref } from '@hcengineering/core'
-  import { translate } from '@hcengineering/platform'
+  import { setPlatformStatus, Severity, Status, translate, unknownError } from '@hcengineering/platform'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { Process, State } from '@hcengineering/process'
   import { makeRank } from '@hcengineering/rank'
@@ -37,34 +37,56 @@
 
   const client = getClient()
 
+  /**
+   * Crea una automatización vacía y abre su editor.
+   *
+   * Los tres documentos (Process, State inicial y Transition de arranque) son un único flujo: una
+   * automatización sin transición inicial se ejecuta sin avisar de nada, así que si falla cualquiera
+   * de los pasos posteriores se borra el Process ya creado y el servidor arrastra en cascada sus
+   * estados y transiciones (OnProcessRemove).
+   *
+   * No lanza: cualquier fallo se reporta al usuario como estado de plataforma.
+   */
   async function add (): Promise<void> {
     const initState = generateId<State>()
-    const id = await client.createDoc(process.class.Process, core.space.Model, {
-      name: await translate(process.string.NewProcess, {}),
-      masterTag: masterTag._id,
-      context: {},
-      description: ''
-    })
-    await client.createDoc(
-      process.class.State,
-      core.space.Model,
-      {
+    let id: Ref<Process> | undefined
+    try {
+      id = await client.createDoc(process.class.Process, core.space.Model, {
+        name: await translate(process.string.NewProcess, {}),
+        masterTag: masterTag._id,
+        context: {},
+        description: ''
+      })
+      await client.createDoc(
+        process.class.State,
+        core.space.Model,
+        {
+          process: id,
+          rank: makeRank(undefined, undefined),
+          title: await translate(process.string.NewState, {})
+        },
+        initState
+      )
+      await client.createDoc(process.class.Transition, core.space.Model, {
         process: id,
+        from: null,
+        to: initState,
+        trigger: process.trigger.OnExecutionStart,
         rank: makeRank(undefined, undefined),
-        title: await translate(process.string.NewState, {})
-      },
-      initState
-    )
-    await client.createDoc(process.class.Transition, core.space.Model, {
-      process: id,
-      from: null,
-      to: initState,
-      trigger: process.trigger.OnExecutionStart,
-      rank: makeRank(undefined, undefined),
-      actions: [],
-      triggerParams: {}
-    })
-    handleSelect(id)
+        actions: [],
+        triggerParams: {}
+      })
+      handleSelect(id)
+    } catch (err: any) {
+      await setPlatformStatus(
+        new Status(Severity.ERROR, process.string.CreateProcessError, { error: err?.message ?? String(err) })
+      )
+      if (id !== undefined) {
+        await client.removeDoc(process.class.Process, core.space.Model, id).catch(async (cleanupErr: any) => {
+          await setPlatformStatus(unknownError(cleanupErr))
+        })
+      }
+    }
   }
 
   let processes: Process[] = []

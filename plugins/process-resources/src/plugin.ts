@@ -139,6 +139,7 @@ export default mergeIds(processId, process, {
     NewState: '' as IntlString,
     AddAction: '' as IntlString,
     CreateProcess: '' as IntlString,
+    CreateProcessError: '' as IntlString,
     UpdateCard: '' as IntlString,
     CreateToDo: '' as IntlString,
     NoProcesses: '' as IntlString,
