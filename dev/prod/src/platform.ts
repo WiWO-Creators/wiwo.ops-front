@@ -39,7 +39,7 @@ import { hrId } from '@hcengineering/hr'
 import { imageCropperId } from '@hcengineering/image-cropper'
 import { inventoryId } from '@hcengineering/inventory'
 import { leadId } from '@hcengineering/lead'
-import login, { loginId } from '@hcengineering/login'
+import login, { loginId, type JoinableWorkspace } from '@hcengineering/login'
 import love, { loveId } from '@hcengineering/love'
 import notification, { notificationId } from '@hcengineering/notification'
 import onboard, { onboardId } from '@hcengineering/onboard'
@@ -229,6 +229,8 @@ export interface Branding {
   initWorkspace?: string
   defaultInviteRole?: string
   inviteLinkGeneratorRoles?: string[]
+  /** Workspaces a los que cualquiera con cuenta puede entrar solo, sin que lo inviten a mano. */
+  joinableWorkspaces?: JoinableWorkspace[]
 }
 
 export type BrandingMap = Record<string, Branding>
@@ -737,6 +739,7 @@ export async function configurePlatform() {
   setMetadata(workbench.metadata.DefaultApplication, myBranding.defaultApplication ?? 'tracker')
   setMetadata(workbench.metadata.DefaultSpace, myBranding.defaultSpace ?? tracker.project.DefaultProject)
   setMetadata(workbench.metadata.DefaultSpecial, myBranding.defaultSpecial ?? 'issues')
+  setMetadata(login.metadata.JoinableWorkspaces, myBranding.joinableWorkspaces ?? [])
 
   setMetadata(setting.metadata.DefaultInviteRole, myBranding.defaultInviteRole)
   setMetadata(setting.metadata.DefaultInviteLinkGeneratorRoles, myBranding.inviteLinkGeneratorRoles)

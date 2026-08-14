@@ -36,6 +36,8 @@
     "WantAnotherWorkspace": "Başka bir çalışma alanı oluşturmak ister misiniz?",
     "ChangeAccount": "Hesabı değiştir",
     "NotSeeingWorkspace": "Çalışma alanınızı görmüyor musunuz?",
+    "AvailableWorkspaces": "Workspaces you can join",
+    "NoWorkspaceAccess": "You don't have access to any workspace yet. Ask an administrator for access.",
     "ForgotPassword": "Şifrenizi mi unuttunuz?",
     "KnowPassword": "Şifrenizi biliyor musunuz?",
     "Recover": "Kurtar",

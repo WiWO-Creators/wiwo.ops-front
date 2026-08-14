@@ -36,6 +36,8 @@
     "WantAnotherWorkspace": "Möchten Sie einen weiteren Arbeitsbereich erstellen?",
     "ChangeAccount": "Konto wechseln",
     "NotSeeingWorkspace": "Sehen Sie Ihren Arbeitsbereich nicht?",
+    "AvailableWorkspaces": "Workspaces you can join",
+    "NoWorkspaceAccess": "You don't have access to any workspace yet. Ask an administrator for access.",
     "ForgotPassword": "Passwort vergessen?",
     "KnowPassword": "Kennen Sie Ihr Passwort?",
     "Recover": "Wiederherstellen",

@@ -15,37 +15,13 @@
 <script lang="ts">
   import type { IntlString } from '@hcengineering/platform'
   import { Label } from '@hcengineering/ui'
-  // Logo de WiWO Ops, el mismo asset que usa la barra de aplicaciones.
-  import wiwoIcon from '../../img/icon.png'
 
   export let label: IntlString
   export let withButton: boolean = false
   export let small: boolean = false
-  export let showLogo: boolean = false
 </script>
 
 <div class="hulyNavPanel-header" class:withButton class:small>
-  <span class="header-title">
-    {#if showLogo}
-      <img class="nav-logo" src={wiwoIcon} alt={'WiWO Ops'} />
-    {/if}
-    <span class="overflow-label"><Label {label} /></span>
-  </span>
+  <span class="overflow-label"><Label {label} /></span>
   <slot />
 </div>
-
-<style lang="scss">
-  .header-title {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-1);
-    min-width: 0;
-  }
-  .nav-logo {
-    flex-shrink: 0;
-    width: 1.5rem;
-    height: 1.5rem;
-    object-fit: contain;
-    border-radius: 0.25rem;
-  }
-</style>

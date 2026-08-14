@@ -29,6 +29,8 @@
     "WantAnotherWorkspace": "別のワークスペースを作成しますか？",
     "ChangeAccount": "アカウントを変更",
     "NotSeeingWorkspace": "ワークスペースが見つかりませんか？",
+    "AvailableWorkspaces": "Workspaces you can join",
+    "NoWorkspaceAccess": "You don't have access to any workspace yet. Ask an administrator for access.",
     "ForgotPassword": "パスワードをお忘れですか？",
     "KnowPassword": "パスワードを知っていますか？",
     "Recover": "復旧",

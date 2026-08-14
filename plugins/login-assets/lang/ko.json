@@ -41,6 +41,8 @@
     "WantAnotherWorkspace": "다른 워크스페이스를 만드시겠습니까?",
     "ChangeAccount": "계정 변경",
     "NotSeeingWorkspace": "워크스페이스가 보이지 않나요?",
+    "AvailableWorkspaces": "Workspaces you can join",
+    "NoWorkspaceAccess": "You don't have access to any workspace yet. Ask an administrator for access.",
     "ForgotPassword": "비밀번호를 잊으셨나요?",
     "KnowPassword": "비밀번호를 알고 있나요?",
     "Recover": "복구",

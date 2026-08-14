@@ -26,6 +26,28 @@
         "rel": "apple-touch-icon",
         "href": "/huly/apple-touch-icon.png"
       }
+    ],
+    "joinableWorkspaces": [
+      {
+        "name": "MGC",
+        "url": "mgc",
+        "inviteId": "REEMPLAZAR"
+      },
+      {
+        "name": "Palta",
+        "url": "palta",
+        "inviteId": "REEMPLAZAR"
+      },
+      {
+        "name": "WiWO",
+        "url": "wiwo",
+        "inviteId": "REEMPLAZAR"
+      },
+      {
+        "name": "Sin clasificar",
+        "url": "sin-clasificar",
+        "inviteId": "REEMPLAZAR"
+      }
     ]
   },
   "huly.local:8080": {
@@ -55,6 +77,28 @@
         "rel": "apple-touch-icon",
         "href": "/huly/apple-touch-icon.png"
       }
+    ],
+    "joinableWorkspaces": [
+      {
+        "name": "MGC",
+        "url": "mgc",
+        "inviteId": "REEMPLAZAR"
+      },
+      {
+        "name": "Palta",
+        "url": "palta",
+        "inviteId": "REEMPLAZAR"
+      },
+      {
+        "name": "WiWO",
+        "url": "wiwo",
+        "inviteId": "REEMPLAZAR"
+      },
+      {
+        "name": "Sin clasificar",
+        "url": "sin-clasificar",
+        "inviteId": "REEMPLAZAR"
+      }
     ]
   },
   "huly.local:8087": {
@@ -83,6 +127,28 @@
       {
         "rel": "apple-touch-icon",
         "href": "/huly/apple-touch-icon.png"
+      }
+    ],
+    "joinableWorkspaces": [
+      {
+        "name": "MGC",
+        "url": "mgc",
+        "inviteId": "REEMPLAZAR"
+      },
+      {
+        "name": "Palta",
+        "url": "palta",
+        "inviteId": "REEMPLAZAR"
+      },
+      {
+        "name": "WiWO",
+        "url": "wiwo",
+        "inviteId": "REEMPLAZAR"
+      },
+      {
+        "name": "Sin clasificar",
+        "url": "sin-clasificar",
+        "inviteId": "REEMPLAZAR"
       }
     ]
   },

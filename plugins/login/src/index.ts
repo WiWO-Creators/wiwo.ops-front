@@ -26,6 +26,22 @@ export type { LoginInfo, WorkspaceLoginInfo, OtpInfo, RegionInfo } from '@hcengi
  */
 export const loginId = 'login' as Plugin
 
+/**
+ * Workspace al que cualquiera con cuenta puede entrar por su cuenta, sin que un administrador lo
+ * invite uno por uno. Se configura por despliegue; el `inviteId` sale de una invitación permanente
+ * creada en ese workspace.
+ *
+ * @public
+ */
+export interface JoinableWorkspace {
+  /** Nombre que se muestra en la pantalla de selección. */
+  name: string
+  /** Url del workspace, la que aparece en la dirección del navegador. */
+  url: string
+  /** Identificador de la invitación permanente de ese workspace. */
+  inviteId: string
+}
+
 export const pages = [
   'login',
   'signup',
@@ -53,6 +69,7 @@ export default plugin(loginId, {
     LoginAccount: '' as Metadata<string>,
     DisableSignUp: '' as Metadata<boolean>,
     HideLocalLogin: '' as Metadata<boolean>,
+    JoinableWorkspaces: '' as Metadata<JoinableWorkspace[]>,
     TransactorOverride: '' as Metadata<string>,
     PasswordValidations: '' as Metadata<{
       MinLength: number

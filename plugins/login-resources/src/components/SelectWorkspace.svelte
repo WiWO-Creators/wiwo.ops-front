@@ -21,8 +21,8 @@
     isRestoringMode,
     isUpgradingMode
   } from '@hcengineering/core'
-  import { LoginInfo } from '@hcengineering/login'
-  import { OK, Severity, Status } from '@hcengineering/platform'
+  import { LoginInfo, type JoinableWorkspace } from '@hcengineering/login'
+  import platform, { getMetadata, OK, Severity, Status } from '@hcengineering/platform'
   import presentation, { MessageBox, NavLink, isAdminUser, reduceCalls } from '@hcengineering/presentation'
   import {
     Button,
@@ -45,6 +45,7 @@
     getWorkspaces,
     goTo,
     isReadOnlyGuestAccount,
+    joinByToken,
     navigateToWorkspace,
     selectWorkspace,
     unArchive
@@ -60,6 +61,30 @@
   let isReadOnlyGuest: boolean = true
 
   let flagToUpdateWorkspaces = false
+  let joining: string | undefined = undefined
+
+  // Workspaces abiertos que se configuran por despliegue: se ofrecen a quien todavía no es miembro,
+  // para que entre solo en vez de tener que pedir que lo inviten a mano.
+  // Se descartan las entradas a medio configurar: sin identificador de invitación el botón no
+  // llevaría a ningún lado.
+  const joinable: JoinableWorkspace[] = (getMetadata(login.metadata.JoinableWorkspaces) ?? []).filter(
+    (j) => j.url !== '' && j.inviteId !== '' && j.inviteId !== 'REEMPLAZAR'
+  )
+  $: available = joinable.filter((j) => !workspaces.some((w) => w.url === j.url))
+
+  /** Suma a la persona al workspace elegido y la lleva adentro. */
+  async function join (workspace: JoinableWorkspace): Promise<void> {
+    if (joining !== undefined) return
+    joining = workspace.url
+    try {
+      const result = await joinByToken(workspace.inviteId)
+      navigateToWorkspace(workspace.url, result, navigateUrl)
+    } catch (err: any) {
+      // El error de la plataforma ya trae un mensaje entendible; si no, se muestra el crudo.
+      status = err?.status ?? new Status(Severity.ERROR, platform.status.UnknownError, { message: err.message })
+      joining = undefined
+    }
+  }
 
   async function loadAccount (): Promise<void> {
     accountPromise = getAccount()
@@ -199,33 +224,41 @@
           </div>
         {/each}
 
-        {#if workspaces.length === 0 && account?.token != null}
+        {#if isReadOnlyGuest && workspaces.length === 0 && account?.token != null}
           <div class="form-row send">
             <Button
-              label={isReadOnlyGuest ? login.string.SignUp : login.string.CreateWorkspace}
+              label={login.string.SignUp}
               kind={'primary'}
               width="100%"
               on:click={() => {
-                goTo(isReadOnlyGuest ? 'signup' : 'createWorkspace')
+                goTo('signup')
               }}
             />
           </div>
+        {:else if available.length > 0}
+          <div class="available-title"><Label label={login.string.AvailableWorkspaces} /></div>
+          {#each available as workspace (workspace.url)}
+            <div class="form-row send">
+              <Button
+                label={login.string.JoinWorkspace}
+                labelParams={{ workspaceName: workspace.name }}
+                kind={'regular'}
+                width="100%"
+                loading={joining === workspace.url}
+                disabled={joining !== undefined}
+                on:click={() => {
+                  void join(workspace)
+                }}
+              />
+            </div>
+          {/each}
+        {:else if workspaces.length === 0 && account?.token != null}
+          <span class="readonly-warning"><Label label={login.string.NoWorkspaceAccess} /></span>
         {/if}
       </div>
     </Scroller>
     <div class="grow-separator" />
     <div class="footer">
-      {#if workspaces.length > 0 && !isReadOnlyGuest}
-        <div>
-          <span><Label label={login.string.WantAnotherWorkspace} /></span>
-          <NavLink
-            href={getHref('createWorkspace')}
-            onClick={() => {
-              goTo('createWorkspace')
-            }}><Label label={login.string.CreateWorkspace} /></NavLink
-          >
-        </div>
-      {/if}
       <div>
         <span><Label label={login.string.NotSeeingWorkspace} /></span>
         <NavLink
@@ -287,6 +320,11 @@
     .readonly-warning {
       margin-bottom: 1.5rem;
       color: var(--theme-caption-color);
+    }
+    .available-title {
+      margin: 1.5rem 0 0.75rem;
+      font-weight: 500;
+      color: var(--theme-dark-color);
     }
     .grow-separator {
       flex-grow: 1;

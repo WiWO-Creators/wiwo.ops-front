@@ -43,6 +43,8 @@
     "WantAnotherWorkspace": "Want to create another workspace?",
     "ChangeAccount": "Change account",
     "NotSeeingWorkspace": "Not seeing your workspace?",
+    "AvailableWorkspaces": "Workspaces you can join",
+    "NoWorkspaceAccess": "You don't have access to any workspace yet. Ask an administrator for access.",
     "ForgotPassword": "Forgot your password?",
     "KnowPassword": "Know your password?",
     "Recover": "Recover",
