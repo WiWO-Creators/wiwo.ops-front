@@ -683,6 +683,12 @@ export function createModel (builder: Builder): void {
 
   defineNotifications(builder)
 
+  // Acciones primarias (estado, asignado, nueva subtarea) en la cabecera de la ficha de una tarea.
+  builder.createDoc(presentation.class.ComponentPointExtension, core.space.Model, {
+    extension: tracker.extensions.EditIssueHeader,
+    component: tracker.component.IssuePrimaryActions
+  })
+
   builder.createDoc(setting.class.WorkspaceSettingCategory, core.space.Model, {
     name: 'relations',
     label: tracker.string.RelatedIssues,

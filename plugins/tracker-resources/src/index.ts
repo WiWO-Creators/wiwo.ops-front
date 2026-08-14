@@ -56,6 +56,7 @@ import AssigneeEditor from './components/issues/AssigneeEditor.svelte'
 import DueDatePresenter from './components/issues/DueDatePresenter.svelte'
 import EditIssue from './components/issues/edit/EditIssue.svelte'
 import IssueExtra from './components/issues/IssueExtra.svelte'
+import IssuePrimaryActions from './components/issues/edit/IssuePrimaryActions.svelte'
 import IssueItem from './components/issues/IssueItem.svelte'
 import IssuePresenter from './components/issues/IssuePresenter.svelte'
 import IssuePreview from './components/issues/IssuePreview.svelte'
@@ -485,6 +486,7 @@ export default async (): Promise<Resources> => ({
     IssueSearchIcon,
     MembersArrayEditor,
     IssueExtra,
+    IssuePrimaryActions,
     IssueStatusPresenter,
     LabelsView
   },

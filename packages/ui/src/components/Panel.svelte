@@ -94,6 +94,17 @@
   let oldWidth = ''
   let hideTimer: any | undefined
 
+  /**
+   * Ancho de panel (px) por debajo del cual el aside pasa a flotante y se repliega solo.
+   * Los separadores del panel (`panelSeparators`) piden 20rem de contenido y 17rem de aside,
+   * o sea ~592px: por encima de este umbral los dos caben y no hay razón para replegarlo.
+   */
+  const ASIDE_FLOAT_WIDTH = 700
+
+  /**
+   * Ajusta el aside al ancho disponible: lo repliega cuando el panel se angosta y lo devuelve
+   * cuando vuelve a haber sitio, siempre que el usuario no lo haya cerrado a mano.
+   */
   const checkPanel = (): void => {
     const k = `${panelWidth}-${asideFloat}`
     if (oldWidth === k) {
@@ -102,13 +113,13 @@
     oldWidth = k
     if (floatAside) {
       asideFloat = true
-    } else if (panelWidth <= 900 && !asideFloat) {
+    } else if (panelWidth <= ASIDE_FLOAT_WIDTH && !asideFloat) {
       asideFloat = true
       if (asideShown) {
         asideShown = false
         if (customAside) handleSelectAside({ detail: false }, false)
       }
-    } else if (panelWidth > 900) {
+    } else if (panelWidth > ASIDE_FLOAT_WIDTH) {
       if (asideFloat) asideFloat = false
       if (!asideShown && !hideAside) {
         asideShown = true
