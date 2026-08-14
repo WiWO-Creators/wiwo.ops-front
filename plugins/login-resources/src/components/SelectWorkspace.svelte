@@ -71,6 +71,35 @@
   )
   $: available = joinable.filter((j) => !workspaces.some((w) => w.url === j.url))
 
+  // Una sola lista con todo lo que la persona puede abrir: primero los espacios de los que ya
+  // forma parte, después aquellos a los que puede sumarse. La diferencia se cuenta en la tarjeta,
+  // no separando la lista en dos.
+  $: entries = [
+    ...workspaces.map((w) => ({
+      url: w.url,
+      name: w.name ?? w.url,
+      member: true,
+      workspace: w,
+      invite: undefined as JoinableWorkspace | undefined
+    })),
+    ...available.map((j) => ({
+      url: j.url,
+      name: j.name,
+      member: false,
+      workspace: undefined as WorkspaceInfoWithStatus | undefined,
+      invite: j
+    }))
+  ].filter((e) => search === '' || e.name.includes(search) || e.url.includes(search))
+
+  /** Abre el espacio elegido: entra directo si ya es miembro, o se suma primero si no lo es. */
+  async function open (entry: { member: boolean, url: string, invite?: JoinableWorkspace }): Promise<void> {
+    if (entry.member) {
+      await select(entry.url)
+    } else if (entry.invite !== undefined) {
+      await join(entry.invite)
+    }
+  }
+
   /** Suma a la persona al workspace elegido y la lleva adentro. */
   async function join (workspace: JoinableWorkspace): Promise<void> {
     if (joining !== undefined) return
@@ -190,29 +219,44 @@
         <span class="readonly-warning"><Label label={login.string.SignUpToCreateWorkspace} /></span>
       {/if}
       <div class="form">
-        {#each workspaces
-          .filter((it) => search === '' || (it.name?.includes(search) ?? false) || it.url.includes(search))
-          .slice(0, 500) as workspace}
-          {@const wsName = workspace.name ?? workspace.url}
-          {@const neverVisited = workspace.lastVisit === undefined || workspace.lastVisit === 0}
-          <!-- svelte-ignore a11y-click-events-have-key-events -->
-          <!-- svelte-ignore a11y-no-static-element-interactions -->
+        {#each entries.slice(0, 500) as entry (entry.url)}
+          {@const ws = entry.workspace}
+          {@const neverVisited = ws !== undefined && (ws.lastVisit === undefined || ws.lastVisit === 0)}
           <div
             class="workspace cursor-pointer focused-button bordered form-row"
-            on:click={() => select(workspace.url)}
+            class:available={!entry.member}
+            class:busy={!entry.member && joining !== undefined}
+            role="button"
+            tabindex="0"
+            on:click={() => {
+              void open(entry)
+            }}
+            on:keydown={(ev) => {
+              if (ev.key === 'Enter' || ev.key === ' ') {
+                ev.preventDefault()
+                void open(entry)
+              }
+            }}
           >
-            <span class="initial">{wsName.charAt(0).toUpperCase()}</span>
-            <span class="name overflow-label">
-              {wsName}
-              {#if isArchivingMode(workspace.mode)}
-                - <Label label={presentation.string.Archived} />
-              {/if}
-              {#if !isActiveMode(workspace.mode) && !isArchivingMode(workspace.mode)}
-                ({workspace.processingProgress}%)
+            <span class="initial">{entry.name.charAt(0).toUpperCase()}</span>
+            <span class="body">
+              <span class="name overflow-label">
+                {entry.name}
+                {#if ws !== undefined && isArchivingMode(ws.mode)}
+                  - <Label label={presentation.string.Archived} />
+                {/if}
+                {#if ws !== undefined && !isActiveMode(ws.mode) && !isArchivingMode(ws.mode)}
+                  ({ws.processingProgress}%)
+                {/if}
+              </span>
+              {#if !entry.member}
+                <span class="hint"><Label label={login.string.JoinThisWorkspace} /></span>
+              {:else if neverVisited}
+                <span class="hint"><Label label={login.string.FirstVisit} /></span>
               {/if}
             </span>
-            {#if neverVisited}
-              <span class="tag"><Label label={login.string.FirstVisit} /></span>
+            {#if joining === entry.url}
+              <Spinner size={'small'} />
             {/if}
           </div>
         {/each}
@@ -228,35 +272,6 @@
               }}
             />
           </div>
-        {:else if available.length > 0}
-          <div class="section-title form-row" class:first={workspaces.length === 0}>
-            <Label label={login.string.AvailableWorkspaces} />
-          </div>
-          {#each available as workspace (workspace.url)}
-            <div
-              class="workspace available cursor-pointer focused-button bordered form-row"
-              class:busy={joining !== undefined}
-              role="button"
-              tabindex="0"
-              on:click={() => {
-                void join(workspace)
-              }}
-              on:keydown={(ev) => {
-                if (ev.key === 'Enter' || ev.key === ' ') {
-                  ev.preventDefault()
-                  void join(workspace)
-                }
-              }}
-            >
-              <span class="initial">{workspace.name.charAt(0).toUpperCase()}</span>
-              <span class="name overflow-label">{workspace.name}</span>
-              {#if joining === workspace.url}
-                <Spinner size={'small'} />
-              {:else}
-                <span class="tag join"><Label label={login.string.Join} /></span>
-              {/if}
-            </div>
-          {/each}
         {:else if workspaces.length === 0 && account?.token != null}
           <span class="readonly-warning"><Label label={login.string.NoWorkspaceAccess} /></span>
         {/if}
@@ -341,16 +356,22 @@
           font-weight: 600;
           color: var(--theme-caption-color);
         }
-        .name {
+        // Nombre arriba y, debajo, la línea que dice qué pasa al abrirlo.
+        .body {
+          display: flex;
+          flex-direction: column;
           flex-grow: 1;
           min-width: 0;
           text-align: left;
+        }
+        .name {
+          min-width: 0;
           font-size: 1rem;
           font-weight: 500;
           color: var(--theme-caption-color);
         }
-        .tag {
-          flex-shrink: 0;
+        .hint {
+          margin-top: 0.125rem;
           font-size: 0.75rem;
           color: var(--theme-dark-color);
         }
@@ -377,18 +398,6 @@
         &.busy {
           pointer-events: none;
           opacity: 0.6;
-        }
-      }
-      .section-title {
-        margin-top: 1.25rem;
-        font-size: 0.75rem;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--theme-dark-color);
-
-        &.first {
-          margin-top: 0;
         }
       }
     }
