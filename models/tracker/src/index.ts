@@ -322,6 +322,10 @@ function defineApplication (
       icon: tracker.icon.TrackerApplication,
       alias: trackerId,
       hidden: false,
+      // Seguimiento va en el bloque superior de la barra lateral. 150 lo deja por encima de
+      // Chat (200), Planificador (300) y Teletrabajo (400); 50 queda reservado para "Inicio".
+      position: 'top',
+      order: 150,
       locationResolver: tracker.resolver.Location,
       navigatorModel: {
         specials: [

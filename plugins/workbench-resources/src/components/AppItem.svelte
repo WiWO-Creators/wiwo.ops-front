@@ -21,7 +21,7 @@
   export let icon: Asset | AnySvelteComponent
   export let selected: boolean = false
   export let size: 'small' | 'medium' | 'large' = 'large'
-  export let kind: 'default' | 'positive' | 'negative' | 'warning' | 'accented' = 'default'
+  export let kind: 'default' | 'positive' | 'negative' | 'warning' | 'accented' | 'primary' = 'default'
   export let loading: boolean = false
   export let notify: boolean = false
   export let navigator: boolean = false
@@ -123,10 +123,17 @@
     &.accented.selected {
       background-color: var(--button-secondary-active-BackgroundColor);
     }
+    &.primary {
+      background-color: var(--button-primary-BackgroundColor);
+    }
+    &.primary.selected {
+      background-color: var(--button-primary-active-BackgroundColor);
+    }
     &.positive .icon-container,
     &.negative .icon-container,
     &.warning .icon-container,
-    &.accented .icon-container {
+    &.accented .icon-container,
+    &.primary .icon-container {
       color: var(--primary-button-color);
     }
   }

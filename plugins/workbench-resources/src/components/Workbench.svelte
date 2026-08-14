@@ -30,6 +30,7 @@
   import notification, { DocNotifyContext, InboxNotification, notificationId } from '@hcengineering/notification'
   import { BrowserNotificatator, InboxNotificationsClientImpl } from '@hcengineering/notification-resources'
   import inbox, { inboxId } from '@hcengineering/inbox'
+  import { trackerId } from '@hcengineering/tracker'
   import { broadcastEvent, getMetadata, getResource, IntlString, translate } from '@hcengineering/platform'
   import {
     ActionContext,
@@ -796,9 +797,12 @@
     }
   }
 
-  $: customAppProps = new Map([
+  // Props extra por alias de aplicación, volcadas sobre cada <AppItem> de la barra lateral.
+  // Seguimiento va con kind 'primary' para destacarlo en el color de marca.
+  $: customAppProps = new Map<string, any>([
     [notificationId, inboxProps],
-    [inboxId, inboxProps]
+    [inboxId, inboxProps],
+    [trackerId, { kind: 'primary' }]
   ])
 
   defineSeparators('workbench', workbenchSeparators)
