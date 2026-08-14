@@ -11,7 +11,7 @@ import contact, {
   type Organization,
   type Person
 } from '@hcengineering/contact'
-import { generateId, type Class, type Data, type Ref, type TxOperations } from '@hcengineering/core'
+import { generateId, type AccountUuid, type Class, type Data, type Ref, type TxOperations } from '@hcengineering/core'
 import { readFileSync, writeFileSync } from 'fs'
 
 import { type FileUploader } from '@hcengineering/importer'
@@ -214,8 +214,13 @@ async function runProjectsStage (
     throw new Error('Falta el subidor de archivos para migrar proyectos y tareas')
   }
 
+  // Todo el equipo entra como miembro: si no, las tareas quedan invisibles para los demás.
+  const workspaceMembers = await getWorkspaceMembers(client)
+  logger.log(`Miembros del workspace que se suman a cada proyecto: ${workspaceMembers.length}`)
+
   await importProjects(client, uploader as FileUploader, perfex, logger, {
     clients: clients.map((c) => ({ id: c.id, company: c.company })),
+    workspaceMembers,
     isOrphanEnvironment: options.environment.groups.length === 0,
     peopleByStaffId: state.staff,
     migratedProjects: state.proyectos,
@@ -283,6 +288,19 @@ async function createContact (
   )
 
   return personId
+}
+
+/**
+ * Cuentas de las personas que ya usan el workspace.
+ *
+ * Se toman los empleados activos, que son las personas con cuenta: los contactos migrados desde
+ * Perfex no tienen cuenta todavía y no cuentan como miembros.
+ */
+export async function getWorkspaceMembers (client: TxOperations): Promise<AccountUuid[]> {
+  const employees = await client.findAll(contact.mixin.Employee, { active: true })
+  return employees
+    .map((e) => e.personUuid)
+    .filter((uuid): uuid is AccountUuid => uuid !== undefined)
 }
 
 /** Agrega un canal de contacto (teléfono, web, email), si el valor no está vacío. */

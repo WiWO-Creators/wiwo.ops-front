@@ -110,6 +110,38 @@ responsables.
 Los workspaces tienen que existir de antes, y el usuario indicado tiene que ser miembro de cada
 uno.
 
+## Que el equipo vea y trabaje las tareas
+
+En Huly, un proyecto público aparece en el menú pero **sus tareas sólo las ve quien es miembro**.
+La migración ya suma a todo el equipo como miembro de cada proyecto y los deja en modo "se suman
+solos", así que quien entre después también los ve.
+
+Para los proyectos migrados antes de esta corrección, o cuando entra gente nueva:
+
+```bash
+export HULY_TOKEN='<token del workspace>'
+node bundle.js abrir -w mgc -t "$HULY_TOKEN" --dry-run
+node bundle.js abrir -w mgc -t "$HULY_TOKEN"
+```
+
+Suma a todas las personas con cuenta como miembros de todos los proyectos. Correrlo dos veces no
+hace nada la segunda: sólo toca lo que falta.
+
+Los permisos de trabajo no hay que darlos: en Huly, cualquiera que vea un proyecto puede crear
+tareas, asignarlas y cambiarles el estado. Lo único reservado es administrar el espacio.
+
+### Quién figura como autor
+
+Los documentos quedan a nombre de la cuenta cuyo token se usó. Para que no aparezca todo a nombre
+de una persona, generá el token con la cuenta de sistema:
+
+```bash
+./run-tool.sh generate-token huly.system@hc.engineering mgc
+```
+
+Los ya migrados conservan el autor con el que se crearon; no afecta a quién puede trabajar sobre
+ellos.
+
 ## Mover un cliente de un workspace a otro
 
 Huly no mueve documentos entre workspaces: cada uno es una base separada. El comando `mover` copia
@@ -233,6 +265,13 @@ tras un error o un corte. Si se borra ese archivo, la próxima corrida duplica t
 | `-s, --stages` | `personas`, `clientes`, `proyectos`, separadas por coma |
 | `--state` | Archivo de estado propio |
 | `--dry-run` | Sólo informa qué haría |
+
+Del comando `abrir`:
+
+| Opción | Para qué |
+|--------|----------|
+| `-w, --workspace` / `-t, --token` | Workspace y token |
+| `--dry-run` | Sólo informa qué cambiaría |
 
 Del comando `mover`:
 

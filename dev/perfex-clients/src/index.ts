@@ -25,6 +25,7 @@ import { FrontFileUploader, type FileUploader } from '@hcengineering/importer'
 import { program } from 'commander'
 
 import { ENVIRONMENTS, getEnvironment } from './environments'
+import { openProjects } from './abrir'
 import { notifyResult } from './aviso'
 import { ALL_STAGES, importClients, type Logger, type Stage } from './import'
 import { moveClient } from './move'
@@ -160,6 +161,28 @@ export function perfexClientsTool (): void {
         )
         process.exitCode = 1
       }
+    })
+
+  program
+    .command('abrir')
+    .description('suma a todo el equipo como miembro de los proyectos, para que vean las tareas')
+    .requiredOption('-w, --workspace <workspace>', 'url del workspace')
+    .requiredOption('-t, --token <token>', 'token del workspace (o variable HULY_TOKEN)')
+    .option('-f, --front <url>', 'url del front de Huly (o variable FRONT_URL)')
+    .option('--transactor <url>', 'url directa del transactor (o variable TRANSACTOR_URL)')
+    .option('--dry-run', 'no escribe nada: sólo informa qué cambiaría', false)
+    .action(async (cmd) => {
+      const frontUrl = cmd.front ?? process.env.FRONT_URL
+      if (frontUrl === undefined || frontUrl === '') {
+        throw new Error('Falta la url del front: usá --front o la variable FRONT_URL')
+      }
+      await setupAccounts(frontUrl)
+
+      const token = cmd.token ?? process.env.HULY_TOKEN
+      const transactor = cmd.transactor ?? process.env.TRANSACTOR_URL
+      await withTokenClient(token, transactor, async (client) => {
+        await openProjects(client, consoleLogger, { dryRun: cmd.dryRun === true })
+      })
     })
 
   program

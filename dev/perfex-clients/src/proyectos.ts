@@ -6,7 +6,7 @@
 // no escribe: fechas, área de la compañía, link de Drive y archivado de los proyectos cerrados.
 //
 import { type Person } from '@hcengineering/contact'
-import core, { generateId, type Ref, type TxOperations } from '@hcengineering/core'
+import core, { generateId, type AccountUuid, type Ref, type TxOperations } from '@hcengineering/core'
 import {
   type FileUploader,
   type ImportComment,
@@ -40,6 +40,8 @@ const UPDATE_BATCH = 25
 export interface ProjectImportOptions {
   /** Clientes del ambiente. Cada uno es un proyecto de Huly. */
   clients: Array<{ id: number, company: string }>
+  /** Cuentas que se suman como miembros de cada proyecto creado. */
+  workspaceMembers: AccountUuid[]
   /** true en el ambiente que recoge lo que no cae en ningún otro. */
   isOrphanEnvironment: boolean
   /** Personas de Huly por staffid de Perfex, para poder asignar responsables. */
@@ -218,7 +220,11 @@ export async function importProjects (
       title: client_.company,
       identifier: buildProjectIdentifier(client_.company),
       private: false,
-      autoJoin: false,
+      // Sin miembros nadie ve las tareas de adentro, aunque el proyecto figure en el menú: para
+      // los datos, Huly no alcanza con que el espacio sea público. Con autoJoin entra todo el
+      // equipo, que es lo que se espera de un tablero compartido.
+      autoJoin: true,
+      members: options.workspaceMembers,
       description: '',
       docs: (tasksByClient.get(client_.id) ?? []).map(buildIssue)
     })
@@ -230,7 +236,8 @@ export async function importProjects (
       title: ORPHAN_PROJECT_NAME,
       identifier: ORPHAN_PROJECT_IDENTIFIER,
       private: false,
-      autoJoin: false,
+      autoJoin: true,
+      members: options.workspaceMembers,
       description: 'Tareas de Perfex que no pertenecían a ningún cliente.',
       docs: leadTasks.map(buildIssue)
     })
