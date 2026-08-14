@@ -1,6 +1,6 @@
 {
   "string": {
-    "Office": "Oficina",
+    "Office": "Teletrabajo",
     "Room": "Sala",
     "RoomType": "Tipo de sala",
     "Share": "Compartir",
@@ -11,8 +11,8 @@
     "UnMute": "Activar sonido",
     "LeaveRoom": "Salir de la sala",
     "Floors": "Pisos",
-    "MyOffice": "Mi Oficina",
-    "EditOffice": "Editar oficina",
+    "MyOffice": "Mi escritorio",
+    "EditOffice": "Editar el piso",
     "FinalizeEditing": "Hecho",
     "Floor": "Piso",
     "ChangeFloor": "Cambiar piso",
@@ -29,7 +29,7 @@
     "Microphone": "Micrófono",
     "Camera": "Cámara",
     "Settings": "Configuración",
-    "LoveDescription": "Entorno Virtual de Oficina en Vivo",
+    "LoveDescription": "Salas de audio y video para trabajar a distancia",
     "DefaultDevice": "Dispositivo por defecto",
     "Knock": "Permiso requerido",
     "Open": "Abierto",
