@@ -195,10 +195,7 @@
           .filter((it) => search === '' || (it.name?.includes(search) ?? false) || it.url.includes(search))
           .slice(0, 500) as workspace}
           {@const wsName = workspace.name ?? workspace.url}
-          {@const lastUsageDays =
-            workspace.lastVisit === undefined
-              ? 'N/A'
-              : Math.round((Date.now() - workspace.lastVisit) / (1000 * 3600 * 24))}
+          {@const neverVisited = workspace.lastVisit === undefined || workspace.lastVisit === 0}
           <!-- svelte-ignore a11y-click-events-have-key-events -->
           <!-- svelte-ignore a11y-no-static-element-interactions -->
           <div
@@ -215,11 +212,9 @@
                   ({workspace.processingProgress}%)
                 {/if}
               </span>
-              <span class="text-xs flex-row-center flex-center">
-                <div class="text-sm">
-                  ({lastUsageDays} days)
-                </div>
-              </span>
+              {#if neverVisited}
+                <span class="hint flex-center"><Label label={login.string.FirstVisit} /></span>
+              {/if}
             </div>
           </div>
         {/each}
@@ -236,20 +231,35 @@
             />
           </div>
         {:else if available.length > 0}
-          <div class="available-title"><Label label={login.string.AvailableWorkspaces} /></div>
+          <div class="section-title form-row" class:first={workspaces.length === 0}>
+            <Label label={login.string.AvailableWorkspaces} />
+          </div>
           {#each available as workspace (workspace.url)}
-            <div class="form-row send">
-              <Button
-                label={login.string.JoinWorkspace}
-                labelParams={{ workspaceName: workspace.name }}
-                kind={'regular'}
-                width="100%"
-                loading={joining === workspace.url}
-                disabled={joining !== undefined}
-                on:click={() => {
+            <div
+              class="workspace available flex-center fs-title cursor-pointer focused-button bordered form-row"
+              class:busy={joining !== undefined}
+              role="button"
+              tabindex="0"
+              on:click={() => {
+                void join(workspace)
+              }}
+              on:keydown={(ev) => {
+                if (ev.key === 'Enter' || ev.key === ' ') {
+                  ev.preventDefault()
                   void join(workspace)
-                }}
-              />
+                }
+              }}
+            >
+              <div class="flex flex-col flex-grow">
+                <span class="label overflow-label flex-center">{workspace.name}</span>
+                <span class="hint flex-center">
+                  {#if joining === workspace.url}
+                    <Spinner size={'small'} />
+                  {:else}
+                    <Label label={login.string.Join} />
+                  {/if}
+                </span>
+              </div>
             </div>
           {/each}
         {:else if workspaces.length === 0 && account?.token != null}
@@ -305,7 +315,8 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       column-gap: 0.75rem;
-      row-gap: 1.5rem;
+      // Ritmo cerrado dentro de cada grupo; la separación entre grupos la pone el encabezado.
+      row-gap: 0.75rem;
 
       .form-row {
         grid-column-start: 1;
@@ -315,16 +326,38 @@
       .workspace {
         padding: 1rem;
         border-radius: 1rem;
+
+        .hint {
+          font-size: 0.75rem;
+          color: var(--theme-dark-color);
+        }
+      }
+      // Los espacios a los que todavía no pertenece pesan menos que los propios, pero se
+      // manejan igual: misma tarjeta, mismo gesto.
+      .workspace.available {
+        border-style: dashed;
+
+        &.busy {
+          pointer-events: none;
+          opacity: 0.6;
+        }
+      }
+      .section-title {
+        margin-top: 1.25rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--theme-dark-color);
+
+        &.first {
+          margin-top: 0;
+        }
       }
     }
     .readonly-warning {
       margin-bottom: 1.5rem;
       color: var(--theme-caption-color);
-    }
-    .available-title {
-      margin: 1.5rem 0 0.75rem;
-      font-weight: 500;
-      color: var(--theme-dark-color);
     }
     .grow-separator {
       flex-grow: 1;
