@@ -153,6 +153,21 @@ import { preferenceId } from '@hcengineering/preference'
 import { uiId } from '@hcengineering/ui/src/plugin'
 import { configureAnalytics } from './analytics'
 
+/**
+ * Completa cada espacio de trabajo ofrecido con el identificador de su invitación permanente.
+ *
+ * El identificador se toma del entorno del despliegue, con el nombre `OPS_INVITE_<ESPACIO>`
+ * —por ejemplo `OPS_INVITE_SIN_CLASIFICAR` para el espacio `sin-clasificar`—, de modo que se
+ * pueda rotar sin tocar el repositorio. Si en la configuración ya viene uno escrito, ese manda.
+ */
+function resolveJoinableWorkspaces (branding: Branding, config: Config): JoinableWorkspace[] {
+  return (branding.joinableWorkspaces ?? []).map((workspace) => {
+    const key = `OPS_INVITE_${workspace.url.toUpperCase().replaceAll('-', '_')}`
+    const fromEnv = (config as unknown as Record<string, string | undefined>)[key]
+    return { ...workspace, inviteId: workspace.inviteId !== '' ? workspace.inviteId : (fromEnv ?? '') }
+  })
+}
+
 export interface Config {
   ACCOUNTS_URL: string
   UPLOAD_URL: string
@@ -739,7 +754,7 @@ export async function configurePlatform() {
   setMetadata(workbench.metadata.DefaultApplication, myBranding.defaultApplication ?? 'tracker')
   setMetadata(workbench.metadata.DefaultSpace, myBranding.defaultSpace ?? tracker.project.DefaultProject)
   setMetadata(workbench.metadata.DefaultSpecial, myBranding.defaultSpecial ?? 'issues')
-  setMetadata(login.metadata.JoinableWorkspaces, myBranding.joinableWorkspaces ?? [])
+  setMetadata(login.metadata.JoinableWorkspaces, resolveJoinableWorkspaces(myBranding, config))
 
   setMetadata(setting.metadata.DefaultInviteRole, myBranding.defaultInviteRole)
   setMetadata(setting.metadata.DefaultInviteLinkGeneratorRoles, myBranding.inviteLinkGeneratorRoles)

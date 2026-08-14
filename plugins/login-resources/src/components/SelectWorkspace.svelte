@@ -65,10 +65,9 @@
 
   // Workspaces abiertos que se configuran por despliegue: se ofrecen a quien todavía no es miembro,
   // para que entre solo en vez de tener que pedir que lo inviten a mano.
-  // Se descartan las entradas a medio configurar: sin identificador de invitación el botón no
-  // llevaría a ningún lado.
+  // Se descartan las entradas sin invitación configurada: el botón no llevaría a ningún lado.
   const joinable: JoinableWorkspace[] = (getMetadata(login.metadata.JoinableWorkspaces) ?? []).filter(
-    (j) => j.url !== '' && j.inviteId !== '' && j.inviteId !== 'REEMPLAZAR'
+    (j) => j.url !== '' && j.inviteId !== ''
   )
   $: available = joinable.filter((j) => !workspaces.some((w) => w.url === j.url))
 

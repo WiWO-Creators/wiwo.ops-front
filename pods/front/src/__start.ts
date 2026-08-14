@@ -27,6 +27,12 @@ const metricsContext = initStatisticsContext('front', {
 })
 
 startFront(metricsContext, {
+  // Invitaciones permanentes de cada espacio de trabajo, para la pantalla de ingreso. Van por
+  // entorno y no en la configuración del repositorio, para poder rotarlas sin recompilar.
+  OPS_INVITE_MGC: process.env.OPS_INVITE_MGC,
+  OPS_INVITE_PALTA: process.env.OPS_INVITE_PALTA,
+  OPS_INVITE_WIWO: process.env.OPS_INVITE_WIWO,
+  OPS_INVITE_SIN_CLASIFICAR: process.env.OPS_INVITE_SIN_CLASIFICAR,
   GITHUB_APP: process.env.GITHUB_APP ?? '',
   GITHUB_CLIENTID: process.env.GITHUB_CLIENTID ?? '',
   INTERCOM_APP_ID: process.env.INTERCOM_APP_ID ?? '',
