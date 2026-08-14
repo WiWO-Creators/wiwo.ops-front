@@ -89,7 +89,9 @@
   $: typeType = typeId !== undefined ? $typeStore.get(typeId) : undefined
   $: membersPersons = members.map((m) => $employeeRefByAccountUuidStore.get(m)).filter(notEmpty)
   $: readOnlyGuestOwnerExcludeItems = getAnonymousRefs($employeeRefByAccountUuidStore, owners)
-  let autoJoin = project?.autoJoin ?? typeType?.autoJoin ?? false
+  // Los proyectos nacen abiertos: sin esto, sólo el creador ve sus tareas y el resto del equipo
+  // tiene que acordarse de unirse a mano. Quien quiera uno reservado lo desmarca al crearlo.
+  let autoJoin = project?.autoJoin ?? typeType?.autoJoin ?? true
   let autoJoinForRoles: AccountRole[] =
     project?.autoJoinForRoles != null ? hierarchy.clone(project.autoJoinForRoles) : []
 
