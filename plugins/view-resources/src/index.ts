@@ -234,6 +234,7 @@ export {
   DocReferencePresenter,
   EditBoxPopup,
   EditDoc,
+  EnumArrayEditor,
   EnumEditor,
   FilterBar,
   HTMLPresenter,
