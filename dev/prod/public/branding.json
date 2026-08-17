@@ -3,10 +3,8 @@
     "title": "WiWO Ops",
     "languages": "en,ru,pl,pt,pt-br,es,zh,fr,de,ja,ko,tr",
     "defaultLanguage": "es",
-    "defaultApplication": "tracker",
-    "defaultSpace": "tracker:project:DefaultProject",
+    "defaultApplication": "home",
     "lastNameFirst": "true",
-    "defaultSpecial": "issues",
     "links": [
       {
         "rel": "manifest",
@@ -54,10 +52,8 @@
     "title": "WiWO Ops",
     "languages": "en,ru,pl,pt,pt-br,es,zh,fr,de,ja,ko,tr",
     "defaultLanguage": "es",
-    "defaultApplication": "tracker",
-    "defaultSpace": "tracker:project:DefaultProject",
+    "defaultApplication": "home",
     "lastNameFirst": "true",
-    "defaultSpecial": "issues",
     "links": [
       {
         "rel": "manifest",
@@ -105,9 +101,7 @@
     "title": "WiWO Ops",
     "languages": "en,ru,pl,pt,pt-br,es,zh,fr,de,ja,ko,tr",
     "defaultLanguage": "es",
-    "defaultApplication": "tracker",
-    "defaultSpace": "tracker:project:DefaultProject",
-    "defaultSpecial": "issues",
+    "defaultApplication": "home",
     "lastNameFirst": "true",
     "links": [
       {
