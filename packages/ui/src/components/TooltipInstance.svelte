@@ -26,9 +26,9 @@
 <script lang="ts">
   import { afterUpdate, onDestroy, onMount } from 'svelte'
   import { resizeObserver } from '../resize'
-  import { closeTooltip, tooltipstore as tooltip } from '../tooltips'
+  import { closeTooltip, showTooltip, tooltipstore as tooltip } from '../tooltips'
   import { modalStore as modals } from '../modals'
-  import type { TooltipAlignment } from '../types'
+  import type { LabelAndProps, TooltipAlignment } from '../types'
   import Component from './Component.svelte'
   import Label from './Label.svelte'
   import { capitalizeFirstLetter, formatKey } from '../utils'
@@ -275,6 +275,34 @@
     closeTooltip()
   }
 
+  /**
+   * Aplica el evento `tooltip` que emite el componente montado dentro del tooltip.
+   *
+   * Pasa por `showTooltip` en vez de escribir `modalStore` a mano para que el estado interno
+   * de `tooltips.ts` no quede desfasado respecto de lo que se está pintando. Conserva las
+   * referencias de `component` y `props`, así que `svelte:component` no reinstancia el
+   * componente y no se pierde el foco del campo que esté editando el usuario.
+   *
+   * @param next Tooltip resultante de fusionar el actual con el detalle del evento.
+   */
+  const applyTooltipEvent = (next: LabelAndProps): void => {
+    if (next.element === undefined) return
+    showTooltip(
+      next.label,
+      next.element,
+      next.direction,
+      next.component,
+      next.props,
+      next.anchor,
+      next.onUpdate,
+      next.kind,
+      next.keys,
+      next.style,
+      next.noArrow,
+      next.textAlign
+    )
+  }
+
   $: shownTooltip = $tooltip.element && tooltipHTML
 
   const whileShow = (ev: MouseEvent): void => {
@@ -394,7 +422,7 @@
           this={$tooltip.component}
           {...$tooltip.props}
           on:tooltip={(evt) => {
-            $modals = [...$modals.filter((t) => t.type !== 'tooltip'), { ...$tooltip, ...evt.detail }]
+            applyTooltipEvent({ ...$tooltip, ...evt.detail })
           }}
           on:update={onUpdate !== undefined ? onUpdate : async () => {}}
         />

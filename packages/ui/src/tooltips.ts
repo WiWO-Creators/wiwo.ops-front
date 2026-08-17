@@ -73,8 +73,20 @@ export function tooltip (node: HTMLElement, options?: LabelAndProps): any {
       }
     }
   }
+  /**
+   * Cierra el tooltip cuando el puntero sale del nodo.
+   *
+   * Cancela el temporizador pendiente y, además, cierra el tooltip ya visible si pertenece
+   * a este nodo y no tiene contenido interactivo. Los tooltips con `component` quedan fuera
+   * a propósito: en ellos el cursor viaja del elemento al propio tooltip, y su cierre lo
+   * decide `whileShow` en `TooltipInstance.svelte` con el hit-test sobre el popup.
+   */
   const hide = (): void => {
     clearTimeout(toHandler)
+    const current = get(tooltipstore)
+    if (current.element === node && current.component === undefined) {
+      closeTooltip()
+    }
   }
   node.addEventListener('mouseleave', hide)
   node.addEventListener('mousemove', show)
@@ -112,6 +124,27 @@ export function tooltip (node: HTMLElement, options?: LabelAndProps): any {
   }
 }
 
+/**
+ * Muestra un tooltip y lo deja como único tooltip de `modalStore`.
+ *
+ * Reemplaza la entrada de tipo `tooltip` que hubiera en lugar de acumular otra, de modo que
+ * `tooltipstore` (que pinta la última) y el `findIndex` del z-index apunten siempre a la misma.
+ * Si el tooltip anterior era del mismo componente y el nuevo no trae `kind`, se hereda el
+ * anterior (así un `kind: 'popup'` sobrevive a las actualizaciones reactivas de la acción).
+ *
+ * @param label Etiqueta a mostrar, si el tooltip es de texto.
+ * @param element Nodo que dispara el tooltip; sirve de ancla y de identidad para cerrarlo.
+ * @param direction Lado preferido de aparición.
+ * @param component Componente a renderizar dentro del tooltip, si es interactivo.
+ * @param props Props del componente.
+ * @param anchor Nodo alternativo para calcular la posición.
+ * @param onUpdate Callback para el evento `update` del componente.
+ * @param kind Tipo de tooltip: `tooltip`, `submenu` o `popup`.
+ * @param keys Atajos de teclado a mostrar junto a la etiqueta.
+ * @param style Variante visual.
+ * @param noArrow Oculta el nub que apunta al elemento.
+ * @param textAlign Alineación del texto de la etiqueta.
+ */
 export function showTooltip (
   label: IntlString | undefined,
   element: HTMLElement,
@@ -153,8 +186,7 @@ export function showTooltip (
       storedValue.kind = 'tooltip'
     }
 
-    old.push(storedValue)
-    return old
+    return [...old.filter((m) => m?.type !== 'tooltip'), storedValue]
   })
 }
 
