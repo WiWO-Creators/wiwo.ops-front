@@ -18,6 +18,7 @@
     "NewState": "Nový stav",
     "AddAction": "Přidat akci",
     "CreateProcess": "Vytvořit proces",
+    "CreateProcessError": "Nepodařilo se vytvořit proces: {error}",
     "UpdateCard": "Aktualizovat kartu",
     "CreateToDo": "Vytvořit akční položku",
     "NoProcesses": "Žádné procesy",

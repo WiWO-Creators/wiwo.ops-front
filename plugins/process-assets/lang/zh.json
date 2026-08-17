@@ -18,6 +18,7 @@
     "NewState": "新状态",
     "AddAction": "添加操作",
     "CreateProcess": "创建过程",
+    "CreateProcessError": "创建过程失败：{error}",
     "UpdateCard": "更新卡",
     "CreateToDo": "创建任务",
     "NoProcesses": "没有过程",

@@ -18,6 +18,7 @@
     "NewState": "Nuovo stato",
     "AddAction": "Aggiungi azione",
     "CreateProcess": "Crea processo",
+    "CreateProcessError": "Impossibile creare il processo: {error}",
     "UpdateCard": "Aggiorna scheda",
     "CreateToDo": "Crea azione",
     "NoProcesses": "Nessun processo",
