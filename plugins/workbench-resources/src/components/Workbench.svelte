@@ -106,7 +106,7 @@
   import { getContext, onDestroy, onMount, tick } from 'svelte'
   import { subscribeMobile } from '../mobile'
   import workbench from '../plugin'
-  import { buildNavModel, isAllowedToRole, logOut, workspacesStore } from '../utils'
+  import { buildNavModel, filterVisibleApplications, logOut, workspacesStore } from '../utils'
   import AccountPopup from './AccountPopup.svelte'
   import AppItem from './AppItem.svelte'
   import AppSwitcher from './AppSwitcher.svelte'
@@ -154,15 +154,13 @@
 
   migrateViewOpttions()
 
-  const excludedApps = getMetadata(workbench.metadata.ExcludedApplications) ?? []
   const isCommunicationEnabled = getMetadata(communication.metadata.Enabled) ?? false
 
   const client = getClient()
 
-  const apps: Application[] = client
-    .getModel()
-    .findAllSync<Application>(workbench.class.Application, { hidden: false, _id: { $nin: excludedApps } })
-    .filter((it) => isAllowedToRole(it.accessLevel, account))
+  const apps: Application[] = filterVisibleApplications(
+    client.getModel().findAllSync<Application>(workbench.class.Application, {})
+  )
 
   let panelInstance: PanelInstance
   let popupInstance: Popup

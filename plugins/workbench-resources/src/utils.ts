@@ -17,16 +17,16 @@
 import { getClient as getAccountClient } from '@hcengineering/account-client'
 import type {
   Account,
-  AccountRole,
   Class,
   Client,
   Doc,
+  ModulePermissionGroup,
   Ref,
   Space,
   TxOperations,
   WorkspaceInfoWithStatus
 } from '@hcengineering/core'
-import core, { hasAccountRole } from '@hcengineering/core'
+import core, { AccountRole, getCurrentAccount, hasAccountRole } from '@hcengineering/core'
 import login from '@hcengineering/login'
 import { getMetadata, getResource, setMetadata } from '@hcengineering/platform'
 import presentation, { closeClient, getClient, setPresentationCookie } from '@hcengineering/presentation'
@@ -145,6 +145,62 @@ export async function doNavigate (
 export function isAllowedToRole (role: AccountRole | undefined, acc: Account): boolean {
   if (role === undefined) return true
   return hasAccountRole(acc, role)
+}
+
+/**
+ * Aplicaciones que el usuario actual puede ver.
+ *
+ * Descarta las declaradas como ocultas, las excluidas por el despliegue, las que piden un rol
+ * superior al suyo, las ocultadas por preferencia, las vedadas a invitados y las de módulos
+ * apagados en el workspace.
+ *
+ * @param apps aplicaciones candidatas (normalmente todas las del modelo)
+ * @param hiddenAppsIds refs de `workbench.class.HiddenApplication`; pasar `[]` en superficies que
+ *   deben listar también las ocultas para poder reactivarlas (AppSwitcher)
+ * @param disabledApps refs de aplicaciones con `ModulePermissionGroup` deshabilitado
+ * @returns las aplicaciones visibles, en el orden recibido
+ */
+export function filterVisibleApplications (
+  apps: Application[],
+  hiddenAppsIds: Array<Ref<Application>> = [],
+  disabledApps: Set<Ref<Application>> = new Set<Ref<Application>>()
+): Application[] {
+  const me = getCurrentAccount()
+  const excludedIds = getMetadata(workbench.metadata.ExcludedApplications) ?? []
+  const excludedAliases =
+    me.role === AccountRole.ReadOnlyGuest || me.role === AccountRole.Guest
+      ? getMetadata(workbench.metadata.ExcludedApplicationsForAnonymous) ?? []
+      : []
+
+  return apps.filter(
+    (app) =>
+      !app.hidden &&
+      !excludedIds.includes(app._id) &&
+      isAllowedToRole(app.accessLevel, me) &&
+      !hiddenAppsIds.includes(app._id) &&
+      !excludedAliases.includes(app.alias) &&
+      !disabledApps.has(app._id)
+  )
+}
+
+/**
+ * Traduce los grupos de permisos de módulo a las aplicaciones apagadas para el rol actual.
+ * @param groups documentos `core.class.ModulePermissionGroup` del workspace
+ * @returns refs de las aplicaciones que no deben ofrecerse al usuario actual
+ */
+export function getDisabledApplications (groups: ModulePermissionGroup[]): Set<Ref<Application>> {
+  const role = getCurrentAccount().role
+
+  return new Set<Ref<Application>>(
+    groups
+      .filter((g) => {
+        if (g.enabled ?? true) return false
+        if (role === g.role) return true
+        // DocGuest hereda los módulos apagados para Guest.
+        return role === AccountRole.DocGuest && g.role === AccountRole.Guest
+      })
+      .map((g) => g.application as Ref<Application>)
+  )
 }
 
 export async function hideApplication (app: Application): Promise<void> {

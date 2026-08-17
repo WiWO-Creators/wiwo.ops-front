@@ -13,13 +13,12 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import core, { AccountRole, getCurrentAccount, type Ref } from '@hcengineering/core'
+  import core, { type ModulePermissionGroup, type Ref } from '@hcengineering/core'
   import type { Application } from '@hcengineering/workbench'
   import { createQuery } from '@hcengineering/presentation'
   import workbench from '@hcengineering/workbench'
-  import { hideApplication, isAllowedToRole, showApplication } from '../utils'
+  import { filterVisibleApplications, getDisabledApplications, hideApplication, showApplication } from '../utils'
   import { Loading, IconCheck, Label, Icon } from '@hcengineering/ui'
-  import { getMetadata } from '@hcengineering/platform'
   // import Drag from './icons/Drag.svelte'
 
   export let apps: Application[] = []
@@ -54,7 +53,10 @@
   }
 
   let loaded: boolean = false
+  let permissionsLoaded: boolean = false
   let hiddenAppsIds: Array<Ref<Application>> = []
+  let disabledApplications: Set<Ref<Application>> = new Set<Ref<Application>>()
+
   const hiddenAppsIdsQuery = createQuery()
   hiddenAppsIdsQuery.query(
     workbench.class.HiddenApplication,
@@ -67,25 +69,20 @@
     }
   )
 
-  const me = getCurrentAccount()
-
-  const filteredApps = apps.filter(
-    (it) =>
-      !hiddenAppsIds.includes(it._id) &&
-      isAllowedToRole(it.accessLevel, me) &&
-      it.position !== 'top' &&
-      !isExcludedApp(it.alias)
-  )
-
-  function isExcludedApp (alias: string): boolean {
-    const me = getCurrentAccount()
-
-    if (me.role === AccountRole.ReadOnlyGuest || me.role === AccountRole.Guest) {
-      return (getMetadata(workbench.metadata.ExcludedApplicationsForAnonymous) ?? []).includes(alias)
-    } else {
-      return false
+  const modulePermissionGroupsQuery = createQuery()
+  modulePermissionGroupsQuery.query(core.class.ModulePermissionGroup, {}, (res) => {
+    try {
+      disabledApplications = getDisabledApplications(res as ModulePermissionGroup[])
+    } catch (error) {
+      console.error('Error loading module permission groups:', error)
+    } finally {
+      permissionsLoaded = true
     }
-  }
+  })
+
+  // Las ocultadas por preferencia sí se listan (con el tilde apagado): esta es la pantalla que
+  // permite volver a mostrarlas. Las de módulos apagados, en cambio, no deben poder encenderse.
+  $: filteredApps = filterVisibleApplications(apps, [], disabledApplications).filter((it) => it.position !== 'top')
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -93,7 +90,7 @@
   <div class="ap-space x2" />
   <div class="ap-scroll">
     <div class="ap-box">
-      {#if loaded}
+      {#if loaded && permissionsLoaded}
         {#each filteredApps as app, i}
           <button
             bind:this={btns[i]}
