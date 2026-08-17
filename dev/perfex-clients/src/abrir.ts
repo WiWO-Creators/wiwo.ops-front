@@ -34,11 +34,12 @@ export async function openProjects (client: TxOperations, logger: Logger, option
   for (const project of projects) {
     const missing = members.filter((m) => !project.members.includes(m))
     const needsAutoJoin = project.autoJoin !== true
-    if (missing.length === 0 && !needsAutoJoin) continue
+    if (missing.length === 0 && !needsAutoJoin && !project.private) continue
 
     if (!options.dryRun) {
       await client.update(project, {
         members: [...project.members, ...missing] as AccountUuid[],
+        private: false,
         autoJoin: true
       })
     }
