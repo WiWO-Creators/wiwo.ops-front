@@ -942,12 +942,24 @@ async function getSpaceCollabTxes (
   return []
 }
 
-async function pushCollaboratorsToPublicSpace (
+/**
+ * Suma los colaboradores del documento como miembros de su espacio.
+ *
+ * En un espacio privado sólo lo hace si la clase declara `autoJoinSpace`: es el permiso explícito
+ * para que colaborar con un documento (crearlo o recibirlo asignado) dé acceso al espacio.
+ *
+ * @returns los txes de `$push` sobre `members`, que deben ir en la misma llamada que la notificación
+ *   para que `createCollabDocInfo` no descarte al colaborador por no ser miembro todavía.
+ */
+async function pushCollaboratorsToSpace (
   control: TriggerControl,
   doc: Doc,
+  mixin: ClassCollaborators<Doc>,
   collaborators: AccountUuid[],
   cache: Map<Ref<Doc>, Doc>
 ): Promise<Tx[]> {
+  if (collaborators.length === 0) return []
+
   const space = await getObjectSpace(control, doc, cache)
   if (space === undefined) return []
 
@@ -957,7 +969,7 @@ async function pushCollaboratorsToPublicSpace (
     return []
   }
 
-  if (space.private) {
+  if (space.private && mixin.autoJoinSpace !== true) {
     return []
   }
 
@@ -993,7 +1005,7 @@ async function createCollaboratorDoc (
     ))
   )
 
-  res.push(...(await pushCollaboratorsToPublicSpace(control, doc, collaborators, docCache)))
+  res.push(...(await pushCollaboratorsToSpace(control, doc, mixin, collaborators, docCache)))
 
   const notificationTxes = await ctx.with('create-collabdocinfo', {}, (ctx) =>
     createCollabDocInfo(
@@ -1301,6 +1313,18 @@ async function updateCollaboratorDoc (
     collabsInfo.removed
   )
   res.push(...sync.txes)
+
+  // Al reasignar o al mover el documento de espacio, el colaborador nuevo también tiene que entrar al
+  // espacio. Sólo para las clases que lo declaran, para no cambiar el comportamiento de las demás.
+  if (mixin.autoJoinSpace === true) {
+    // Si el documento cambió de espacio ningún colaborador es nuevo para el tx, pero todos son nuevos
+    // para el espacio destino: hay que recalcularlos enteros.
+    const movedToAnotherSpace = !isMixinTx(tx) && tx.operations.space !== undefined
+    const joining = movedToAnotherSpace
+      ? await ctx.with('get-collaborators', {}, (ctx) => getDocCollaborators(ctx, doc, mixin, control))
+      : collabsInfo.added // nunca `result`: incluye a los mencionados, y una mención no da membresía
+    res.push(...(await pushCollaboratorsToSpace(control, doc, mixin, joining, docCache)))
+  }
 
   res = res.concat(
     await ctx.with('create-collab-docinfo', {}, (ctx) =>

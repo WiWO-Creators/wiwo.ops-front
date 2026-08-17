@@ -553,7 +553,10 @@ export function createModel (builder: Builder): void {
 
   builder.createDoc<ClassCollaborators<Issue>>(core.class.ClassCollaborators, core.space.Model, {
     attachedTo: tracker.class.Issue,
-    fields: ['createdBy', 'assignee']
+    fields: ['createdBy', 'assignee'],
+    // Quien crea o recibe una tarea entra al proyecto, aunque sea privado: es la única forma de que
+    // vea la tarea, y va junto con la notificación de la asignación.
+    autoJoinSpace: true
   })
 
   builder.mixin(tracker.class.Issue, core.class.Class, setting.mixin.Editable, {
