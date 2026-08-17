@@ -35,6 +35,17 @@
     "ConfigureWidgets": "Configurar widgets",
     "Tab": "Pestaña",
     "WorkspaceIsArchived": "El espacio de trabajo está archivado por no estar en uso, por favor contáctenos para restaurarlo...",
-    "WorkspaceIsMigrating": "El espacio de trabajo se está actualizando. Por favor, espere..."
+    "WorkspaceIsMigrating": "El espacio de trabajo se está actualizando. Por favor, espere...",
+    "HomeTitle": "Inicio",
+    "HomeGreeting": "Hola",
+    "HomeSubtitle": "¿En qué estás trabajando hoy?",
+    "HomeEmpty": "Todavía no hay módulos disponibles para tu cuenta.",
+    "HomeCardTracker": "Las tareas del equipo, por proyecto y por estado",
+    "HomeCardCard": "Las tarjetas de cada trabajo en curso",
+    "HomeCardContact": "Empresas y personas con las que trabajamos",
+    "HomeCardDocument": "Notas, actas y documentos compartidos",
+    "HomeCardChunter": "Conversaciones del equipo por canal",
+    "HomeCardTime": "Tu agenda y lo que tenés que hacer hoy",
+    "HomeCardLove": "Salas de audio y video para trabajar a distancia"
   }
 }

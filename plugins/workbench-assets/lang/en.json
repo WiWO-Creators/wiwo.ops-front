@@ -35,6 +35,17 @@
     "ConfigureWidgets": "Configure widgets",
     "Tab": "Tab",
     "WorkspaceIsArchived": "Workspace is archived because of being unused, Please contact us to restore...",
-    "WorkspaceIsMigrating": "Workspace is being updated. Please wait..."
+    "WorkspaceIsMigrating": "Workspace is being updated. Please wait...",
+    "HomeTitle": "Home",
+    "HomeGreeting": "Hi",
+    "HomeSubtitle": "What are you working on today?",
+    "HomeEmpty": "No modules are available for your account yet.",
+    "HomeCardTracker": "Your team's tasks, by project and by status",
+    "HomeCardCard": "The cards of every work in progress",
+    "HomeCardContact": "Companies and people we work with",
+    "HomeCardDocument": "Notes, minutes and shared documents",
+    "HomeCardChunter": "Team conversations, channel by channel",
+    "HomeCardTime": "Your agenda and what you have to do today",
+    "HomeCardLove": "Audio and video rooms to work remotely"
   }
 }

@@ -34,6 +34,12 @@ import type {
 /** @public */
 export const workbenchId = 'workbench' as Plugin
 
+/**
+ * Alias de la aplicación "Inicio" en la barra lateral y en la URL.
+ * @public
+ */
+export const homeId = 'home'
+
 /** @public */
 export const workbenchPlugin = plugin(workbenchId, {
   class: {
@@ -54,10 +60,12 @@ export const workbenchPlugin = plugin(workbenchId, {
     WorkbenchApp: '' as AnyComponent,
     InviteLink: '' as AnyComponent,
     Archive: '' as AnyComponent,
-    SpecialView: '' as AnyComponent
+    SpecialView: '' as AnyComponent,
+    Home: '' as AnyComponent
   },
   string: {
     Archive: '' as IntlString,
+    HomeTitle: '' as IntlString,
     View: '' as IntlString,
     ServerUnderMaintenance: '' as IntlString,
     UpgradeDownloadProgress: '' as IntlString,
@@ -68,7 +76,8 @@ export const workbenchPlugin = plugin(workbenchId, {
     WorkspaceIsMigrating: '' as IntlString
   },
   icon: {
-    Search: '' as Asset
+    Search: '' as Asset,
+    Home: '' as Asset
   },
   event: {
     NotifyConnection: '' as Metadata<string>,

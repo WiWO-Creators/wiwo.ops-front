@@ -34,6 +34,7 @@ import type {
 } from '@hcengineering/workbench'
 import { type AnyComponent } from '@hcengineering/ui/src/types'
 import presentation from '@hcengineering/model-presentation'
+import { homeId } from '@hcengineering/workbench'
 
 import workbench from './plugin'
 
@@ -114,6 +115,23 @@ export function createModel (builder: Builder): void {
     TWidget,
     TWidgetPreference,
     TWorkbenchTab
+  )
+
+  // "Inicio": aplicación sin navigatorModel, así que Workbench la dibuja a ancho completo.
+  // position 'top' + order 50 la dejan primera de la barra, por encima de Seguimiento (150).
+  builder.createDoc(
+    workbench.class.Application,
+    core.space.Model,
+    {
+      label: workbench.string.HomeTitle,
+      icon: workbench.icon.Home,
+      alias: homeId,
+      hidden: false,
+      component: workbench.component.Home,
+      position: 'top',
+      order: 50
+    },
+    workbench.app.Home
   )
 
   builder.mixin(workbench.class.WorkbenchTab, core.class.Class, core.mixin.TxAccessLevel, {
