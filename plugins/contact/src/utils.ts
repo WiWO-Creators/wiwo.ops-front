@@ -32,6 +32,7 @@ import {
   pickPrimarySocialId,
   Ref,
   SocialId,
+  SocialIdType,
   toIdMap,
   TxFactory,
   DocumentUpdate
@@ -243,6 +244,40 @@ export async function findContacts (
 }
 
 /**
+ * Finds the contacts having an email channel with the given value.
+ *
+ * The query uses $like (case insensitive on the three backends) and the result is re-filtered in JS:
+ * in Postgres ILIKE treats `_` as a wildcard, so `juan_perez@x.com` would also match `juanXperez@x.com`,
+ * and stored channel values may carry leading or trailing spaces (see findContacts).
+ *
+ * Unlike findPerson it never falls back to matching by name, which is unsafe when the result is used
+ * to decide whether an account belongs to an already existing contact card.
+ *
+ * @public
+ * @param client - anything able to run findAll
+ * @param email - email to look for, compared trimmed and lowercased
+ * @returns unique ids of the contacts those channels are attached to
+ */
+export async function findPersonsByEmail (client: Pick<Client, 'findAll'>, email: string): Promise<Ref<Person>[]> {
+  const value = email.trim().toLowerCase()
+  if (value.length === 0) {
+    return []
+  }
+
+  const channels = await client.findAll(
+    contact.class.Channel,
+    { provider: contact.channelProvider.Email, value: { $like: `%${value}%` } },
+    { limit: 100 }
+  )
+
+  const ids = channels
+    .filter((channel) => channel.value.trim().toLowerCase() === value)
+    .map((channel) => channel.attachedTo as Ref<Person>)
+
+  return Array.from(new Set(ids))
+}
+
+/**
  * @public
  */
 export async function findPerson (client: Client, name: string, channels: AttachedData<Channel>[]): Promise<Person[]> {
@@ -415,6 +450,43 @@ export async function getAllUserAccounts (client: Client): Promise<AccountUuid[]
   return employees.map((it) => it.personUuid).filter(notEmpty)
 }
 
+/**
+ * Finds the single contact card an account with this email can safely be merged into.
+ *
+ * Deliberately conservative: a false positive turns somebody else's card into this employee and Huly
+ * has no way to remove a mixin from the UI. It requires exactly one person with that email, with no
+ * account yet (personUuid absent) and with no social identity of its own attached.
+ *
+ * @public
+ * @param client - anything able to run findAll
+ * @param email - email to match, see findPersonsByEmail
+ * @returns person - the card that can be reused, undefined when there is no safe match;
+ *          candidates - every person matched by email, so callers can log why it was rejected
+ */
+export async function findPersonToClaimByEmail (
+  client: Pick<Client, 'findAll'>,
+  email: string
+): Promise<{ person?: Person, candidates: Ref<Person>[] }> {
+  const candidates = await findPersonsByEmail(client, email)
+  if (candidates.length !== 1) {
+    return { candidates }
+  }
+
+  // Not a Person (an organization channel) or already owned by an account
+  const found = (await client.findAll(contact.class.Person, { _id: candidates[0] }, { limit: 1 }))[0]
+  if (found === undefined || found.personUuid != null) {
+    return { candidates }
+  }
+
+  // A card already carrying social identities belongs to some account, even if personUuid is missing
+  const attachedSocialIds = await client.findAll(contact.class.SocialIdentity, { attachedTo: found._id }, { limit: 1 })
+  if (attachedSocialIds.length > 0) {
+    return { candidates }
+  }
+
+  return { person: found, candidates }
+}
+
 export async function ensureEmployee (
   ctx: MeasureContext,
   me: Account,
@@ -447,6 +519,39 @@ export async function ensureEmployeeForPerson (
 
       // This social id is confirmed globally as we only have ids of confirmed social identities in socialIds array
       personRef = socialIdentity?.attachedTo
+    }
+
+    if (personRef === undefined) {
+      // No local person for this account yet: reuse the contact card already loaded with this verified
+      // email instead of creating a duplicate one (see docs/14-persona-empleado-duplicados.md)
+      const verifiedEmails = socialIds
+        .filter(
+          (socialId) =>
+            (socialId.type === SocialIdType.EMAIL || socialId.type === SocialIdType.GOOGLE) &&
+            socialId.isDeleted !== true &&
+            socialId.verifiedOn != null
+        )
+        .map((socialId) => socialId.value)
+
+      for (const email of verifiedEmails) {
+        const { person: claimed, candidates } = await findPersonToClaimByEmail(client, email)
+
+        if (claimed !== undefined) {
+          personRef = claimed._id
+          ctx.info('Reusing the existing person matched by verified email', {
+            person: personRef,
+            account: person.uuid
+          })
+          break
+        }
+
+        if (candidates.length > 0) {
+          ctx.warn('Ambiguous person match by verified email, creating a new person', {
+            account: person.uuid,
+            candidates
+          })
+        }
+      }
     }
 
     if (personRef === undefined) {
