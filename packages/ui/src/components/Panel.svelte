@@ -96,8 +96,9 @@
 
   /**
    * Ancho de panel (px) por debajo del cual el aside pasa a flotante y se repliega solo.
-   * Los separadores del panel (`panelSeparators`) piden 20rem de contenido y 17rem de aside,
-   * o sea ~592px: por encima de este umbral los dos caben y no hay razón para replegarlo.
+   * El piso real lo fijan los separadores (`panelSeparators`): 20rem de contenido + 17rem de
+   * aside, o sea ~592px. Se deja un margen hasta 700 para que el contenido no quede en su
+   * mínimo absoluto; por encima de 700 los dos caben con holgura y no hay razón para replegarlo.
    */
   const ASIDE_FLOAT_WIDTH = 700
 
