@@ -22,6 +22,7 @@
   import workbench from '@hcengineering/workbench'
   import { chatId } from '@hcengineering/chat'
   import { inboxId } from '@hcengineering/inbox'
+  import { trackerId } from '@hcengineering/tracker'
   import { getMetadata, getResource } from '@hcengineering/platform'
   import { InboxNotificationsClientImpl } from '@hcengineering/notification-resources'
   import notification, { DocNotifyContext, InboxNotification } from '@hcengineering/notification'
@@ -114,6 +115,18 @@
   let midApps: Application[] = []
   let bottomApps: Application[] = []
 
+  // El transactor corre la imagen upstream (backend/wiwo.ops/compose.yml:142), asi que los cambios de
+  // modelo del fork no llegan al workspace: el position/order que declara models/tracker/src/index.ts
+  // no se aplica en produccion. Hasta que el transactor se construya desde el fork, la barra ubica
+  // Seguimiento desde el front. Los valores son los mismos que declara el modelo.
+  const sidebarPlacement = new Map<string, Pick<Application, 'position' | 'order'>>([
+    [trackerId, { position: 'top', order: 150 }]
+  ])
+
+  const positionOf = (app: Application): Application['position'] =>
+    sidebarPlacement.get(app.alias)?.position ?? app.position
+  const orderOf = (app: Application): number => sidebarPlacement.get(app.alias)?.order ?? app.order ?? Infinity
+
   // Single reactive block so reads of hiddenAppsIds / excludedApps / disabledApplications
   $: {
     const hidden = hiddenAppsIds
@@ -124,12 +137,12 @@
       !hidden.includes(app._id) && !excluded.includes(app.alias) && !disabled.has(app._id)
 
     topApps = apps
-      .filter((it) => it.position === 'top' && isApplicationVisibleInSidebar(it))
-      .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))
+      .filter((it) => positionOf(it) === 'top' && isApplicationVisibleInSidebar(it))
+      .sort((a, b) => orderOf(a) - orderOf(b))
     midApps = apps
-      .filter((it) => it.position !== 'top' && it.position !== 'bottom' && isApplicationVisibleInSidebar(it))
-      .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))
-    bottomApps = apps.filter((it) => it.position === 'bottom' && isApplicationVisibleInSidebar(it))
+      .filter((it) => positionOf(it) !== 'top' && positionOf(it) !== 'bottom' && isApplicationVisibleInSidebar(it))
+      .sort((a, b) => orderOf(a) - orderOf(b))
+    bottomApps = apps.filter((it) => positionOf(it) === 'bottom' && isApplicationVisibleInSidebar(it))
   }
 
   const inboxClient = InboxNotificationsClientImpl.getClient()
