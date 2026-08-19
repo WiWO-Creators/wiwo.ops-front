@@ -272,7 +272,9 @@
               }}
             />
           </div>
-        {:else if workspaces.length === 0 && account?.token != null}
+        {:else if workspaces.length === 0 && available.length === 0 && account?.token != null}
+          <!-- Solo cuando no hay nada que ofrecer: con espacios abiertos a los que unirse,
+               decir que no hay acceso contradice la lista de arriba. -->
           <span class="readonly-warning"><Label label={login.string.NoWorkspaceAccess} /></span>
         {/if}
       </div>
@@ -402,6 +404,8 @@
       }
     }
     .readonly-warning {
+      // Sin esto cae en una de las dos columnas del grid y el texto se parte en jirones.
+      grid-column: 1 / 3;
       margin-bottom: 1.5rem;
       color: var(--theme-caption-color);
     }
