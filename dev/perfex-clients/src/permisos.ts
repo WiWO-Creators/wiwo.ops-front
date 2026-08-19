@@ -42,6 +42,8 @@ export interface FilaCsv {
 export interface Accesos {
   owners: AccountUuid[]
   members: AccountUuid[]
+  /** Miembros que no son focal: ven todas las tareas y las trabajan, pero no administran. */
+  equipo: AccountUuid[]
   asociados: AccountUuid[]
 }
 
@@ -107,22 +109,30 @@ export function parsearCsv (contenido: string): FilaCsv[] {
 }
 
 /**
- * Reparte los accesos de un proyecto entre focales y asociados.
+ * Reparte los accesos de un proyecto entre focales, administradores y asociados.
  *
- * El focal entra como dueño y miembro; el resto queda asociado sin acceso. Un focal nunca queda
- * como asociado, aunque el CSV lo liste en las dos columnas.
+ * El focal entra como dueño y miembro; los administradores del tipo de proyecto entran como
+ * miembros, porque son los que tienen que poder ver todo; el resto queda asociado sin acceso. Nadie
+ * que tenga acceso queda además como asociado, aunque el CSV lo liste en las dos columnas.
  *
  * @param focales cuentas de los focales del proyecto.
  * @param personas cuentas de todas las personas asociadas en el board.
+ * @param admins cuentas cargadas en el tipo de proyecto, que ven todos los proyectos.
  */
-export function calcularAccesos (focales: AccountUuid[], personas: AccountUuid[]): Accesos {
+export function calcularAccesos (
+  focales: AccountUuid[],
+  personas: AccountUuid[],
+  admins: AccountUuid[] = []
+): Accesos {
   const owners = [...new Set(focales)]
-  const esFocal = new Set(owners)
+  const members = [...new Set([...owners, ...admins])]
+  const conAcceso = new Set(members)
 
   return {
     owners,
-    members: owners,
-    asociados: [...new Set(personas)].filter((p) => !esFocal.has(p))
+    members,
+    equipo: members.filter((m) => !owners.includes(m)),
+    asociados: [...new Set(personas)].filter((p) => !conAcceso.has(p))
   }
 }
 
@@ -313,7 +323,7 @@ export async function aplicarPermisos (
 
     plan.push({
       project,
-      accesos: calcularAccesos(focales, resolver(fila.personas)),
+      accesos: calcularAccesos(focales, resolver(fila.personas), spaceType.members ?? []),
       targetClass: spaceType.targetClass,
       roles
     })
@@ -329,7 +339,8 @@ export async function aplicarPermisos (
   for (const { project, accesos, targetClass, roles } of plan) {
     const nombres = accesos.owners.map((o) => cuentas.nombres.get(o) ?? o).join(', ')
     logger.log(
-      `  ${project.name}: focal ${nombres}; ${accesos.asociados.length} asociados sin acceso`
+      `  ${project.name}: focal ${nombres}; ${accesos.members.length} miembros; ` +
+        `${accesos.asociados.length} asociados sin acceso`
     )
 
     if (!options.dryRun) {
@@ -342,11 +353,14 @@ export async function aplicarPermisos (
         autoJoin: false
       })
 
-      // Los otros dos roles quedan vacíos a propósito: el reparto inicial no le da acceso a nadie
-      // más que al focal, que es quien después decide a quién abre el proyecto.
+      // El rol restringido queda vacío a propósito: el reparto inicial no le da acceso a nadie más
+      // que al focal y a los administradores del tipo de proyecto, y es el focal quien después
+      // decide a quién abre el proyecto y con qué alcance.
       const asignacion: RolesAssignment = {}
       for (const [nombre, roleId] of roles) {
-        asignacion[roleId] = nombre === ROL_FOCAL ? accesos.owners : []
+        if (nombre === ROL_FOCAL) asignacion[roleId] = accesos.owners
+        else if (nombre === ROL_EQUIPO) asignacion[roleId] = accesos.equipo
+        else asignacion[roleId] = []
       }
       await client.updateMixin(project._id, tracker.class.Project, core.space.Space, targetClass, asignacion)
     }

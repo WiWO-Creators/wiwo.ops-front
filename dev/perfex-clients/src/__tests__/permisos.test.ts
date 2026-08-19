@@ -32,6 +32,19 @@ describe('reparto de accesos de un proyecto', () => {
   it('deja el proyecto sin asociados cuando el board no lista a nadie más', () => {
     expect(calcularAccesos([ana], []).asociados).toEqual([])
   })
+
+  it('suma como miembros a los administradores del tipo de proyecto, sin hacerlos dueños', () => {
+    const accesos = calcularAccesos([ana], [beto], [cami])
+
+    expect(accesos.owners).toEqual([ana])
+    expect(accesos.members).toEqual([ana, cami])
+    expect(accesos.equipo).toEqual([cami])
+    expect(accesos.asociados).toEqual([beto])
+  })
+
+  it('no anota como asociado a un administrador que además figura en el board', () => {
+    expect(calcularAccesos([ana], [beto, cami], [cami]).asociados).toEqual([beto])
+  })
 })
 
 describe('lectura del CSV del board', () => {
