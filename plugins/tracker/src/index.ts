@@ -13,8 +13,9 @@
 // limitations under the License.
 //
 
-import { Employee, Person } from '@hcengineering/contact'
+import { Employee, Organization, Person } from '@hcengineering/contact'
 import {
+  AccountUuid,
   AttachedDoc,
   Attribute,
   Class,
@@ -28,6 +29,7 @@ import {
   Ref,
   RelatedDocument,
   Space,
+  Role,
   Status,
   Timestamp,
   Type,
@@ -65,6 +67,16 @@ export interface Project extends TaskProject, IconProps {
   defaultIssueStatus?: Ref<IssueStatus>
   defaultAssignee?: Ref<Employee>
   defaultTimeReportDay: TimeReportDayType
+
+  /** Gente vinculada al proyecto que todavía no tiene acceso: el focal decide si se lo da. */
+  asociados?: AccountUuid[]
+  /** Cliente dueño del proyecto. */
+  cliente?: Ref<Organization>
+  /** Id del proyecto en el board de Perfex, para poder recargarlo sin duplicar. */
+  perfexId?: number
+  estadoBoard?: string
+  fechaInicio?: Timestamp
+  deadline?: Timestamp
 }
 
 /**
@@ -562,6 +574,12 @@ const pluginState = plugin(trackerId, {
     IssueNotificationMessage: '' as IntlString,
     IssueAssignedToYou: '' as IntlString,
     Project: '' as IntlString,
+    Asociados: '' as IntlString,
+    AsociadosDescr: '' as IntlString,
+    Cliente: '' as IntlString,
+    EstadoBoard: '' as IntlString,
+    FechaInicio: '' as IntlString,
+    FechaDeadline: '' as IntlString,
     RelatedIssues: '' as IntlString,
     Issue: '' as IntlString,
     IssueStartDate: '' as IntlString,
@@ -571,6 +589,12 @@ const pluginState = plugin(trackerId, {
     UnsetParentIssue: '' as IntlString,
     ForbidCreateProjectPermission: '' as IntlString,
     ForbidCreateProjectPermissionDescription: '' as IntlString,
+    CreateIssuePermission: '' as IntlString,
+    CreateIssuePermissionDescription: '' as IntlString,
+    UpdateIssuePermission: '' as IntlString,
+    UpdateIssuePermissionDescription: '' as IntlString,
+    DeleteIssuePermission: '' as IntlString,
+    DeleteIssuePermissionDescription: '' as IntlString,
     CompanyArea: '' as IntlString,
     DriveLink: '' as IntlString
   },
@@ -587,7 +611,15 @@ const pluginState = plugin(trackerId, {
     SubIssue: '' as Ref<TaskType>
   },
   permission: {
-    ForbidCreateProject: '' as Ref<Permission>
+    ForbidCreateProject: '' as Ref<Permission>,
+    CreateIssue: '' as Ref<Permission>,
+    UpdateIssue: '' as Ref<Permission>,
+    DeleteIssue: '' as Ref<Permission>
+  },
+  role: {
+    Focal: '' as Ref<Role>,
+    Equipo: '' as Ref<Role>,
+    Restringido: '' as Ref<Role>
   }
 })
 export default pluginState

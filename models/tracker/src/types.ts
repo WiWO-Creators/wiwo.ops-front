@@ -14,7 +14,7 @@
 //
 
 import chunter from '@hcengineering/chunter'
-import contact, { type Employee, type Person } from '@hcengineering/contact'
+import contact, { type Employee, type Organization, type Person } from '@hcengineering/contact'
 import {
   DOMAIN_MODEL,
   DateRangeMode,
@@ -46,6 +46,7 @@ import {
   TypeHyperlink,
   TypeMarkup,
   TypeNumber,
+  TypeAccountUuid,
   TypeRecord,
   TypeRef,
   TypeString,
@@ -139,6 +140,26 @@ export class TProject extends TTaskProject implements Project {
 
   @Prop(Collection(tracker.class.RelatedIssueTarget), tracker.string.RelatedIssues)
     relatedIssueTargets!: number
+
+  @Prop(ArrOf(TypeAccountUuid()), tracker.string.Asociados)
+    asociados?: AccountUuid[]
+
+  @Prop(TypeRef(contact.class.Organization), tracker.string.Cliente)
+  @Index(IndexKind.Indexed)
+    cliente?: Ref<Organization>
+
+  @Prop(TypeNumber(), tracker.string.Number)
+  @Hidden()
+    perfexId?: number
+
+  @Prop(TypeString(), tracker.string.EstadoBoard)
+    estadoBoard?: string
+
+  @Prop(TypeDate(), tracker.string.FechaInicio)
+    fechaInicio?: Timestamp
+
+  @Prop(TypeDate(), tracker.string.FechaDeadline)
+    deadline?: Timestamp
 }
 /**
  * @public

@@ -555,6 +555,11 @@ export interface SpaceType extends Doc {
 export interface Role extends AttachedDoc<SpaceType, 'roles'> {
   name: string
   permissions: Ref<Permission>[]
+  /**
+   * Si es true, quien tiene este rol en un espacio sólo ve ahí los documentos donde figura como
+   * colaborador, en las clases que declaran `provideSecurity`. El resto del espacio no le llega.
+   */
+  collaboratorsOnly?: boolean
 }
 
 /**
