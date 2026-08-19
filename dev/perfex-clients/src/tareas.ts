@@ -35,6 +35,20 @@ export const TASK_PRIORITIES: Record<number, string> = {
 /** Estados de proyecto de Perfex que corresponden a un proyecto ya cerrado. */
 export const CLOSED_PROJECT_STATUSES = new Set([4, 5])
 
+/** Estados de proyecto de Perfex, tal como se ven en el board. */
+export const PROJECT_STATUSES: Record<number, string> = {
+  1: 'No iniciado',
+  2: 'En progreso',
+  3: 'En pausa',
+  4: 'Terminado',
+  5: 'Cancelado'
+}
+
+/** Nombre del estado de un proyecto de Perfex; si el código no existe, queda como en progreso. */
+export function getProjectStatusName (status: number): string {
+  return PROJECT_STATUSES[status] ?? PROJECT_STATUSES[2]
+}
+
 /** Nombre del tipo de proyecto que se crea en Huly para los proyectos migrados. */
 export const PROJECT_TYPE_NAME = 'Perfex'
 

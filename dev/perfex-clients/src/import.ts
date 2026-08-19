@@ -15,7 +15,7 @@ import { generateId, type AccountUuid, type Class, type Data, type Ref, type TxO
 import { readFileSync, writeFileSync } from 'fs'
 
 import { type FileUploader } from '@hcengineering/importer'
-import { type Component, type Issue, type Project } from '@hcengineering/tracker'
+import { type Issue, type Project } from '@hcengineering/tracker'
 
 import { belongsToEnvironment, type Environment } from './environments'
 import { type PerfexClient, type PerfexContact, type PerfexReader } from './perfex'
@@ -56,10 +56,8 @@ interface MigrationState {
   personas: Record<string, Ref<Person>>
   /** Personas del staff de Perfex, por staffid. */
   staff: Record<string, Ref<Person>>
-  /** Proyectos de Huly, por id de cliente de Perfex. */
+  /** Proyectos de Huly, por id de proyecto de Perfex (`cliente-<id>` y `orphan` para el resto). */
   proyectos: Record<string, Ref<Project>>
-  /** Componentes, por id de proyecto de Perfex. */
-  componentes: Record<string, Ref<Component>>
   tareas: Record<string, Ref<Issue>>
 }
 
@@ -68,7 +66,6 @@ const EMPTY_STATE: MigrationState = {
   personas: {},
   staff: {},
   proyectos: {},
-  componentes: {},
   tareas: {}
 }
 
@@ -214,17 +211,13 @@ async function runProjectsStage (
     throw new Error('Falta el subidor de archivos para migrar proyectos y tareas')
   }
 
-  // Todo el equipo entra como miembro: si no, las tareas quedan invisibles para los demás.
-  const workspaceMembers = await getWorkspaceMembers(client)
-  logger.log(`Miembros del workspace que se suman a cada proyecto: ${workspaceMembers.length}`)
-
+  // Los proyectos nacen privados y sin miembros: el reparto lo hace después el comando `permisos`.
   await importProjects(client, uploader as FileUploader, perfex, logger, {
     clients: clients.map((c) => ({ id: c.id, company: c.company })),
-    workspaceMembers,
     isOrphanEnvironment: options.environment.groups.length === 0,
     peopleByStaffId: state.staff,
+    organizationsByClientId: state.organizaciones,
     migratedProjects: state.proyectos,
-    migratedComponents: state.componentes,
     migratedTasks: state.tareas,
     tasksSince: options.tasksSince,
     tasksUntil: options.tasksUntil,

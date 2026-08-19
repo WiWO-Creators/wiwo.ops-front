@@ -1090,6 +1090,9 @@ importers:
       '@hcengineering/server-token':
         specifier: workspace:^0.7.18
         version: link:../../foundations/core/packages/token
+      '@hcengineering/setting':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/setting
       '@hcengineering/text-html':
         specifier: workspace:^0.7.19
         version: link:../../foundations/core/packages/text-html

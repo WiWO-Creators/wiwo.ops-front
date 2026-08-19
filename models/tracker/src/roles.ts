@@ -10,6 +10,7 @@
 // deja pasar cualquier escritura de un miembro.
 //
 import core, { type Permission, type Ref, type Role } from '@hcengineering/core'
+import { ROL_EQUIPO, ROL_FOCAL, ROL_RESTRINGIDO } from '@hcengineering/tracker'
 
 import tracker from './plugin'
 
@@ -25,17 +26,17 @@ export const projectPermissions: Ref<Permission>[] = [
 export const roles: Pick<Role, '_id' | 'name' | 'permissions' | 'collaboratorsOnly'>[] = [
   {
     _id: tracker.role.Focal,
-    name: 'Focal',
+    name: ROL_FOCAL,
     permissions: [...projectPermissions]
   },
   {
     _id: tracker.role.Equipo,
-    name: 'Equipo',
+    name: ROL_EQUIPO,
     permissions: [tracker.permission.CreateIssue, tracker.permission.UpdateIssue]
   },
   {
     _id: tracker.role.Restringido,
-    name: 'Restringido',
+    name: ROL_RESTRINGIDO,
     permissions: [tracker.permission.CreateIssue, tracker.permission.UpdateIssue],
     collaboratorsOnly: true
   }

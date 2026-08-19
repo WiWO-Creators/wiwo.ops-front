@@ -54,6 +54,21 @@ import { Action, ActionCategory, IconProps } from '@hcengineering/view'
 export * from './analytics'
 
 /**
+ * Nombres de los roles de un proyecto. Se los busca por nombre y no por id porque cada tipo de
+ * proyecto tiene los suyos: el tipo que crea la migración no es el mismo que el de los proyectos
+ * hechos a mano.
+ *
+ * @public
+ */
+export const ROL_FOCAL = 'Focal'
+
+/** @public */
+export const ROL_EQUIPO = 'Equipo'
+
+/** @public */
+export const ROL_RESTRINGIDO = 'Restringido'
+
+/**
  * @public
  */
 export interface IssueStatus extends Status {}

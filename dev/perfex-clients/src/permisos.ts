@@ -9,7 +9,9 @@
 import core, {
   type AccountUuid,
   type Class,
+  type Permission,
   type Ref,
+  type Role,
   type RolesAssignment,
   SocialIdType,
   type Space,
@@ -17,7 +19,8 @@ import core, {
   type TxOperations
 } from '@hcengineering/core'
 import contact, { formatName, type Person } from '@hcengineering/contact'
-import tracker, { type Project } from '@hcengineering/tracker'
+import { createSpaceTypeRole } from '@hcengineering/setting'
+import tracker, { ROL_EQUIPO, ROL_FOCAL, ROL_RESTRINGIDO, type Project } from '@hcengineering/tracker'
 import { parse } from 'csv-parse/sync'
 
 import { type Logger } from './import'
@@ -196,6 +199,46 @@ function emparejar (
   return { pares, sinProyecto, ambiguos }
 }
 
+/** Permisos de cada rol. El focal manda; los otros dos trabajan las tareas que ven. */
+function permisosDelRol (nombre: string): Ref<Permission>[] {
+  const trabajar = [tracker.permission.CreateIssue, tracker.permission.UpdateIssue]
+  if (nombre !== ROL_FOCAL) return trabajar
+
+  return [...trabajar, tracker.permission.DeleteIssue, core.permission.UpdateSpace, core.permission.ArchiveSpace]
+}
+
+/**
+ * Devuelve los tres roles del tipo de proyecto, creando los que falten.
+ *
+ * Se los busca por nombre y no por id porque cada tipo de proyecto tiene los suyos: el tipo que
+ * crea la migración no es el mismo que el de los proyectos hechos a mano.
+ */
+async function asegurarRoles (
+  client: TxOperations,
+  spaceType: SpaceType,
+  logger: Logger,
+  dryRun: boolean
+): Promise<Map<string, Ref<Role>>> {
+  const existentes = await client.findAll(core.class.Role, { attachedTo: spaceType._id })
+  const porNombre = new Map<string, Ref<Role>>(existentes.map((r: Role) => [r.name, r._id]))
+
+  for (const nombre of [ROL_FOCAL, ROL_EQUIPO, ROL_RESTRINGIDO]) {
+    if (porNombre.has(nombre)) continue
+
+    logger.log(`  falta el rol ${nombre} en el tipo de proyecto ${spaceType.name}: se crea`)
+    if (dryRun) continue
+
+    const roleId = await createSpaceTypeRole(client, spaceType, {
+      name: nombre,
+      permissions: permisosDelRol(nombre),
+      collaboratorsOnly: nombre === ROL_RESTRINGIDO ? true : undefined
+    })
+    porNombre.set(nombre, roleId)
+  }
+
+  return porNombre
+}
+
 /**
  * Aplica al workspace el reparto de permisos que dice el CSV.
  *
@@ -243,7 +286,13 @@ export async function aplicarPermisos (
     return cuentasResueltas
   }
 
-  const plan: Array<{ project: Project, accesos: Accesos, targetClass: Ref<Class<Space>> }> = []
+  const rolesPorTipo = new Map<Ref<SpaceType>, Map<string, Ref<Role>>>()
+  const plan: Array<{
+    project: Project
+    accesos: Accesos
+    targetClass: Ref<Class<Space>>
+    roles: Map<string, Ref<Role>>
+  }> = []
   for (const { fila, project } of pares) {
     const focales = resolver(fila.focal)
     if (focales.length === 0) {
@@ -256,10 +305,17 @@ export async function aplicarPermisos (
       throw new Error(`El proyecto ${project.name} apunta a un tipo de proyecto que no existe: ${project.type}`)
     }
 
+    let roles = rolesPorTipo.get(spaceType._id)
+    if (roles === undefined) {
+      roles = await asegurarRoles(client, spaceType, logger, options.dryRun)
+      rolesPorTipo.set(spaceType._id, roles)
+    }
+
     plan.push({
       project,
       accesos: calcularAccesos(focales, resolver(fila.personas)),
-      targetClass: spaceType.targetClass
+      targetClass: spaceType.targetClass,
+      roles
     })
   }
   faltantes.correosDesconocidos = [...desconocidos]
@@ -270,7 +326,7 @@ export async function aplicarPermisos (
   }
 
   let changed = 0
-  for (const { project, accesos, targetClass } of plan) {
+  for (const { project, accesos, targetClass, roles } of plan) {
     const nombres = accesos.owners.map((o) => cuentas.nombres.get(o) ?? o).join(', ')
     logger.log(
       `  ${project.name}: focal ${nombres}; ${accesos.asociados.length} asociados sin acceso`
@@ -286,10 +342,11 @@ export async function aplicarPermisos (
         autoJoin: false
       })
 
-      const asignacion: RolesAssignment = {
-        [tracker.role.Focal]: accesos.owners,
-        [tracker.role.Equipo]: [],
-        [tracker.role.Restringido]: []
+      // Los otros dos roles quedan vacíos a propósito: el reparto inicial no le da acceso a nadie
+      // más que al focal, que es quien después decide a quién abre el proyecto.
+      const asignacion: RolesAssignment = {}
+      for (const [nombre, roleId] of roles) {
+        asignacion[roleId] = nombre === ROL_FOCAL ? accesos.owners : []
       }
       await client.updateMixin(project._id, tracker.class.Project, core.space.Space, targetClass, asignacion)
     }

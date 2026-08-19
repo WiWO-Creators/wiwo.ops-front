@@ -58,6 +58,7 @@
   import { deepEqual } from 'fast-equals'
   import { createEventDispatcher } from 'svelte'
 
+  import { ROL_FOCAL } from '@hcengineering/tracker'
   import tracker from '../../plugin'
   import StatusSelector from '../issues/StatusSelector.svelte'
 
@@ -153,10 +154,10 @@
 
     if (project === undefined) {
       // Un proyecto nuevo nace con su creador de focal: sin rol, y con los permisos activos, no
-      // podría ni crear tareas en su propio proyecto.
-      return roles.some(({ _id }) => _id === tracker.role.Focal)
-        ? { [tracker.role.Focal]: [getCurrentAccount().uuid] }
-        : {}
+      // podría ni crear tareas en su propio proyecto. El rol se busca por nombre porque cada tipo
+      // de proyecto tiene el suyo.
+      const focal = roles.find(({ name }) => name === ROL_FOCAL)
+      return focal !== undefined ? { [focal._id]: [getCurrentAccount().uuid] } : {}
     }
 
     const asMixin = hierarchy.as(project, typeType?.targetClass)
