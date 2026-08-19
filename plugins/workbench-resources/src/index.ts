@@ -17,6 +17,7 @@ import { AccountRole, type Space, getCurrentAccount } from '@hcengineering/core'
 import { type Resources } from '@hcengineering/platform'
 import ApplicationPresenter from './components/ApplicationPresenter.svelte'
 import Archive from './components/Archive.svelte'
+import Home from './components/Home.svelte'
 import SpacePanel from './components/navigator/SpacePanel.svelte'
 import SpecialView from './components/SpecialView.svelte'
 import WorkbenchApp from './components/WorkbenchApp.svelte'
@@ -51,6 +52,7 @@ export default async (): Promise<Resources> => ({
     WorkbenchApp,
     ApplicationPresenter,
     Archive,
+    Home,
     SpacePanel,
     SpecialView,
     Workbench,

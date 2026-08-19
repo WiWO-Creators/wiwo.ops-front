@@ -46,7 +46,17 @@ export default mergeIds(workbenchId, workbench, {
     AccessDenied: '' as IntlString,
     Widget: '' as IntlString,
     WidgetPreference: '' as IntlString,
-    Tab: '' as IntlString
+    Tab: '' as IntlString,
+    HomeGreeting: '' as IntlString,
+    HomeSubtitle: '' as IntlString,
+    HomeEmpty: '' as IntlString,
+    HomeCardTracker: '' as IntlString,
+    HomeCardCard: '' as IntlString,
+    HomeCardContact: '' as IntlString,
+    HomeCardDocument: '' as IntlString,
+    HomeCardChunter: '' as IntlString,
+    HomeCardTime: '' as IntlString,
+    HomeCardLove: '' as IntlString
   },
   component: {
     SpacePanel: '' as AnyComponent,

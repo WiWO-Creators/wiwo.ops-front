@@ -59,7 +59,8 @@ export default mergeIds(trackerId, tracker, {
     SettingsRelatedTargets: '' as AnyComponent,
     IssueSearchIcon: '' as AnyComponent,
     MembersArrayEditor: '' as AnyComponent,
-    IssueExtra: '' as AnyComponent
+    IssueExtra: '' as AnyComponent,
+    IssuePrimaryActions: '' as AnyComponent
   },
   app: {
     Tracker: '' as Ref<Application>

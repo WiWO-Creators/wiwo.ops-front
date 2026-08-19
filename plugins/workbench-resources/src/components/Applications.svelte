@@ -14,7 +14,7 @@
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte'
-  import core, { AccountRole, getCurrentAccount, type ModulePermissionGroup, type Ref } from '@hcengineering/core'
+  import core, { type ModulePermissionGroup, type Ref } from '@hcengineering/core'
   import { createNotificationsQuery, createQuery } from '@hcengineering/presentation'
   import { Scroller, deviceOptionsStore as deviceInfo } from '@hcengineering/ui'
   import { NavLink } from '@hcengineering/view-resources'
@@ -23,11 +23,12 @@
   import { chatId } from '@hcengineering/chat'
   import { inboxId } from '@hcengineering/inbox'
   import { trackerId } from '@hcengineering/tracker'
-  import { getMetadata, getResource } from '@hcengineering/platform'
+  import { getResource } from '@hcengineering/platform'
   import { InboxNotificationsClientImpl } from '@hcengineering/notification-resources'
   import notification, { DocNotifyContext, InboxNotification } from '@hcengineering/notification'
   import { NotificationType } from '@hcengineering/communication-types'
 
+  import { filterVisibleApplications, getDisabledApplications } from '../utils'
   import AppItem from './AppItem.svelte'
 
   export let active: Ref<Application> | undefined
@@ -49,25 +50,13 @@
   let loaded: boolean = false
   let permissionsLoaded: boolean = false
   let hiddenAppsIds: Array<Ref<Application>> = []
-  let excludedApps: string[] = []
   let disabledApplications: Set<Ref<Application>> = new Set<Ref<Application>>()
 
   const hiddenAppsIdsQuery = createQuery()
   const modulePermissionGroupsQuery = createQuery()
   modulePermissionGroupsQuery.query(core.class.ModulePermissionGroup, {}, (res) => {
     try {
-      const modulePermissionGroups = res as ModulePermissionGroup[]
-      disabledApplications = new Set<Ref<Application>>(
-        modulePermissionGroups
-          .filter((g) => {
-            if (g.enabled ?? true) return false
-            const role = getCurrentAccount().role
-            if (role === g.role) return true
-            // DocGuest should also respect Guest module disables.
-            return role === AccountRole.DocGuest && g.role === AccountRole.Guest
-          })
-          .map((g) => g.application as Ref<Application>)
-      )
+      disabledApplications = getDisabledApplications(res as ModulePermissionGroup[])
     } catch (error) {
       console.error('Error loading module permission groups:', error)
     } finally {
@@ -99,18 +88,6 @@
     hasNewMessagesNotification = res.getResult().length > 0
   })
 
-  function updateExcludedApps (): void {
-    const me = getCurrentAccount()
-
-    if (me.role === AccountRole.ReadOnlyGuest || me.role === AccountRole.Guest) {
-      excludedApps = getMetadata(workbench.metadata.ExcludedApplicationsForAnonymous) ?? []
-    } else {
-      excludedApps = []
-    }
-  }
-
-  updateExcludedApps()
-
   let topApps: Application[] = []
   let midApps: Application[] = []
   let bottomApps: Application[] = []
@@ -127,22 +104,15 @@
     sidebarPlacement.get(app.alias)?.position ?? app.position
   const orderOf = (app: Application): number => sidebarPlacement.get(app.alias)?.order ?? app.order ?? Infinity
 
-  // Single reactive block so reads of hiddenAppsIds / excludedApps / disabledApplications
+  // Single reactive block so reads of hiddenAppsIds / disabledApplications stay together
   $: {
-    const hidden = hiddenAppsIds
-    const excluded = excludedApps
-    const disabled = disabledApplications
+    const visible = filterVisibleApplications(apps, hiddenAppsIds, disabledApplications)
 
-    const isApplicationVisibleInSidebar = (app: Application): boolean =>
-      !hidden.includes(app._id) && !excluded.includes(app.alias) && !disabled.has(app._id)
-
-    topApps = apps
-      .filter((it) => positionOf(it) === 'top' && isApplicationVisibleInSidebar(it))
+    topApps = visible.filter((it) => positionOf(it) === 'top').sort((a, b) => orderOf(a) - orderOf(b))
+    midApps = visible
+      .filter((it) => positionOf(it) !== 'top' && positionOf(it) !== 'bottom')
       .sort((a, b) => orderOf(a) - orderOf(b))
-    midApps = apps
-      .filter((it) => positionOf(it) !== 'top' && positionOf(it) !== 'bottom' && isApplicationVisibleInSidebar(it))
-      .sort((a, b) => orderOf(a) - orderOf(b))
-    bottomApps = apps.filter((it) => positionOf(it) === 'bottom' && isApplicationVisibleInSidebar(it))
+    bottomApps = visible.filter((it) => positionOf(it) === 'bottom')
   }
 
   const inboxClient = InboxNotificationsClientImpl.getClient()

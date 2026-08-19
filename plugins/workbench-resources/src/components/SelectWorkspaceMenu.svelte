@@ -25,11 +25,9 @@
     getCurrentLocation,
     Icon,
     IconCheck,
-    isSameSegments,
     Label,
     Loading,
     Location,
-    locationStorageKeyId,
     locationToUrl,
     navigate,
     resolvedLocationStore,
@@ -76,17 +74,8 @@
       closePopup()
       const current = getCurrentLocation()
       if (wsUrl !== current.path[1]) {
-        let last: Location | undefined
-        try {
-          last = JSON.parse(localStorage.getItem(`${locationStorageKeyId}_${wsUrl}`) ?? '')
-        } catch (err: any) {
-          // Ignore
-        }
-        if (last != null && isSameSegments(last, current, 2)) {
-          navigate(last)
-        } else {
-          navigate({ path: [workbenchId, wsUrl] })
-        }
+        // Cambiar de workspace abre su aplicación por defecto (Inicio), igual que al entrar.
+        navigate({ path: [workbenchId, wsUrl] })
       }
     }
   }
