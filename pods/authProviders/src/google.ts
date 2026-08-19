@@ -138,10 +138,18 @@ export function registerGoogle (
       // vuelta era muda y no se distinguia de no haber intentado entrar.
       const failureRedirect = concatLink(branding?.front ?? frontUrl, '/login?authError=provider')
       measureCtx.info('With failure redirect', { failureRedirect })
-      await passport.authenticate('google', {
-        failureRedirect,
-        session: true
-      })(ctx, next)
+      try {
+        await passport.authenticate('google', {
+          failureRedirect,
+          session: true
+        })(ctx, next)
+      } catch (err: any) {
+        // Passport propaga como excepcion cualquier fallo del intercambio del codigo
+        // con Google (red, credenciales, reloj desfasado). Sin este catch, Koa
+        // responde un 500 en blanco y el usuario queda sin explicacion ni rastro.
+        measureCtx.error('Failed provider auth', { provider: 'google', err })
+        ctx.redirect(failureRedirect)
+      }
     },
     async (ctx, next) => {
       const rejection: string | undefined = ctx.state.user?.rejection
@@ -157,9 +165,11 @@ export function registerGoogle (
       }
 
       measureCtx.info('Provider auth success', { type: 'google', user: ctx.state?.user })
-      const email = ctx.state.user.emails?.[0]?.value
-      const first = ctx.state.user.name.givenName
-      const last = ctx.state.user.name.familyName
+      const email = ctx.state.user?.emails?.[0]?.value
+      // Google no garantiza `name`: una cuenta sin nombre cargado llegaba aca y
+      // rompia con un TypeError, que terminaba en el mismo 500 en blanco.
+      const first = ctx.state.user?.name?.givenName ?? ''
+      const last = ctx.state.user?.name?.familyName ?? ''
       const db = await dbPromise
 
       const redirectUrl = await handleProviderAuth(
