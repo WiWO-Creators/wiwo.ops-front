@@ -35,7 +35,9 @@ import fs, { createReadStream, mkdtempSync } from 'fs'
 import { rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 
-const cacheControlValue = 'public, no-cache, must-revalidate, max-age=365d'
+// `max-age` va en segundos: el '365d' que traia upstream es un token invalido y hay proxies que
+// descartan la cabecera entera al verlo. `no-cache, must-revalidate` ya obliga a revalidar igual.
+const cacheControlValue = 'public, no-cache, must-revalidate'
 const cacheControlNoCache = 'public, no-store, no-cache, must-revalidate, max-age=0'
 
 const KEEP_ALIVE_TIMEOUT = 5 // seconds
@@ -410,10 +412,16 @@ export function start (
 
   app.use(
     expressStaticGzip(dist, {
+      // Los .br los genera CompressionPlugin en el build. Sin enableBrotli, express-static-gzip
+      // solo registra gzip y el navegador recibe el .gz aunque acepte brotli.
+      enableBrotli: true,
+      orderPreference: ['br'],
       serveStatic: {
         cacheControl: true,
         dotfiles: 'allow',
         maxAge: '365d',
+        // Los nombres llevan contenthash: revalidar al recargar es puro costo de red.
+        immutable: true,
         etag: true,
         lastModified: true,
         index: false,

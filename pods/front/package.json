@@ -15,7 +15,7 @@
     "_phase:docker-build": "rushx docker:build",
     "_phase:docker-staging": "rushx docker:staging",
     "bundle": "node ../../common/scripts/esbuild.js --entry=src/__start.ts --keep-names=true --define=MODEL_VERSION --define=VERSION --sourcemap=external --minify --external=sharp",
-    "package": "rm -rf ./dist && cp -r ../../dev/prod/dist . && cp -r ../../dev/prod/public/* ./dist/ && rm ./dist/config.json",
+    "package": "rm -rf ./dist && cp -r ../../dev/prod/dist . && cp -r ../../dev/prod/public/* ./dist/ && rm ./dist/config.json && rm -f ./dist/*.map ./dist/report.html",
     "docker:build": "../../common/scripts/docker_build.sh hardcoreeng/front",
     "docker:staging": "../../common/scripts/docker_tag.sh hardcoreeng/front staging",
     "docker:push": "../../common/scripts/docker_tag.sh hardcoreeng/front",

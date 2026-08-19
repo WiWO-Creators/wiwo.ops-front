@@ -18,6 +18,7 @@ const sass = require('../../common/scripts/sass-quiet.js')
 
 const Dotenv = require('dotenv-webpack')
 const path = require('path')
+const zlib = require('zlib')
 const CompressionPlugin = require('compression-webpack-plugin')
 const DefinePlugin = require('webpack').DefinePlugin
 const HtmlWebpackPlugin = require('html-webpack-plugin')
@@ -33,6 +34,9 @@ const devServerWorkerLocal = clientType === 'dev-worker-local'
 const devProduction = clientType === 'dev-production'
 const devProductionHuly = clientType === 'dev-huly'
 const devProductionBold = clientType === 'dev-bold'
+// El informe de webpack-bundle-analyzer se emite dentro de dist/, o sea que en produccion
+// queda publicado en https://<host>/report.html con el arbol completo de modulos. Solo bajo pedido.
+const analyze = (process.env.ANALYZE ?? '') !== ''
 const dev =
   (process.env.CLIENT_TYPE ?? '') === 'dev' ||
   devServer ||
@@ -425,7 +429,7 @@ module.exports = [
     },
     mode,
     plugins: [
-      ...(prod
+      ...(prod && analyze
         ? [
             new BundleAnalyzerPlugin({
               analyzerMode: 'static',
@@ -438,7 +442,23 @@ module.exports = [
           viewport: 'width=device-width, initial-scale=1.0'
         }
       }),
-      ...(prod ? [new CompressionPlugin()] : []),
+      // gzip para clientes viejos y brotli para todo lo demas: sin el .br, express-static-gzip
+      // sirve el .gz y el navegador se come ~95 KB extra solo en bundle.js.
+      ...(prod
+        ? [
+            new CompressionPlugin(),
+            new CompressionPlugin({
+              filename: '[path][base].br',
+              algorithm: 'brotliCompress',
+              test: /\.(js|css|html|svg|json|wasm)$/,
+              compressionOptions: {
+                params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 11 }
+              },
+              threshold: 1024,
+              minRatio: 0.8
+            })
+          ]
+        : []),
       // new MiniCssExtractPlugin({
       //   filename: '[name].[id][contenthash].css'
       // }),
@@ -474,7 +494,9 @@ module.exports = [
       followSymlinks: false,
       poll: 250
     },
-    devtool: prod ? 'source-map' : 'eval-source-map', // 'inline-source-map',
+    // 'hidden-source-map': el mapa se genera para depurar a mano, pero sin el comentario
+    // //# sourceMappingURL, asi que el navegador no lo pide ni queda publicado por descubrimiento.
+    devtool: prod ? 'hidden-source-map' : 'eval-source-map', // 'inline-source-map',
     devServer: {
       static: {
         directory: path.resolve(__dirname, 'public'),
