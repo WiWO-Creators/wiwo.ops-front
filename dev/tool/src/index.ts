@@ -128,7 +128,7 @@ import {
   restoreFromv6All,
   restoreTrustedV6Workspace
 } from './db'
-import { ensureMissingSocialIdentities } from './contact'
+import { ensureMissingSocialIdentities, reportDuplicatePersons } from './contact'
 import { performGithubAccountMigrations } from './github'
 import { performGmailAccountMigrations } from './gmail'
 import { getToolToken, getWorkspace, getWorkspaceTransactorEndpoint } from './utils'
@@ -1679,6 +1679,32 @@ export function devTool (
             cmd.dryRun
               ? `ensure-missing-social-identities dry-run: persons without personUuid skipped=${skippedPersons}, social identities that would be created=${wouldCreate}`
               : `ensure-missing-social-identities: persons without personUuid skipped=${skippedPersons}, SocialIdentity docs created=${created}`
+          )
+        } finally {
+          await connection.close()
+        }
+      })
+    })
+
+  program
+    .command('report-duplicate-persons <workspace>')
+    .description(
+      'Report persons without account that look like a duplicate of an existing employee (same email, or same exact name as a weak signal). Report only, merge by hand with MergePersons'
+    )
+    .action(async (workspace: string) => {
+      await withAccountDatabase(async (db) => {
+        const info = await getWorkspace(db, workspace)
+        if (info === null) {
+          throw new Error(`Workspace ${workspace} not found`)
+        }
+        const wsUuid = info.uuid
+        const endpoint = await getWorkspaceTransactorEndpoint(wsUuid)
+        const connection = await connect(endpoint, wsUuid, undefined, { model: 'upgrade' })
+        const ops = new TxOperations(connection, core.account.ConfigUser)
+        try {
+          const { persons, employees, emailMatches, nameMatches } = await reportDuplicatePersons(toolCtx, ops)
+          console.log(
+            `report-duplicate-persons: persons=${persons}, employees=${employees}, matches by email=${emailMatches.length}, matches by name only=${nameMatches.length}`
           )
         } finally {
           await connection.close()

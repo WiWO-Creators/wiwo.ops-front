@@ -19,6 +19,7 @@
     combineName,
     ContactEvents,
     Employee,
+    findPersonToClaimByEmail,
     Person,
     SocialIdentityRef
   } from '@hcengineering/contact'
@@ -80,12 +81,17 @@
       })
 
       const existingId = await client.findOne(contact.class.SocialIdentity, { key: socialString })
-      const existingPerson =
+      let existingPerson =
         existingId !== undefined
           ? await client.findOne(contact.class.Person, { _id: existingId.attachedTo })
           : undefined
       if (existingPerson !== undefined && client.getHierarchy().hasMixin(existingPerson, contact.mixin.Employee)) {
         return
+      }
+
+      if (existingPerson === undefined) {
+        // Somebody already loaded in Contacts with this email: reuse that card instead of duplicating it
+        existingPerson = (await findPersonToClaimByEmail(client, mail)).person
       }
 
       const { uuid, socialId } = await accountClient.ensurePerson(SocialIdType.EMAIL, mail, firstName, lastName)
@@ -127,11 +133,22 @@
       const sendInvite = await getResource(login.function.SendInvite)
       await sendInvite(mail, AccountRole.User)
 
+      const existingChannels =
+        existingPerson !== undefined ? await client.findAll(contact.class.Channel, { attachedTo: employeeRef }) : []
+
       for (const channel of channels) {
+        const value = channel.value.trim().toLowerCase()
+        const alreadyThere = existingChannels.some(
+          (it) => it.provider === channel.provider && it.value.trim().toLowerCase() === value
+        )
+        if (alreadyThere) {
+          continue
+        }
+
         await client.addCollection(
           contact.class.Channel,
           contact.space.Contacts,
-          id,
+          employeeRef,
           contact.class.Person,
           'channels',
           {
