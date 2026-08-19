@@ -661,6 +661,11 @@ abstract class PostgresAdapterBase implements DbAdapter {
             if (collabSec?.provideAttachedSecurity === true) {
               mine.push(this.collabExists(vars, `${domain}."attachedTo"`, acc.uuid))
             }
+            // Un adjunto que no declara nada sigue la suerte del documento del que cuelga: si no,
+            // en un espacio recortado se verían los adjuntos de lo que la consulta esconde.
+            if (mine.length === 0 && this.hierarchy.isDerived(_class, core.class.AttachedDoc)) {
+              mine.push(this.collabExists(vars, `${domain}."attachedTo"`, acc.uuid))
+            }
           }
           if (mine.length > 0) {
             const spaces = vars.addArrayI(collabOnly, '::text[]')
