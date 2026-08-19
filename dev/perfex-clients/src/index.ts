@@ -26,6 +26,7 @@ import { program } from 'commander'
 
 import { ENVIRONMENTS, getEnvironment } from './environments'
 import { openProjects } from './abrir'
+import { closeProjects } from './cerrar'
 import { createPermanentInvite } from './invitacion'
 import { cleanWorkspace } from './limpiar'
 import { notifyResult } from './aviso'
@@ -184,6 +185,28 @@ export function perfexClientsTool (): void {
       const transactor = cmd.transactor ?? process.env.TRANSACTOR_URL
       await withTokenClient(token, transactor, async (client) => {
         await openProjects(client, consoleLogger, { dryRun: cmd.dryRun === true })
+      })
+    })
+
+  program
+    .command('cerrar')
+    .description('deja cada proyecto visible sólo para quienes tienen tareas ahí')
+    .requiredOption('-w, --workspace <workspace>', 'url del workspace')
+    .requiredOption('-t, --token <token>', 'token del workspace (o variable HULY_TOKEN)')
+    .option('-f, --front <url>', 'url del front de Huly (o variable FRONT_URL)')
+    .option('--transactor <url>', 'url directa del transactor (o variable TRANSACTOR_URL)')
+    .option('--dry-run', 'no escribe nada: sólo informa a quién sacaría de cada proyecto', false)
+    .action(async (cmd) => {
+      const frontUrl = cmd.front ?? process.env.FRONT_URL
+      if (frontUrl === undefined || frontUrl === '') {
+        throw new Error('Falta la url del front: usá --front o la variable FRONT_URL')
+      }
+      await setupAccounts(frontUrl)
+
+      const token = cmd.token ?? process.env.HULY_TOKEN
+      const transactor = cmd.transactor ?? process.env.TRANSACTOR_URL
+      await withTokenClient(token, transactor, async (client) => {
+        await closeProjects(client, consoleLogger, { dryRun: cmd.dryRun === true })
       })
     })
 

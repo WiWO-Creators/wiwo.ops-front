@@ -66,6 +66,14 @@ export function createModel (builder: Builder): void {
   })
 
   builder.createDoc(serverCore.class.Trigger, core.space.Model, {
+    trigger: serverTracker.trigger.OnProjectCreate,
+    txMatch: {
+      _class: core.class.TxCreateDoc,
+      objectClass: tracker.class.Project
+    }
+  })
+
+  builder.createDoc(serverCore.class.Trigger, core.space.Model, {
     trigger: serverTracker.trigger.OnProjectRemove,
     txMatch: {
       _class: core.class.TxRemoveDoc,

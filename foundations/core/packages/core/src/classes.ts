@@ -1012,6 +1012,7 @@ export interface ClassCollaborators<T extends Doc> extends Doc {
   fields: (keyof T)[] // PersonId | Ref<Employee> | PersonId[] | Ref<Employee>[]
   provideSecurity?: boolean // If true, will provide security for collaborators
   provideAttachedSecurity?: boolean // If true, will provide security for collaborators of attached doc
+  autoJoinSpace?: boolean // If true, collaborators are added as members of the doc space, even if it is private
 }
 
 export interface Collaborator extends AttachedDoc {

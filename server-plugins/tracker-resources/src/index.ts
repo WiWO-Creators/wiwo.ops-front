@@ -152,6 +152,28 @@ export async function getIssueNotificationContent (
 }
 
 /**
+ * Deja privado todo proyecto recién creado: sólo lo ve quien es miembro.
+ *
+ * La interfaz ya lo crea privado; esto cubre los proyectos que nacen por la API o por los comandos
+ * de importación, que no pasan por ese formulario.
+ *
+ * @public
+ */
+export async function OnProjectCreate (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
+  const result: Tx[] = []
+  for (const tx of txes) {
+    const createTx = tx as TxCreateDoc<Project>
+    if (createTx.attributes.private) continue
+    result.push(
+      control.txFactory.createTxUpdateDoc(createTx.objectClass, createTx.objectSpace, createTx.objectId, {
+        private: true
+      })
+    )
+  }
+  return result
+}
+
+/**
  * @public
  */
 export async function OnProjectRemove (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
@@ -515,6 +537,7 @@ export default async () => ({
   trigger: {
     OnIssueUpdate,
     OnComponentRemove,
+    OnProjectCreate,
     OnProjectRemove
   }
 })

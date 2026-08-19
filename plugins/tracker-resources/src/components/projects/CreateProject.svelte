@@ -71,7 +71,8 @@
 
   let name: string = project?.name ?? namePlaceholder
   let description: string = project?.description ?? descriptionPlaceholder
-  let isPrivate: boolean = project?.private ?? false
+  // Los proyectos nuevos nacen privados: sólo los ve quien es miembro. El toggle sigue disponible.
+  let isPrivate: boolean = project?.private ?? true
   let icon: Asset | undefined = project?.icon ?? tracker.icon.Home
   let color = project?.color ?? getColorNumberByText(name)
   let isColorSelected = false
@@ -238,7 +239,8 @@
     if (project !== undefined) return
     autoJoin = typeType.autoJoin ?? false
     if (typeType.members === undefined || typeType.members.length === 0) return
-    members = typeType.members
+    // Se suman a los que ya hay: reemplazarlos sacaría al creador de su propio proyecto.
+    members = [...new Set([...members, ...typeType.members])]
   }
 
   function findTaskTypes (typeId: Ref<SpaceType>): TaskType[] {
