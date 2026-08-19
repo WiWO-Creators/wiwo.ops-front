@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-import type { Account, AccountRole, AccountUuid, Doc, Domain, PersonId, Ref } from './classes'
+import type { Account, AccountRole, AccountUuid, Doc, Domain, PersonId, Ref, Space } from './classes'
 import { type MeasureContext } from '@hcengineering/measurements'
 import { type DocumentQuery, type FindOptions } from './storage'
 import type { DocumentUpdate, Tx } from './tx'
@@ -73,6 +73,12 @@ export interface SessionData {
   }
   >
   grant?: PermissionsGrant
+
+  /**
+   * Espacios donde la cuenta de esta sesión sólo ve los documentos donde colabora. Lo calcula
+   * SpaceSecurityMiddleware y lo aplica el adaptador de base de datos.
+   */
+  collabOnlySpaces?: Ref<Space>[]
 
   asyncRequests?: ((ctx: MeasureContext, id?: string) => Promise<void>)[]
 }

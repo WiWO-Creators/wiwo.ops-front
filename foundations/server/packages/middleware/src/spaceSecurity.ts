@@ -33,6 +33,8 @@ import core, {
   type Position,
   type PullArray,
   type Ref,
+  type Role,
+  type RolesAssignment,
   type SearchOptions,
   type SearchQuery,
   type SearchResult,
@@ -44,10 +46,12 @@ import core, {
   type Tx,
   type TxCreateDoc,
   type TxCUD,
+  type TxMixin,
   TxProcessor,
   type TxRemoveDoc,
   type TxUpdateDoc,
   type TxWorkspaceEvent,
+  type TypedSpace,
   WorkspaceEvent
 } from '@hcengineering/core'
 import {
@@ -71,6 +75,8 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
   private readonly _domainSpaces = new Map<string, Set<Ref<Space>> | Promise<Set<Ref<Space>>>>()
   private readonly publicSpaces = new Set<Ref<Space>>()
   private readonly systemSpaces = new Set<Ref<Space>>()
+  /** Por espacio, las cuentas que ahí sólo ven los documentos donde colaboran. */
+  private readonly collabOnlyBySpace = new Map<Ref<Space>, Set<AccountUuid>>()
 
   wasInit: Promise<void> | boolean = false
 
@@ -108,6 +114,58 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
     const arr = this.allowedSpaces[member] ?? []
     arr.push(space)
     this.allowedSpaces[member] = arr
+  }
+
+  /** Roles que recortan la vista de un espacio a los documentos donde la cuenta colabora. */
+  private collabOnlyRoles (): Role[] {
+    return this.context.modelDb.findAllSync(core.class.Role, { collaboratorsOnly: true })
+  }
+
+  /**
+   * Relee del espacio qué cuentas tienen un rol `collaboratorsOnly`.
+   *
+   * @param space documento completo del espacio; con la proyección de `init` no alcanza, porque la
+   * asignación de roles vive en el mixin del tipo de espacio.
+   */
+  private indexCollabOnly (space: Space): void {
+    const roles = this.collabOnlyRoles()
+    if (roles.length === 0) return
+
+    const type = (space as TypedSpace).type
+    const accounts = new Set<AccountUuid>()
+
+    if (type !== undefined) {
+      const spaceType = this.context.modelDb.findAllSync(core.class.SpaceType, { _id: type })[0]
+      if (spaceType !== undefined) {
+        const assignment = this.context.hierarchy.as(space, spaceType.targetClass) as unknown as RolesAssignment
+        for (const role of roles) {
+          if (role.attachedTo !== type) continue
+          for (const account of assignment[role._id] ?? []) {
+            accounts.add(account)
+          }
+        }
+      }
+    }
+
+    if (accounts.size > 0) {
+      this.collabOnlyBySpace.set(space._id, accounts)
+    } else {
+      this.collabOnlyBySpace.delete(space._id)
+    }
+  }
+
+  /** Espacios donde esta cuenta sólo ve lo que colabora. `undefined` si no hay ninguno. */
+  private collabOnlySpaces (account: Account): Ref<Space>[] | undefined {
+    if (this.collabOnlyBySpace.size === 0) return undefined
+
+    const res: Ref<Space>[] = []
+    for (const [space, accounts] of this.collabOnlyBySpace) {
+      if (accounts.has(account.uuid)) {
+        res.push(space)
+      }
+    }
+
+    return res.length > 0 ? res : undefined
   }
 
   private addSpace (space: SpaceWithMembers): void {
@@ -148,11 +206,21 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
           this.spacesMap.clear()
           this.publicSpaces.clear()
           this.systemSpaces.clear()
+          this.collabOnlyBySpace.clear()
           for (const space of spaces) {
             if (space._class === core.class.SystemSpace) {
               this.systemSpaces.add(space._id)
             } else {
               this.addSpace(space)
+            }
+          }
+
+          // Los roles viven en el mixin del tipo de espacio, que la proyección de arriba no trae.
+          // Sólo los espacios con tipo pueden tenerlos, así que la segunda consulta es acotada.
+          if (this.collabOnlyRoles().length > 0) {
+            const typedSpaces: Space[] = (await this.next?.findAll(ctx, core.class.TypedSpace, {})) ?? []
+            for (const space of typedSpaces) {
+              this.indexCollabOnly(space)
             }
           }
         })
@@ -185,6 +253,7 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
     this.spacesMap.delete(_id)
     this.privateSpaces.delete(_id)
     this.publicSpaces.delete(_id)
+    this.collabOnlyBySpace.delete(_id)
   }
 
   private async handeCollaborator (ctx: MeasureContext<SessionData>, tx: TxCUD<Collaborator>): Promise<void> {
@@ -225,6 +294,7 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
     } else {
       const res = TxProcessor.createDoc2Doc<Space>(createTx)
       this.addSpace(res)
+      this.indexCollabOnly(res)
     }
   }
 
@@ -366,6 +436,23 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
     this.removeSpace(tx.objectId)
   }
 
+  /**
+   * Reindexa los roles del espacio tras un cambio de asignación, que llega como TxMixin.
+   *
+   * Vuelve a leer el espacio de la base en vez de aplicar el tx sobre lo que hay en memoria: el
+   * `spacesMap` guarda una proyección sin los mixins, así que no serviría de base.
+   */
+  private async handleMixin (ctx: MeasureContext, tx: TxMixin<Space, Space>): Promise<void> {
+    if (this.collabOnlyRoles().length === 0) return
+    if (!this.context.hierarchy.isDerived(tx.objectClass, core.class.TypedSpace)) return
+
+    const spaces =
+      (await this.next?.findAll(ctx, core.class.TypedSpace, { _id: tx.objectId as Ref<TypedSpace> })) ?? []
+    if (spaces.length === 0) return
+
+    this.indexCollabOnly(spaces[0])
+  }
+
   private async handleTx (ctx: MeasureContext, tx: TxCUD<Space>): Promise<void> {
     await this.init(ctx)
     if (tx._class === core.class.TxCreateDoc) {
@@ -374,6 +461,8 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
       await this.handleUpdate(ctx, tx)
     } else if (tx._class === core.class.TxRemoveDoc) {
       this.handleRemove(tx)
+    } else if (tx._class === core.class.TxMixin) {
+      await this.handleMixin(ctx, tx as TxMixin<Space, Space>)
     }
   }
 
@@ -484,6 +573,16 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
       const space = this.spacesMap.get(tx.objectSpace)
       if (space === undefined) return undefined
 
+      /** Todas las cuentas que colaboran en el documento del tx, o en aquel al que está adjunto. */
+      const getObjectCollaborators = async (): Promise<AccountUuid[]> => {
+        const attachedTo = cud.attachedTo != null ? [cud.attachedTo] : []
+        const collaboratorObjs = (await this.next?.findAll(ctx, core.class.Collaborator, {
+          attachedTo: { $in: [cud.objectId, ...attachedTo] }
+        })) as Collaborator[]
+
+        return collaboratorObjs.map((it) => it.collaborator)
+      }
+
       const getCollabTargets = async (_id: Ref<Doc>): Promise<AccountUuid[]> => {
         const guests = new Set<AccountUuid>()
         for (const val of ctx.contextData.socialStringsToUsers.values()) {
@@ -516,7 +615,16 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
         }
       }
 
-      const spaceTargets = space.members.length === 0 ? [] : this.getTargets(space?.members)
+      // Los miembros recortados sólo reciben lo que colaboran; si no, verían pasar por la ventana
+      // de tiempo real las tareas que la consulta les esconde.
+      const collabOnly = this.collabOnlyBySpace.get(space._id)
+      let members = space.members
+      if (collabOnly !== undefined && collabOnly.size > 0 && members.length > 0) {
+        const objectCollabs = new Set(await getObjectCollaborators())
+        members = members.filter((m) => !collabOnly.has(m) || objectCollabs.has(m))
+      }
+
+      const spaceTargets = members.length === 0 ? [] : this.getTargets(members)
       const target = [...collabTargets, ...spaceTargets]
 
       return target.length === 0 ? undefined : { target }
@@ -630,6 +738,10 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
 
     let clientFilterSpaces: Set<Ref<Space>> | undefined
 
+    // El recorte fino —ver sólo los documentos donde uno colabora— lo aplica el adaptador de base
+    // de datos, que es el único punto donde se puede mirar la tabla de colaboradores.
+    ctx.contextData.collabOnlySpaces = isSystem(account, ctx) ? undefined : this.collabOnlySpaces(account)
+
     if (!isSystem(account, ctx) && account.role !== AccountRole.DocGuest && domain !== DOMAIN_MODEL) {
       if (!isOwner(account, ctx) || !isSpace || !showArchived) {
         if (newQuery[field] !== undefined) {
@@ -730,7 +842,42 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
       }
     }
     const result = await this.provideSearchFulltext(ctx, newQuery, options)
-    return result
+
+    if (isSystem(account, ctx) || this.collabOnlySpaces(account) === undefined) {
+      return result
+    }
+
+    return await this.filterSearchByCollab(ctx, result)
+  }
+
+  /**
+   * Saca del resultado del buscador lo que la cuenta no podría abrir.
+   *
+   * El índice de texto sólo sabe filtrar por espacio, así que en los espacios recortados devuelve
+   * también las tareas ajenas. Se relee cada resultado por el camino normal de consulta, que es el
+   * que aplica el recorte por colaborador, y se deja sólo lo que sobrevive.
+   */
+  private async filterSearchByCollab (ctx: MeasureContext<SessionData>, result: SearchResult): Promise<SearchResult> {
+    if (result.docs.length === 0) return result
+
+    const idsByClass = new Map<Ref<Class<Doc>>, Ref<Doc>[]>()
+    for (const { doc } of result.docs) {
+      const ids = idsByClass.get(doc._class) ?? []
+      ids.push(doc._id)
+      idsByClass.set(doc._class, ids)
+    }
+
+    const visible = new Set<Ref<Doc>>()
+    for (const [_class, ids] of idsByClass) {
+      const docs = await this.findAll(ctx, _class, { _id: { $in: ids } }, { projection: { _id: 1 } })
+      for (const doc of docs) {
+        visible.add(doc._id)
+      }
+    }
+
+    const docs = result.docs.filter(({ doc }) => visible.has(doc._id))
+
+    return { docs, total: result.total !== undefined ? docs.length : undefined }
   }
 
   filterLookup<T extends Doc>(ctx: MeasureContext, lookup: LookupData<T>, showArchived: boolean): void {
