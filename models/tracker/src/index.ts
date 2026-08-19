@@ -16,7 +16,7 @@
 import activity from '@hcengineering/activity'
 import chunter from '@hcengineering/chunter'
 import { AccountRole, type ClassCollaborators, type Ref, type Status } from '@hcengineering/core'
-import { type Builder } from '@hcengineering/model'
+import { Prop, type Builder } from '@hcengineering/model'
 import core from '@hcengineering/model-core'
 import { generateClassNotificationTypes } from '@hcengineering/model-notification'
 import presentation from '@hcengineering/model-presentation'
@@ -25,7 +25,7 @@ import view from '@hcengineering/model-view'
 import workbench from '@hcengineering/model-workbench'
 import converter from '@hcengineering/converter'
 import notification from '@hcengineering/notification'
-import setting from '@hcengineering/setting'
+import setting, { getRoleAttributeProps } from '@hcengineering/setting'
 import pluginState, { type Issue, trackerId } from '@hcengineering/tracker'
 
 import type { TaskStatusFactory } from '@hcengineering/task'
@@ -34,6 +34,7 @@ import { createActions as defineActions } from './actions'
 import tracker from './plugin'
 import { definePresenters } from './presenters'
 import { definePermissions } from './permissions'
+import { projectPermissions, roles } from './roles'
 import {
   DOMAIN_TRACKER,
   TClassicProjectTypeData,
@@ -558,6 +559,9 @@ export function createModel (builder: Builder): void {
   builder.createDoc<ClassCollaborators<Issue>>(core.class.ClassCollaborators, core.space.Model, {
     attachedTo: tracker.class.Issue,
     fields: ['createdBy', 'assignee'],
+    // Con esto, quien tenga un rol `collaboratorsOnly` en el proyecto sólo ve las tareas donde es
+    // responsable o creador, y sus adjuntos y comentarios.
+    provideSecurity: true,
     // Quien crea o recibe una tarea entra al proyecto, aunque sea privado: es la única forma de que
     // vea la tarea, y va junto con la notificación de la asignación.
     autoJoinSpace: true
@@ -815,6 +819,13 @@ export function createModel (builder: Builder): void {
 }
 
 function defineSpaceType (builder: Builder): void {
+  // Cada rol es un atributo del mixin del tipo de proyecto: ahí se guarda qué cuentas lo tienen.
+  for (const role of roles) {
+    const { label, roleType } = getRoleAttributeProps(role.name)
+
+    Prop(roleType, label)(TClassicProjectTypeData.prototype, role._id)
+  }
+
   builder.createModel(TClassicProjectTypeData)
   builder.createDoc(
     task.class.ProjectTypeDescriptor,
@@ -824,11 +835,7 @@ function defineSpaceType (builder: Builder): void {
       description: tracker.string.ManageWorkflowStatuses,
       icon: task.icon.Task,
       baseClass: tracker.class.Project,
-      availablePermissions: [
-        core.permission.UpdateSpace,
-        core.permission.ArchiveSpace,
-        core.permission.ForbidDeleteObject
-      ],
+      availablePermissions: [...projectPermissions, core.permission.ForbidDeleteObject],
       allowedClassic: true,
       allowedTaskTypeDescriptors: [tracker.descriptors.Issue]
     },
@@ -907,11 +914,27 @@ function defineSpaceType (builder: Builder): void {
       descriptor: tracker.descriptors.ProjectType,
       description: '',
       tasks: [tracker.taskTypes.Issue],
-      roles: 0,
+      roles: roles.length,
       classic: true,
       statuses: classicStatuses.map((s) => ({ _id: s, taskType: tracker.taskTypes.Issue })),
       targetClass: tracker.mixin.ClassicProjectTypeData
     },
     pluginState.ids.ClassingProjectType
   )
+
+  for (const role of roles) {
+    builder.createDoc(
+      core.class.Role,
+      core.space.Model,
+      {
+        attachedTo: pluginState.ids.ClassingProjectType,
+        attachedToClass: task.class.ProjectType,
+        collection: 'roles',
+        name: role.name,
+        permissions: role.permissions,
+        collaboratorsOnly: role.collaboratorsOnly
+      },
+      role._id
+    )
+  }
 }

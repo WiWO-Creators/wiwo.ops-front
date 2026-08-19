@@ -23,10 +23,12 @@ import serverClientPlugin, {
 } from '@hcengineering/server-client'
 import { FrontFileUploader, type FileUploader } from '@hcengineering/importer'
 import { program } from 'commander'
+import { readFileSync } from 'node:fs'
 
 import { ENVIRONMENTS, getEnvironment } from './environments'
 import { openProjects } from './abrir'
 import { closeProjects } from './cerrar'
+import { aplicarPermisos } from './permisos'
 import { createPermanentInvite } from './invitacion'
 import { cleanWorkspace } from './limpiar'
 import { notifyResult } from './aviso'
@@ -207,6 +209,30 @@ export function perfexClientsTool (): void {
       const transactor = cmd.transactor ?? process.env.TRANSACTOR_URL
       await withTokenClient(token, transactor, async (client) => {
         await closeProjects(client, consoleLogger, { dryRun: cmd.dryRun === true })
+      })
+    })
+
+  program
+    .command('permisos')
+    .description('reparte los permisos de cada proyecto según el CSV del board: el focal manda')
+    .requiredOption('-w, --workspace <workspace>', 'url del workspace')
+    .requiredOption('-t, --token <token>', 'token del workspace (o variable HULY_TOKEN)')
+    .requiredOption('-c, --csv <archivo>', 'CSV del board con las columnas focal y personas asociadas')
+    .option('-f, --front <url>', 'url del front de Huly (o variable FRONT_URL)')
+    .option('--transactor <url>', 'url directa del transactor (o variable TRANSACTOR_URL)')
+    .option('--dry-run', 'no escribe nada: sólo informa qué permisos repartiría', false)
+    .action(async (cmd) => {
+      const frontUrl = cmd.front ?? process.env.FRONT_URL
+      if (frontUrl === undefined || frontUrl === '') {
+        throw new Error('Falta la url del front: usá --front o la variable FRONT_URL')
+      }
+      await setupAccounts(frontUrl)
+
+      const csv = readFileSync(cmd.csv, 'utf8')
+      const token = cmd.token ?? process.env.HULY_TOKEN
+      const transactor = cmd.transactor ?? process.env.TRANSACTOR_URL
+      await withTokenClient(token, transactor, async (client) => {
+        await aplicarPermisos(client, consoleLogger, csv, { dryRun: cmd.dryRun === true })
       })
     })
 

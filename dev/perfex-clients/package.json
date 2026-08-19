@@ -45,10 +45,12 @@
     "@hcengineering/platform": "workspace:^0.7.20",
     "@hcengineering/server-client": "workspace:^0.7.16",
     "@hcengineering/server-token": "workspace:^0.7.18",
+    "@hcengineering/setting": "workspace:^0.7.0",
     "@hcengineering/text-html": "workspace:^0.7.19",
     "@hcengineering/text-markdown": "workspace:^0.7.21",
     "@hcengineering/tracker": "workspace:^0.7.0",
     "commander": "^14.0.0",
+    "csv-parse": "~5.1.0",
     "mysql2": "^3.11.0"
   }
 }

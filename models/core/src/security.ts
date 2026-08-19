@@ -159,6 +159,10 @@ export class TRole extends TAttachedDoc implements Role {
 
   @Prop(ArrOf(TypeRef(core.class.Permission)), core.string.Permission)
     permissions!: Ref<Permission>[]
+
+  @Prop(TypeBoolean(), core.string.Role)
+  @Hidden()
+    collaboratorsOnly?: boolean
 }
 
 @Model(core.class.Permission, core.class.Doc, DOMAIN_MODEL)

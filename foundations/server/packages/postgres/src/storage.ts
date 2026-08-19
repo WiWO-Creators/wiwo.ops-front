@@ -15,6 +15,7 @@
 
 import core, {
   AccountRole,
+  type AccountUuid,
   type AnyAttribute,
   type AssociationQuery,
   type Class,
@@ -615,6 +616,11 @@ abstract class PostgresAdapterBase implements DbAdapter {
     return joins
   }
 
+  /** Condición SQL de "la cuenta colabora en este documento". */
+  private collabExists (vars: ValuesVariables, docField: string, account: AccountUuid): string {
+    return `EXISTS (SELECT 1 FROM ${translateDomain(DOMAIN_COLLABORATOR)} collab_sec WHERE collab_sec."workspaceId" = ${vars.add(this.workspaceId, '::uuid')} AND collab_sec."attachedTo" = ${docField} AND collab_sec.collaborator = ${vars.add(account)})`
+  }
+
   addSecurity<T extends Doc>(
     _class: Ref<Class<T>>,
     vars: ValuesVariables,
@@ -638,6 +644,35 @@ abstract class PostgresAdapterBase implements DbAdapter {
         const res = `EXISTS (SELECT 1 FROM ${translateDomain(DOMAIN_SPACE)} sec WHERE sec._id = ${domain}.${key} AND sec."workspaceId" = ${vars.add(this.workspaceId, '::uuid')} AND ${q})`
 
         const collabSec = getClassCollaborators(this.modelDb, this.hierarchy, _class)
+
+        // En los espacios recortados la cuenta sólo ve lo que colabora. Es un AND: acota lo que el
+        // filtro por espacio ya dejó pasar, al revés del OR de los invitados, que lo amplía.
+        const collabOnly = sessionContext.collabOnlySpaces ?? []
+        let collabOnlyRes = ''
+        if (collabOnly.length > 0 && domain !== DOMAIN_SPACE) {
+          const mine: string[] = []
+          if (domain === DOMAIN_TX) {
+            // Un tx no declara colaboradores: se mira el documento que toca.
+            mine.push(this.collabExists(vars, `${domain}."objectId"`, acc.uuid))
+          } else {
+            if (collabSec?.provideSecurity === true) {
+              mine.push(this.collabExists(vars, `${domain}._id`, acc.uuid))
+            }
+            if (collabSec?.provideAttachedSecurity === true) {
+              mine.push(this.collabExists(vars, `${domain}."attachedTo"`, acc.uuid))
+            }
+            // Un adjunto que no declara nada sigue la suerte del documento del que cuelga: si no,
+            // en un espacio recortado se verían los adjuntos de lo que la consulta esconde.
+            if (mine.length === 0 && this.hierarchy.isDerived(_class, core.class.AttachedDoc)) {
+              mine.push(this.collabExists(vars, `${domain}."attachedTo"`, acc.uuid))
+            }
+          }
+          if (mine.length > 0) {
+            const spaces = vars.addArrayI(collabOnly, '::text[]')
+            collabOnlyRes = ` AND (${domain}.${key} <> ALL(${spaces}) OR ${mine.join(' OR ')})`
+          }
+        }
+
         let collabRes = ''
         if ([AccountRole.Guest, AccountRole.ReadOnlyGuest].includes(acc.role)) {
           if (collabSec?.provideSecurity === true) {
@@ -647,7 +682,7 @@ abstract class PostgresAdapterBase implements DbAdapter {
             collabRes += ` OR EXISTS (SELECT 1 FROM ${translateDomain(DOMAIN_COLLABORATOR)} collab_sec WHERE collab_sec."workspaceId" = ${vars.add(this.workspaceId, '::uuid')} AND collab_sec."attachedTo" = ${domain}."attachedTo" AND collab_sec.collaborator = '${acc.uuid}')`
           }
         }
-        return `AND (${res}${collabRes})`
+        return `AND (${res}${collabRes})${collabOnlyRes}`
       }
     }
   }

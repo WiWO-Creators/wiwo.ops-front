@@ -58,6 +58,7 @@
   import { deepEqual } from 'fast-equals'
   import { createEventDispatcher } from 'svelte'
 
+  import { ROL_FOCAL } from '@hcengineering/tracker'
   import tracker from '../../plugin'
   import StatusSelector from '../issues/StatusSelector.svelte'
 
@@ -81,6 +82,10 @@
     project?.members !== undefined ? hierarchy.clone(project.members) : [getCurrentAccount().uuid]
   let owners: AccountUuid[] =
     project?.owners !== undefined ? hierarchy.clone(project.owners) : [getCurrentAccount().uuid]
+  // Gente vinculada al proyecto que todavía no lo ve: no son miembros, sólo quedan anotados.
+  let asociados: AccountUuid[] = project?.asociados !== undefined ? hierarchy.clone(project.asociados) : []
+  // Con `restricted` mandan los roles: quien no tenga uno no puede crear ni editar tareas.
+  let restricted: boolean = project?.restricted ?? true
   let projectsIdentifiers = new Set<string>()
   let isSaving = false
   let defaultStatus: Ref<IssueStatus> | undefined = project?.defaultIssueStatus
@@ -136,13 +141,23 @@
       color,
       defaultIssueStatus: defaultStatus ?? ('' as Ref<IssueStatus>),
       defaultTimeReportDay: project?.defaultTimeReportDay ?? TimeReportDayType.PreviousWorkDay,
-      autoJoinForRoles: normalizeAutoJoinForRoles(autoJoinForRoles)
+      autoJoinForRoles: normalizeAutoJoinForRoles(autoJoinForRoles),
+      asociados,
+      restricted
     }
   }
 
   function getRolesAssignment (): RolesAssignment {
-    if (project === undefined || typeType?.targetClass === undefined || roles === undefined) {
+    if (typeType?.targetClass === undefined || roles === undefined) {
       return {}
+    }
+
+    if (project === undefined) {
+      // Un proyecto nuevo nace con su creador de focal: sin rol, y con los permisos activos, no
+      // podría ni crear tareas en su propio proyecto. El rol se busca por nombre porque cada tipo
+      // de proyecto tiene el suyo.
+      const focal = roles.find(({ name }) => name === ROL_FOCAL)
+      return focal !== undefined ? { [focal._id]: [getCurrentAccount().uuid] } : {}
     }
 
     const asMixin = hierarchy.as(project, typeType?.targetClass)
@@ -190,6 +205,12 @@
     }
     if (!autoJoinRolesEqual(projectData.autoJoinForRoles, project?.autoJoinForRoles)) {
       update.autoJoinForRoles = projectData.autoJoinForRoles
+    }
+    if (!deepEqual([...asociados].sort(), [...(project?.asociados ?? [])].sort())) {
+      update.asociados = projectData.asociados
+    }
+    if (projectData.restricted !== project?.restricted) {
+      update.restricted = projectData.restricted
     }
     if (projectData.members.length !== project?.members.length) {
       update.members = projectData.members
@@ -356,7 +377,36 @@
       }
     }
 
+    // Quien entra al proyecto deja de estar sólo asociado; a quien lo sacan queda asociado, para no
+    // perder el vínculo con la gente que trabaja ahí.
+    asociados = [
+      ...new Set([...asociados.filter((a) => !newMembersSet.has(a)), ...removedMembersSet])
+    ]
+
     members = newMembers
+  }
+
+  function handleAsociadosChanged (newAsociados: AccountUuid[]): void {
+    const newAsociadosSet = new Set(newAsociados)
+    const perdieronAcceso = members.filter((m) => newAsociadosSet.has(m))
+
+    asociados = newAsociados
+
+    // Anotar como asociado a un miembro es sacarle el acceso.
+    if (perdieronAcceso.length > 0) {
+      const perdieronAccesoSet = new Set(perdieronAcceso)
+
+      if (rolesAssignment !== undefined) {
+        for (const [key, value] of Object.entries(rolesAssignment)) {
+          rolesAssignment[key as Ref<Role>] =
+            value != null ? value.filter((m) => !perdieronAccesoSet.has(m)) : undefined
+        }
+      }
+
+      owners = owners.filter((o) => !perdieronAccesoSet.has(o))
+      members = members.filter((m) => !perdieronAccesoSet.has(m))
+      membersChanged = true
+    }
   }
 
   function handleRoleAssignmentChanged (roleId: Ref<Role>, newMembers: AccountUuid[]): void {
@@ -549,6 +599,28 @@
         size={'large'}
         allowGuests
       />
+    </div>
+
+    <div class="antiGrid-row">
+      <div class="antiGrid-row__header withDesciption">
+        <Label label={tracker.string.Asociados} />
+        <span><Label label={tracker.string.AsociadosDescr} /></span>
+      </div>
+      <AccountArrayEditor
+        value={asociados}
+        label={tracker.string.Asociados}
+        onChange={handleAsociadosChanged}
+        kind={'regular'}
+        size={'large'}
+      />
+    </div>
+
+    <div class="antiGrid-row">
+      <div class="antiGrid-row__header withDesciption">
+        <Label label={core.string.RBAC} />
+        <span><Label label={core.string.RBACDescr} /></span>
+      </div>
+      <Toggle id={'project-restricted'} bind:on={restricted} />
     </div>
 
     <div class="antiGrid-row">

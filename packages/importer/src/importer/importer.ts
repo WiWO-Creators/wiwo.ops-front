@@ -508,7 +508,9 @@ export class WorkspaceImporter {
   }
 
   async createProject (project: ImportProject): Promise<Ref<Project>> {
-    const projectId = generateId<Project>()
+    // Respeta el id que venga en el import: así quien lo arma sabe de antemano qué proyecto es cada
+    // uno y puede completarle después los atributos que el importador no escribe.
+    const projectId = project.id ?? generateId<Project>()
 
     const projectType =
       project.projectType !== undefined
