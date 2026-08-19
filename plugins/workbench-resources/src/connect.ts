@@ -83,7 +83,10 @@ export async function connect (title: string): Promise<Client | undefined> {
     if (lastLoc !== null) {
       const lastLocObj = JSON.parse(lastLoc)
       if (lastLocObj.path !== undefined && lastLocObj.path[0] === loc.path[0]) {
-        navigate(lastLocObj)
+        // De la última ubicación sólo se recupera el workspace: qué aplicación abrir lo decide
+        // el default del workbench (Inicio).
+        const lastWorkspace = lastLocObj.path[1]
+        navigate(lastWorkspace !== undefined ? { path: [loc.path[0], lastWorkspace] } : lastLocObj)
         return
       }
     } else {
