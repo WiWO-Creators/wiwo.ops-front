@@ -58,7 +58,6 @@
     getCurrentLocation,
     getLocation,
     IconSettings,
-    isSameSegments,
     Label,
     languageStore,
     Location,
@@ -445,41 +444,30 @@
     let space = loc.path[3] as Ref<Space>
     let special = loc.path[4]
     const fragment = loc.fragment
-    let navigateDone = false
     if (app === undefined) {
-      const last = localStorage.getItem(`${locationStorageKeyId}_${loc.path[1]}`)
-      if (last != null) {
-        const lastValue = JSON.parse(last)
-
-        if (isSameSegments(lastValue, loc, 2)) {
-          navigateDone = navigate(lastValue)
-          if (navigateDone) {
-            return
+      // Entrar al workspace sin aplicación en la URL abre siempre la aplicación por defecto
+      // (Inicio), no la última visitada. La última ubicación se sigue recordando por aplicación
+      // más abajo, así que volver a un módulo desde la barra devuelve al usuario donde estaba.
+      const appShort = getMetadata(workbench.metadata.DefaultApplication) as Ref<Application>
+      if (appShort == null) return
+      const spaceRef = getMetadata(workbench.metadata.DefaultSpace) as Ref<Space>
+      const specialRef = getMetadata(workbench.metadata.DefaultSpecial) as Ref<Space>
+      const defaultLoc = getCurrentLocation()
+      // Be sure URI is not yet changed
+      if (defaultLoc.path[2] === undefined && defaultLoc.path[0] === 'workbench') {
+        defaultLoc.path[2] = appShort
+        let len = 3
+        if (spaceRef !== undefined && specialRef !== undefined) {
+          const spaceObj = await client.findOne<Space>(core.class.Space, { _id: spaceRef })
+          if (spaceObj !== undefined) {
+            defaultLoc.path[3] = spaceRef
+            defaultLoc.path[4] = specialRef
+            len = 5
           }
         }
-      }
-      if (app === undefined && !navigateDone) {
-        const appShort = getMetadata(workbench.metadata.DefaultApplication) as Ref<Application>
-        if (appShort == null) return
-        const spaceRef = getMetadata(workbench.metadata.DefaultSpace) as Ref<Space>
-        const specialRef = getMetadata(workbench.metadata.DefaultSpecial) as Ref<Space>
-        const loc = getCurrentLocation()
-        // Be sure URI is not yet changed
-        if (loc.path[2] === undefined && loc.path[0] === 'workbench') {
-          loc.path[2] = appShort
-          let len = 3
-          if (spaceRef !== undefined && specialRef !== undefined) {
-            const spaceObj = await client.findOne<Space>(core.class.Space, { _id: spaceRef })
-            if (spaceObj !== undefined) {
-              loc.path[3] = spaceRef
-              loc.path[4] = specialRef
-              len = 5
-            }
-          }
-          loc.path.length = len
-          if (navigate(loc)) {
-            return
-          }
+        defaultLoc.path.length = len
+        if (navigate(defaultLoc)) {
+          return
         }
       }
     }

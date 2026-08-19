@@ -54,7 +54,6 @@ import presentation from '@hcengineering/presentation'
 import {
   getCurrentLocation,
   isSameSegments,
-  locationStorageKeyId,
   locationToUrl,
   navigate,
   setMetadataLocalStorage,
@@ -517,19 +516,9 @@ export function navigateToWorkspace (
       // Json parse error could be ignored
     }
   }
-  const newLoc: Location = { path: [workbenchId, workspaceUrl] }
-  let last: Location | undefined
-  try {
-    last = JSON.parse(localStorage.getItem(`${locationStorageKeyId}_${workspaceUrl}`) ?? '')
-  } catch (err: any) {
-    // Ignore
-  }
-  if (last != null && isSameSegments(last, newLoc, 2)) {
-    // If last location in our workspace path, use it.
-    navigate(last, replace)
-  } else {
-    navigate(newLoc, replace)
-  }
+  // Al entrar al workspace se abre siempre la aplicación por defecto (Inicio), no la última
+  // ubicación: el workbench la resuelve al ver la URL sin aplicación.
+  navigate({ path: [workbenchId, workspaceUrl] }, replace)
 }
 
 export async function checkJoined (inviteId: string): Promise<WorkspaceLoginInfo | undefined> {
