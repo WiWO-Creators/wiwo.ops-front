@@ -20,7 +20,7 @@
   Procesos, agrupada por hito. La columna sin hito ("Sin categoría") sale de incluir `null`.
 -->
 <script lang="ts">
-  import core, { DocumentQuery, Ref, SortingOrder, WithLookup } from '@hcengineering/core'
+  import core, { CategoryType, DocumentQuery, Ref, SortingOrder, WithLookup } from '@hcengineering/core'
   import { createQuery } from '@hcengineering/presentation'
   import { Milestone, Project } from '@hcengineering/tracker'
   import { Loading } from '@hcengineering/ui'
@@ -36,9 +36,17 @@
   const milestonesQuery = createQuery()
   let milestones: Array<Ref<Milestone>> | undefined
 
-  $: milestonesQuery.query(tracker.class.Milestone, space !== undefined ? { ...query, space } : query, (res) => {
-    milestones = res.map((it) => it._id)
-  })
+  // Ordenados por fecha de vencimiento: las columnas van de la mas temprana a la mas tardia, que
+  // es como se lee un tablero de hitos. `rank` existe para reordenarlos a mano, pero un hito
+  // creado desde la interfaz todavia no lo trae y quedaria en un lugar impredecible.
+  $: milestonesQuery.query(
+    tracker.class.Milestone,
+    space !== undefined ? { ...query, space } : query,
+    (res) => {
+      milestones = res.map((it) => it._id)
+    },
+    { sort: { targetDate: SortingOrder.Ascending } }
+  )
 
   const viewletQuery = createQuery()
   let issueViewlet: WithLookup<Viewlet> | undefined
@@ -96,6 +104,12 @@
   }
 
   $: boardViewOptions = issueViewlet !== undefined ? buildBoardOptions(issueViewlet, viewOptions) : undefined
+
+  // Una columna por hito, haya o no tareas, con la de "Sin hito" a la izquierda. La categoria de
+  // esa columna es `undefined` y no `null`: groupBy normaliza el valor con `?? undefined`
+  // (view-resources/src/utils.ts:1035), asi que las tareas sin hito caen en esa bolsa.
+  $: forcedCategories =
+    milestones === undefined ? undefined : ([undefined, ...milestones] as CategoryType[])
 </script>
 
 {#if issueViewlet === undefined || issueQuery === undefined || boardViewOptions === undefined}
@@ -108,5 +122,6 @@
     config={preference?.config ?? issueViewlet.config}
     viewOptions={boardViewOptions}
     viewOptionsConfig={issueViewlet.viewOptions?.other}
+    {forcedCategories}
   />
 {/if}

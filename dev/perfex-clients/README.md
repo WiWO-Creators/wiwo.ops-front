@@ -296,6 +296,26 @@ cuenta. **Las personas con cuenta se conservan**: son el equipo, no vinieron de 
 
 Es un borrado sin vuelta atrás: si en esos proyectos ya hay trabajo cargado a mano, se pierde.
 
+## Tipos de proyecto repetidos
+
+Al crear un espacio, el selector de tipo mostraba un "Perfex" por cada corrida vieja de la
+migración: el importador creaba un tipo nuevo cada vez en lugar de reusar el que ya existía. Eso
+ya no pasa, y los tipos que quedaron se limpian así:
+
+```bash
+export HULY_TOKEN='<token del workspace>'
+
+# 1. Ver los tipos y cuántos proyectos usa cada uno. Sin --si-borrar no toca nada.
+node bundle.js tipos -t "$HULY_TOKEN"
+
+# 2. Borrar los repetidos que no use ningún proyecto
+node bundle.js tipos -t "$HULY_TOKEN" --si-borrar
+```
+
+De cada nombre repetido queda uno solo: el que más proyectos tenga y, a igualdad, el más viejo. Los
+repetidos que sí tienen proyectos no se tocan, sólo se informan: mover esos proyectos a otro tipo
+les cambiaría los estados.
+
 ## Repetir la corrida
 
 Lo migrado se anota en `perfex-clients-state-<ambiente>.json` (se cambia con `--state`), después de

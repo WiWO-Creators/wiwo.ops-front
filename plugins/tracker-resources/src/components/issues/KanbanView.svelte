@@ -218,12 +218,22 @@
 
   $: listProvider.update(tasks)
 
+  // Cuando quien monta el tablero ya sabe cuales son las columnas —el tablero de hitos, que las
+  // saca de la lista de hitos y no de las tareas— las impone. Sin esto un hito sin tareas no
+  // genera columna, y un espacio sin ninguna tarea deja el tablero en blanco.
+  export let forcedCategories: CategoryType[] | undefined = undefined
+
   let categories: CategoryType[] = []
   let loadCategories = true
 
   const queryId = generateId()
 
   function update (): void {
+    if (forcedCategories !== undefined) {
+      categories = forcedCategories
+      loadCategories = false
+      return
+    }
     void updateTaskKanbanCategories(
       client,
       viewlet,
@@ -241,21 +251,26 @@
     })
   }
 
-  $: void updateTaskKanbanCategories(
-    client,
-    viewlet,
-    _class,
-    space,
-    tasks,
-    groupByKey,
-    viewOptions,
-    viewOptionsConfig,
-    update,
-    queryId
-  ).then((res) => {
-    categories = res
+  $: if (forcedCategories !== undefined) {
+    categories = forcedCategories
     loadCategories = false
-  })
+  } else {
+    void updateTaskKanbanCategories(
+      client,
+      viewlet,
+      _class,
+      space,
+      tasks,
+      groupByKey,
+      viewOptions,
+      viewOptionsConfig,
+      update,
+      queryId
+    ).then((res) => {
+      categories = res
+      loadCategories = false
+    })
+  }
 
   const fullFilled: Record<string, boolean> = {}
 

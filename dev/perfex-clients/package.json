@@ -47,6 +47,7 @@
     "@hcengineering/server-token": "workspace:^0.7.18",
     "@hcengineering/rank": "workspace:^0.7.0",
     "@hcengineering/setting": "workspace:^0.7.0",
+    "@hcengineering/task": "workspace:^0.7.0",
     "@hcengineering/text-html": "workspace:^0.7.19",
     "@hcengineering/text-markdown": "workspace:^0.7.21",
     "@hcengineering/tracker": "workspace:^0.7.0",
