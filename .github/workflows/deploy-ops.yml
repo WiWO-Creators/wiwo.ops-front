@@ -59,6 +59,11 @@ jobs:
               cd /root/huly-selfhost
               docker compose -f compose.yml -f compose.testops.yml up -d front account
 
+              # nginx resuelve las IPs de los upstream al arrancar y las cachea:
+              # tras recrear front y account apunta a IPs que ya no existen y
+              # todo el sitio responde 502. Hay que reiniciarlo después, siempre.
+              docker compose -f compose.yml -f compose.testops.yml restart nginx
+
               # Limpiar imágenes viejas
               docker image prune -f --filter "label=com.docker.compose.service=front" 2>/dev/null || true
               docker image prune -f --filter "label=com.docker.compose.service=account" 2>/dev/null || true
