@@ -90,7 +90,10 @@
           const key = storedLoc.path?.[0]
           if (Array.from(routes.values()).includes(key) || Array.from(routes.keys()).includes(key)) {
             useDefault = false
-            navigate(storedLoc)
+            // De la ubicación guardada sólo se recupera la ruta y el workspace: qué abrir adentro
+            // lo decide la aplicación por defecto (Inicio), no dónde estuvo el usuario la última
+            // vez. Sin este recorte, entrar a la URL pelada devolvía la pantalla completa guardada.
+            navigate({ path: storedLoc.path.slice(0, 2) })
           }
         }
         if (useDefault) {
