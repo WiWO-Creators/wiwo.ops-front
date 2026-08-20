@@ -1,4 +1,4 @@
-name: Deploy Front → ops.wiwo.me
+name: Deploy → ops.wiwo.me
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deploy-ops-front
+  group: deploy-ops
   cancel-in-progress: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
       - name: Setup SSH
         run: |
@@ -53,11 +53,28 @@ jobs:
               node ../../common/scripts/install-run-rushx.js bundle
               docker build -t wiwo/ops-account:${VERSION} -t wiwo/ops-account:latest .
 
+              # Bundle transactor: el modelo del fork (roles de proyecto,
+              # permisos de tarea, campos del cliente) y el recorte por
+              # colaborador viven acá. `bundle` corre `get-model`, que es lo que
+              # genera el model.json que el transactor aplica al arrancar. Sin
+              # esta imagen el modelo no llega nunca al workspace.
+              cd ../../pods/server
+              node ../../common/scripts/install-run-rushx.js bundle
+              docker build -t wiwo/ops-transactor:${VERSION} -t wiwo/ops-transactor:latest .
+
+              # Bundle workspace: corre las migraciones de modelo sobre cada
+              # workspace, así que tiene que ir a la par del transactor.
+              cd ../../pods/workspace
+              node ../../common/scripts/install-run-rushx.js bundle
+              docker build -t wiwo/ops-workspace:${VERSION} -t wiwo/ops-workspace:latest .
+
               # Restart containers. compose.testops.yml está versionado en el
-              # repo de configuración y fija ambas imágenes a `latest`; `up -d`
-              # recrea el contenedor porque cambió el id de la imagen.
+              # repo de configuración y fija las cuatro imágenes a `latest`;
+              # `up -d` recrea el contenedor porque cambió el id de la imagen.
+              # Los cuatro van juntos: el front y el transactor tienen que
+              # hablar la misma versión de modelo.
               cd /root/huly-selfhost
-              docker compose -f compose.yml -f compose.testops.yml up -d front account
+              docker compose -f compose.yml -f compose.testops.yml up -d front account transactor workspace
 
               # nginx resuelve las IPs de los upstream al arrancar y las cachea:
               # tras recrear front y account apunta a IPs que ya no existen y
@@ -67,6 +84,8 @@ jobs:
               # Limpiar imágenes viejas
               docker image prune -f --filter "label=com.docker.compose.service=front" 2>/dev/null || true
               docker image prune -f --filter "label=com.docker.compose.service=account" 2>/dev/null || true
+              docker image prune -f --filter "label=com.docker.compose.service=transactor" 2>/dev/null || true
+              docker image prune -f --filter "label=com.docker.compose.service=workspace" 2>/dev/null || true
 
-              echo "✅ Deployed wiwo/ops-front y wiwo/ops-account: ${VERSION}"
+              echo "✅ Deployed front, account, transactor y workspace: ${VERSION}"
           DEPLOY
