@@ -14,7 +14,7 @@
     "Now": "Ahora",
     "Scheduled": "Programado",
     "Schedule": "Programa",
-    "WithoutProject": "Sin proyecto",
+    "WithoutProject": "Sin espacio",
     "TotalGroupTime": "{days, plural, =0 {} other {#d}} {hours, plural, =0 {} other {#h}} {minutes, plural, =0 {} other {#m}}",
     "Tasks": "Tareas",
     "WorkSlot": "Intervalo de trabajo",

@@ -58,7 +58,7 @@
     "EnumsSettingHint": "Un grupo o categoría de cosas que tienen alguna propiedad o atributo en común con otras por tipo, clase o calidad.",
     "EnumTitle": "Título de la enumeración",
     "EnumsCount": "{count, plural, =1 {# opción} other {# opciones}}",
-    "ProjectTypesCount": "{count, plural, =0 {No hay tipos de proyecto} =1 {# tipo de proyecto} other {# tipos de proyecto}}",
+    "ProjectTypesCount": "{count, plural, =0 {No hay tipos de espacio} =1 {# tipo de espacio} other {# tipos de espacio}}",
     "Options": "Opciones",
     "EnterOptionTitle": "Introduce el título de la opción",
     "NewEnumDialogClose": "¿Quieres cerrar este diálogo?",
