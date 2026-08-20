@@ -143,7 +143,7 @@ import '@hcengineering/huly-mail-assets'
 import '@hcengineering/ai-assistant-assets'
 import '@hcengineering/rating-assets'
 
-import { coreId } from '@hcengineering/core'
+import { coreId, type Ref, type Space } from '@hcengineering/core'
 import presentation, { loadServerConfig, createFileStorage, presentationId } from '@hcengineering/presentation'
 
 import { setMetadata } from '@hcengineering/platform'
@@ -757,9 +757,22 @@ export async function configurePlatform() {
   setMetadata(uiPlugin.metadata.PlatformTitle, title)
   setMetadata(workbench.metadata.PlatformTitle, title)
   setDefaultLanguage(myBranding.defaultLanguage ?? 'es')
-  setMetadata(workbench.metadata.DefaultApplication, myBranding.defaultApplication ?? 'tracker')
-  setMetadata(workbench.metadata.DefaultSpace, myBranding.defaultSpace ?? tracker.project.DefaultProject)
-  setMetadata(workbench.metadata.DefaultSpecial, myBranding.defaultSpecial ?? 'issues')
+  // El espacio y la seccion por defecto viven dentro de una aplicacion concreta: el proyecto y la
+  // vista de tareas son de Seguimiento. Si la marca abre en otra aplicacion y no declara los suyos,
+  // arrastrarlos igual arma una ruta mixta (home + proyecto de Seguimiento) que el resolvedor de
+  // enlaces termina de convertir en Seguimiento, y la aplicacion por defecto nunca llega a verse.
+  const defaultApplication = myBranding.defaultApplication ?? trackerId
+  const opensTracker = defaultApplication === trackerId
+
+  const defaultSpace = myBranding.defaultSpace ?? (opensTracker ? tracker.project.DefaultProject : undefined)
+  const defaultSpecial = myBranding.defaultSpecial ?? (opensTracker ? 'issues' : undefined)
+
+  setMetadata(workbench.metadata.DefaultApplication, defaultApplication)
+  // El workbench solo usa el espacio si tambien hay seccion, asi que se declaran juntos o ninguno.
+  if (defaultSpace !== undefined && defaultSpecial !== undefined) {
+    setMetadata(workbench.metadata.DefaultSpace, defaultSpace as Ref<Space>)
+    setMetadata(workbench.metadata.DefaultSpecial, defaultSpecial)
+  }
   setMetadata(login.metadata.JoinableWorkspaces, resolveJoinableWorkspaces(myBranding, config))
 
   setMetadata(setting.metadata.DefaultInviteRole, myBranding.defaultInviteRole)
