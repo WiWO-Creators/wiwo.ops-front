@@ -41,10 +41,14 @@
   $: twoRows = $deviceInfo.twoRows
 
   const dispatch = createEventDispatcher()
+  // El color elegido a mano manda; si no hay, se deriva del nombre para que cada hito se
+  // distinga igual.
   $: accentColor =
-    milestone?.label !== undefined
-      ? getPlatformAvatarColorForTextDef(milestone?.label, $themeStore.dark)
-      : getPlatformAvatarColorDef(0, $themeStore.dark)
+    milestone?.color !== undefined
+      ? getPlatformAvatarColorDef(milestone.color, $themeStore.dark)
+      : milestone?.label !== undefined
+        ? getPlatformAvatarColorForTextDef(milestone?.label, $themeStore.dark)
+        : getPlatformAvatarColorDef(0, $themeStore.dark)
 
   $: dispatch('accent-color', accentColor)
   onMount(() => {

@@ -17,10 +17,18 @@ import {
 } from '@hcengineering/importer'
 import { htmlToMarkup } from '@hcengineering/text-html'
 import { markupToMarkdown } from '@hcengineering/text-markdown'
-import tracker, { type Issue, type Project } from '@hcengineering/tracker'
+import { genRanks } from '@hcengineering/rank'
+import tracker, { type Issue, type Milestone, type Project } from '@hcengineering/tracker'
 
 import { type Logger } from './import'
-import { type PerfexComment, type PerfexReader, type PerfexStaff, type PerfexTask } from './perfex'
+import {
+  type PerfexComment,
+  type PerfexMilestone,
+  type PerfexReader,
+  type PerfexStaff,
+  type PerfexTask
+} from './perfex'
+import { toHulyMilestone } from './hitos'
 import {
   buildProjectIdentifier,
   CLOSED_PROJECT_STATUSES,
@@ -380,6 +388,128 @@ export async function importProjects (
     options.onProgress()
   }
   logger.log(`Tareas completadas con fechas y campos de Perfex: ${updated}`)
+
+  options.onProgress()
+}
+
+/** Lo que necesita la carga de hitos, todo salido del estado de la migración. */
+export interface MilestoneImportOptions {
+  /** Proyectos de Huly ya creados, por id de proyecto de Perfex. */
+  migratedProjects: Record<string, Ref<Project>>
+  /** Tareas de Huly ya creadas, por id de tarea de Perfex. */
+  migratedTasks: Record<string, Ref<Issue>>
+  /** Hitos ya creados, por id de hito de Perfex. Se completa durante la corrida. */
+  migratedMilestones: Record<string, Ref<Milestone>>
+  dryRun: boolean
+  /** Se llama cuando hay avance que conviene persistir. */
+  onProgress: () => void
+}
+
+/**
+ * Crea en Huly los hitos de Perfex y le pone su hito a cada tarea.
+ *
+ * Corre después de los proyectos y las tareas, y se apoya sólo en el estado de la migración, así
+ * que se puede volver a correr sola sobre un workspace ya migrado. Un hito cuyo proyecto no está
+ * en este ambiente se saltea, igual que una tarea cuyo hito quedó afuera.
+ */
+export async function importMilestones (
+  client: TxOperations,
+  perfex: PerfexReader,
+  logger: Logger,
+  options: MilestoneImportOptions
+): Promise<void> {
+  const milestones = await perfex.getMilestones()
+  const tasks = await perfex.getTasks()
+
+  const tasksByMilestone = new Map<number, PerfexTask[]>()
+  for (const task of tasks) {
+    if (task.milestone === 0) continue
+    const list = tasksByMilestone.get(task.milestone) ?? []
+    list.push(task)
+    tasksByMilestone.set(task.milestone, list)
+  }
+
+  // Sólo los hitos cuyo proyecto vive en este ambiente y que todavía no se crearon.
+  const pendientes = milestones.filter(
+    (m) =>
+      options.migratedProjects[String(m.project_id)] !== undefined &&
+      options.migratedMilestones[String(m.id)] === undefined
+  )
+
+  logger.log(`Hitos a crear: ${pendientes.length} de ${milestones.length}` + (options.dryRun ? ' (simulado)' : ''))
+  if (options.dryRun) return
+
+  // El orden manual de Perfex se traduce a los rangos que usa Huly, proyecto por proyecto, para
+  // que las columnas del tablero queden como estaban en el board.
+  const porProyecto = new Map<number, PerfexMilestone[]>()
+  for (const milestone of pendientes) {
+    const list = porProyecto.get(milestone.project_id) ?? []
+    list.push(milestone)
+    porProyecto.set(milestone.project_id, list)
+  }
+
+  let creados = 0
+  for (const [projectId, list] of porProyecto) {
+    const space = options.migratedProjects[String(projectId)]
+    list.sort((a, b) => (a.milestone_order !== b.milestone_order ? a.milestone_order - b.milestone_order : a.id - b.id))
+    const ranks = genRanks(list.length)
+
+    for (const [posicion, milestone] of list.entries()) {
+      const datos = toHulyMilestone(milestone, tasksByMilestone.get(milestone.id) ?? [])
+      const milestoneId = generateId<Milestone>()
+      const rank = ranks[posicion]
+
+      await client.createDoc(
+        tracker.class.Milestone,
+        space,
+        {
+          label: datos.label,
+          description: htmlToMarkdown(milestone.description),
+          status: datos.status,
+          startDate: datos.startDate,
+          targetDate: datos.targetDate,
+          comments: 0,
+          ...(datos.color !== undefined ? { color: datos.color } : {}),
+          ...(rank !== undefined ? { rank } : {})
+        },
+        milestoneId
+      )
+      options.migratedMilestones[String(milestone.id)] = milestoneId
+      creados++
+    }
+    options.onProgress()
+  }
+  logger.log(`Hitos creados: ${creados}`)
+
+  // Y ahora la otra mitad: cada tarea apunta a su hito. Va por tandas, como el resto.
+  const pendingTasks: Array<{ issueId: Ref<Issue>, space: Ref<Project>, milestone: Ref<Milestone> }> = []
+  for (const task of tasks) {
+    if (task.milestone === 0) continue
+    const issueId = options.migratedTasks[String(task.id)]
+    const milestone = options.migratedMilestones[String(task.milestone)]
+    if (issueId === undefined || milestone === undefined) continue
+
+    const perfexMilestone = milestones.find((m) => m.id === task.milestone)
+    if (perfexMilestone === undefined) continue
+    const space = options.migratedProjects[String(perfexMilestone.project_id)]
+    if (space === undefined) continue
+
+    pendingTasks.push({ issueId, space, milestone })
+  }
+
+  let updated = 0
+  for (let i = 0; i < pendingTasks.length; i += UPDATE_BATCH) {
+    const batch = pendingTasks.slice(i, i + UPDATE_BATCH)
+    await Promise.all(
+      batch.map(async ({ issueId, space, milestone }) => {
+        await client.updateDoc(tracker.class.Issue, space, issueId, { milestone })
+      })
+    )
+    updated += batch.length
+    logger.log(`  ... ${updated} de ${pendingTasks.length} tareas con hito`)
+    options.onProgress()
+  }
+  logger.log(`Tareas asociadas a su hito: ${updated}`)
 
   options.onProgress()
 }

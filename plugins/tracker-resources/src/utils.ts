@@ -234,6 +234,14 @@ export async function issuePrioritySort (client: TxOperations, value: IssuePrior
   return value
 }
 
+/**
+ * Ordena los hitos como se leen en el tablero: primero el que empieza antes.
+ *
+ * Manda el orden manual (`rank`) cuando los dos hitos lo tienen; si no, la fecha de inicio, y a
+ * falta de ella la de entrega. El hito sin ninguna de las dos queda al final.
+ *
+ * @param value ids de los hitos a ordenar; se ordena en el lugar y se devuelve el mismo arreglo.
+ */
 export async function milestoneSort (
   client: TxOperations,
   value: Array<Ref<Milestone>>
@@ -242,11 +250,23 @@ export async function milestoneSort (
     const query = createQuery(true)
     query.query(tracker.class.Milestone, { _id: { $in: value } }, (res) => {
       const milestones = toIdMap(res)
-      value.sort((a, b) => (milestones.get(b)?.targetDate ?? 0) - (milestones.get(a)?.targetDate ?? 0))
+      value.sort((a, b) => {
+        const first = milestones.get(a)
+        const second = milestones.get(b)
+        if (first?.rank !== undefined && second?.rank !== undefined) {
+          return first.rank.localeCompare(second.rank)
+        }
+        return milestoneStart(first) - milestoneStart(second)
+      })
       resolve(value)
       query.unsubscribe()
     })
   })
+}
+
+/** Fecha por la que se ordena un hito. Sin fechas, va al final. */
+function milestoneStart (milestone: Milestone | undefined): number {
+  return milestone?.startDate ?? milestone?.targetDate ?? Number.MAX_SAFE_INTEGER
 }
 export async function moveIssuesToAnotherMilestone (
   client: TxOperations,
@@ -330,6 +350,28 @@ export function getTimeReportDayType (timestamp: number): TimeReportDayType | un
 
 export function subIssueQuery (value: boolean, query: DocumentQuery<Issue>): DocumentQuery<Issue> {
   return value ? query : { ...query, attachedTo: tracker.ids.NoParent }
+}
+
+/**
+ * Saca de la consulta las tareas ya terminadas, como el "Excluir tareas completadas" del board.
+ *
+ * Terminada es la que está en un estado de categoría ganada o perdida: completada o cancelada.
+ *
+ * @param value true cuando el interruptor está encendido, o sea cuando hay que excluirlas.
+ * @param query consulta a la que se le agrega el filtro; no se modifica.
+ */
+export function excludeCompletedQuery (value: boolean, query: DocumentQuery<Issue>): DocumentQuery<Issue> {
+  if (!value) return query
+
+  const done: Array<Ref<Status>> = []
+  for (const [id, status] of get(statusStore).byId) {
+    if (status.category === task.statusCategory.Won || status.category === task.statusCategory.Lost) {
+      done.push(id)
+    }
+  }
+  if (done.length === 0) return query
+
+  return { ...query, status: { $nin: done } }
 }
 
 async function getAllSomething (

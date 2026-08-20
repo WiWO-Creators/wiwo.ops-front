@@ -36,10 +36,14 @@
   export let onClick: (() => void) | undefined = undefined
 
   const dispatch = createEventDispatcher()
+  // El color elegido a mano manda; si no hay, se deriva del nombre para que cada hito se
+  // distinga igual.
   $: accentColor =
-    value?.label !== undefined
-      ? getPlatformAvatarColorForTextDef(value?.label, $themeStore.dark)
-      : getPlatformAvatarColorDef(0, $themeStore.dark)
+    value?.color !== undefined
+      ? getPlatformAvatarColorDef(value.color, $themeStore.dark)
+      : value?.label !== undefined
+        ? getPlatformAvatarColorForTextDef(value?.label, $themeStore.dark)
+        : getPlatformAvatarColorDef(0, $themeStore.dark)
 
   $: dispatch('accent-color', accentColor)
   onMount(() => {

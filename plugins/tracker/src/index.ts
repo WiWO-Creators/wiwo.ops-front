@@ -27,6 +27,7 @@ import {
   Markup,
   Mixin,
   Ref,
+  Rank,
   RelatedDocument,
   Space,
   Role,
@@ -217,6 +218,12 @@ export interface Milestone extends Doc {
 
   startDate: Timestamp | null // null = open-ended begin marker
   targetDate: Timestamp
+
+  /** Color de la paleta de plataforma, heredado del hito de Perfex. Sin valor, se pinta neutro. */
+  color?: number
+
+  /** Orden manual de la columna en el tablero de hitos. Sin valor, ordena por fecha. */
+  rank?: Rank
 }
 
 /**

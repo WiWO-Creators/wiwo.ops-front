@@ -31,9 +31,9 @@
   import notification from '@hcengineering/notification'
   import { ActionContext, createQuery, getClient } from '@hcengineering/presentation'
   import tags from '@hcengineering/tags'
-  import { DocWithRank, getStates } from '@hcengineering/task'
+  import task, { DocWithRank, getStates } from '@hcengineering/task'
   import { getTaskKanbanResultQuery, typeStore, updateTaskKanbanCategories } from '@hcengineering/task-resources'
-  import { Issue, IssuesGrouping, IssuesOrdering, Project } from '@hcengineering/tracker'
+  import { Issue, IssuesGrouping, IssuesOrdering, Milestone, Project } from '@hcengineering/tracker'
   import {
     Button,
     ColorDefinition,
@@ -66,6 +66,7 @@
     statusStore
   } from '@hcengineering/view-resources'
   import { ChatMessagesPresenter } from '@hcengineering/chunter-resources'
+  import { getCurrentEmployee } from '@hcengineering/contact'
   import { onMount } from 'svelte'
 
   import tracker from '../../plugin'
@@ -81,6 +82,8 @@
   import StatusEditor from './StatusEditor.svelte'
   import EstimationEditor from './timereport/EstimationEditor.svelte'
   import MilestoneEditor from '../milestones/MilestoneEditor.svelte'
+  import MilestoneColumnSubtitle from '../milestones/MilestoneColumnSubtitle.svelte'
+  import TimePresenter from './timereport/TimePresenter.svelte'
 
   const _class = tracker.class.Issue
   export let space: Ref<Project> | undefined = undefined
@@ -94,6 +97,34 @@
 
   $: groupByKey = (viewOptions.groupBy[0] ?? noCategory) as IssuesGrouping
   $: orderBy = viewOptions.orderBy
+
+  // Los extras del tablero de hitos —fechas y tiempo en la cabecera y en la tarjeta, y el color
+  // de la tarjeta— sólo se pintan cuando las columnas son hitos, para no cambiar el tablero de
+  // Procesos.
+  $: isMilestoneBoard = groupByKey === IssuesGrouping.Milestone
+
+  const myEmployeeId = getCurrentEmployee()
+
+  /** Una tarea está atrasada si venció y no llegó a un estado terminal. */
+  function isOverdue (issue: WithLookup<Issue>): boolean {
+    if (issue.dueDate == null || issue.dueDate >= Date.now()) return false
+    const category = $statusStore.byId.get(issue.status)?.category
+    return category !== task.statusCategory.Won && category !== task.statusCategory.Lost
+  }
+
+  /** La categoría de una columna de hitos es su id, salvo en la columna de las tareas sin hito. */
+  function toMilestoneRef (state: CategoryType): Ref<Milestone> | undefined {
+    return typeof state === 'string' ? (state as Ref<Milestone>) : undefined
+  }
+
+  /** "10/08/2026 - 12/08/2026", o una sola fecha si falta la otra. */
+  function formatIssueRange (issue: WithLookup<Issue>, language: string): string {
+    const format = new Intl.DateTimeFormat(language, { day: '2-digit', month: '2-digit', year: 'numeric' })
+    return [issue.startDate, issue.dueDate]
+      .filter((it): it is number => it != null)
+      .map((it) => format.format(new Date(it)))
+      .join(' - ')
+  }
 
   let accentColors = new Map<string, ColorDefinition>()
   const setAccentColor = (n: number, ev: CustomEvent<ColorDefinition>) => {
@@ -342,44 +373,58 @@
     <svelte:fragment slot="header" let:state let:count let:index>
       {@const color = accentColors.get(`${index}${$themeStore.dark}${groupByKey}`)}
       {@const headerBGColor = color?.background ?? defaultBackground($themeStore.dark)}
-      <div style:background={headerBGColor} class="header flex-between">
-        <div class="flex-row-center gap-1">
-          <span
-            class="clear-mins fs-bold overflow-label pointer-events-none"
-            style:color={color?.title ?? 'var(--theme-caption-color)'}
-          >
-            {#if groupByKey === noCategory}
-              <Label label={view.string.NoGrouping} />
-            {:else if headerComponent}
-              <svelte:component
-                this={headerComponent.presenter}
-                value={state}
-                {space}
-                size={'small'}
-                kind={'list-header'}
-                display={'kanban'}
-                colorInherit={!$themeStore.dark}
-                accent
-                on:accent-color={(ev) => {
-                  setAccentColor(index, ev)
-                }}
-              />
-            {/if}
-          </span>
-          <span class="counter ml-1">
-            {count}
-          </span>
+      <div
+        style:background={headerBGColor}
+        class="header"
+        class:flex-between={!isMilestoneBoard}
+        class:milestone-header={isMilestoneBoard}
+      >
+        <div class="flex-between w-full">
+          <div class="flex-row-center gap-1">
+            <span
+              class="clear-mins fs-bold overflow-label pointer-events-none"
+              style:color={color?.title ?? 'var(--theme-caption-color)'}
+            >
+              {#if groupByKey === noCategory}
+                <Label label={view.string.NoGrouping} />
+              {:else if isMilestoneBoard && state == null}
+                <!-- La columna de las tareas sin hito. El presenter del hito mostraría "Hitos",
+                     que no dice nada. -->
+                <Label label={tracker.string.NoMilestone} />
+              {:else if headerComponent}
+                <svelte:component
+                  this={headerComponent.presenter}
+                  value={state}
+                  {space}
+                  size={'small'}
+                  kind={'list-header'}
+                  display={'kanban'}
+                  colorInherit={!$themeStore.dark}
+                  accent
+                  on:accent-color={(ev) => {
+                    setAccentColor(index, ev)
+                  }}
+                />
+              {/if}
+            </span>
+            <span class="counter ml-1">
+              {count}
+            </span>
+          </div>
+          <div class="tools gap-1">
+            <Button
+              icon={IconAdd}
+              kind={'ghost'}
+              showTooltip={{ label: tracker.string.AddIssueTooltip, direction: 'left' }}
+              on:click={() => {
+                showPopup(CreateIssue, { space: currentSpace, [groupByKey]: state }, 'top')
+              }}
+            />
+          </div>
         </div>
-        <div class="tools gap-1">
-          <Button
-            icon={IconAdd}
-            kind={'ghost'}
-            showTooltip={{ label: tracker.string.AddIssueTooltip, direction: 'left' }}
-            on:click={() => {
-              showPopup(CreateIssue, { space: currentSpace, [groupByKey]: state }, 'top')
-            }}
-          />
-        </div>
+        {#if isMilestoneBoard}
+          <MilestoneColumnSubtitle milestone={toMilestoneRef(state)} issues={getGroupByValues(groupByDocs, state)} />
+        {/if}
       </div>
     </svelte:fragment>
     <svelte:fragment slot="card" let:object>
@@ -391,6 +436,8 @@
       {#key issueId}
         <div
           class="tracker-card"
+          class:mine={isMilestoneBoard && issue.assignee != null && issue.assignee === myEmployeeId}
+          class:overdue={isMilestoneBoard && isOverdue(issue)}
           on:click={() => {
             void openDoc(client.getHierarchy(), issue)
           }}
@@ -448,10 +495,26 @@
                 justify={'center'}
               />
             {/if}
-            {#if enabledConfig(config, 'dueDate')}
+            {#if enabledConfig(config, 'dueDate') && !isMilestoneBoard}
               <DueDatePresenter value={issue} size={'small'} kind={'link-bordered'} />
             {/if}
           </div>
+          {#if isMilestoneBoard && (issue.startDate != null || issue.dueDate != null || reports > 0)}
+            <div class="card-dates">
+              {#if issue.startDate != null || issue.dueDate != null}
+                <span>{formatIssueRange(issue, $themeStore.language)}</span>
+              {/if}
+              <!-- El tiempo registrado sólo se muestra si hay algo: los timers de Perfex no se
+                   migraron, así que hoy todas las tareas están en cero. -->
+              {#if reports > 0}
+                {#if issue.startDate != null || issue.dueDate != null}
+                  <span class="separator">·</span>
+                {/if}
+                <Label label={tracker.string.MilestoneLoggedTime} />:
+                <TimePresenter value={reports} />
+              {/if}
+            </div>
+          {/if}
           {#if enabledConfig(config, 'labels')}
             <div class="card-labels labels">
               <Component
@@ -515,6 +578,17 @@
     &:hover .tools {
       opacity: 1;
     }
+
+    // La cabecera del tablero de hitos lleva dos lineas: nombre y, debajo, fechas y tiempo.
+    &.milestone-header {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding-top: 0.375rem;
+      padding-bottom: 0.375rem;
+      height: auto;
+      min-height: 3.5rem;
+    }
   }
   .tracker-card {
     position: relative;
@@ -522,6 +596,28 @@
     flex-direction: column;
     min-height: 6.5rem;
     border-radius: 0.25rem;
+
+    // Igual que en el board: la tarea propia se destaca y la atrasada avisa. El color viene del
+    // tema, asi que funciona en claro y en oscuro.
+    &.mine {
+      background-color: color-mix(in srgb, var(--primary-button-default) 12%, var(--theme-panel-color));
+    }
+    &.overdue {
+      background-color: color-mix(in srgb, var(--theme-urgent-color) 14%, var(--theme-panel-color));
+    }
+
+    .card-dates {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      margin: 0.25rem 1rem 0;
+      font-size: 0.75rem;
+      color: var(--theme-dark-color);
+
+      .separator {
+        opacity: 0.6;
+      }
+    }
 
     .card-header {
       padding: 0.75rem 1rem 0;
