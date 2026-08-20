@@ -52,7 +52,9 @@ export function planificarLimpieza (tipos: TipoConUso[]): PlanDeLimpieza {
   for (const grupo of porNombre.values()) {
     if (grupo.length < 2) continue
 
-    const ordenados = [...grupo].sort((a, b) => b.projects - a.projects || a.createdOn - b.createdOn)
+    const ordenados = [...grupo].sort((a, b) =>
+      a.projects !== b.projects ? b.projects - a.projects : a.createdOn - b.createdOn
+    )
     const [, ...resto] = ordenados
     for (const tipo of resto) {
       if (tipo.projects === 0) borrar.push(tipo)
