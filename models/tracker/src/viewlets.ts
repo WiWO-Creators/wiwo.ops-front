@@ -688,4 +688,79 @@ export function defineViewlets (builder: Builder): void {
     },
     tracker.viewlet.MilestoneList
   )
+
+  // Tablero de hitos: una columna por hito, una tarjeta por tarea. Se declara sobre Milestone para
+  // que aparezca junto a la Lista en el selector de vista de la seccion Hitos, aunque por dentro
+  // muestre tareas.
+  builder.createDoc(
+    view.class.ViewletDescriptor,
+    core.space.Model,
+    {
+      label: tracker.string.MilestoneBoard,
+      icon: task.icon.Kanban,
+      component: tracker.component.MilestonesBoard
+    },
+    tracker.viewlet.MilestoneBoard
+  )
+
+  // El tablero no agrupa hitos: agrupa tareas. Lo único que el usuario ajusta desde la barra es
+  // si quiere ver las tareas ya completadas; el interruptor no lleva acción porque no filtra
+  // hitos, se lo lleva MilestonesBoard a la consulta de tareas.
+  const milestoneBoardOptions: ViewOptionsModel = {
+    groupBy: [],
+    orderBy: [],
+    other: [
+      {
+        key: 'excludeCompleted',
+        type: 'toggle',
+        defaultValue: false,
+        label: tracker.string.ExcludeCompletedIssues
+      }
+    ]
+  }
+
+  builder.createDoc(
+    view.class.Viewlet,
+    core.space.Model,
+    {
+      attachTo: tracker.class.Milestone,
+      descriptor: tracker.viewlet.MilestoneBoard,
+      viewOptions: milestoneBoardOptions,
+      configOptions: { strict: true },
+      config: []
+    },
+    tracker.viewlet.MilestoneBoardViewlet
+  )
+
+  // El tablero de tareas que MilestonesBoard monta por dentro. Lleva `variant` para que la vista
+  // general de Procesos siga excluyendolo, igual que MilestoneIssuesList.
+  builder.createDoc(
+    view.class.Viewlet,
+    core.space.Model,
+    {
+      attachTo: tracker.class.Issue,
+      descriptor: tracker.viewlet.Kanban,
+      variant: 'milestone-board',
+      viewOptions: {
+        ...issuesOptions(true),
+        groupDepth: 1,
+        other: [
+          ...issuesOptions(true).other,
+          {
+            key: 'excludeCompleted',
+            type: 'toggle',
+            defaultValue: false,
+            actionTarget: 'query',
+            action: tracker.function.ExcludeCompletedQuery,
+            label: tracker.string.ExcludeCompletedIssues
+          }
+        ]
+      },
+      configOptions: {
+        strict: true
+      },
+      config: ['subIssues', 'priority', 'component', 'dueDate', 'labels', 'estimation', 'attachments', 'comments']
+    },
+    tracker.viewlet.MilestoneBoardIssues
+  )
 }

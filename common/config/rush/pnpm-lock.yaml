@@ -1084,6 +1084,9 @@ importers:
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
         version: link:../../foundations/core/packages/platform
+      '@hcengineering/rank':
+        specifier: workspace:^0.7.0
+        version: link:../../foundations/core/packages/rank
       '@hcengineering/server-client':
         specifier: workspace:^0.7.16
         version: link:../../foundations/server/packages/client

@@ -72,12 +72,27 @@ export interface PerfexTask {
   duedate: string | null
   rel_id: number | null
   rel_type: string | null
+  /** Hito al que pertenece la tarea. 0 cuando no tiene ninguno. */
+  milestone: number
   /** Área(s) de la compañía, del campo personalizado multiselect de Perfex. */
   companyArea: string[]
   /** Link de Drive, del campo personalizado de Perfex. */
   driveLink?: string
   /** staffid de los asignados, en el orden en que Perfex los devuelve. */
   assignees: number[]
+}
+
+/** Hito de un proyecto de Perfex: lo que en el board es una columna del tablero de Hitos. */
+export interface PerfexMilestone {
+  id: number
+  name: string
+  description: string | null
+  start_date: string | null
+  due_date: string
+  project_id: number
+  /** Color en hexadecimal elegido a mano, o vacío si el hito nunca se pintó. */
+  color: string | null
+  milestone_order: number
 }
 
 export interface PerfexComment {
@@ -145,7 +160,7 @@ export class PerfexReader {
     await this.connection.end()
   }
 
-  private async query<T> (sql: string): Promise<T[]> {
+  private async query<T>(sql: string): Promise<T[]> {
     const [rows] = await this.connection.query<RowDataPacket[]>(sql.replaceAll('{p}', this.prefix))
     return rows as T[]
   }
@@ -259,7 +274,7 @@ export class PerfexReader {
   async getTasks (): Promise<PerfexTask[]> {
     const tasks = await this.query<PerfexTask>(
       `SELECT id, name, description, priority, status, dateadded, startdate, duedate,
-              rel_id, rel_type
+              rel_id, rel_type, milestone
        FROM {p}tasks ORDER BY id`
     )
 
@@ -301,6 +316,13 @@ export class PerfexReader {
       task.driveLink = driveByTask.get(task.id)
     }
     return tasks
+  }
+
+  async getMilestones (): Promise<PerfexMilestone[]> {
+    return await this.query<PerfexMilestone>(
+      `SELECT id, name, description, start_date, due_date, project_id, color, milestone_order
+       FROM {p}milestones ORDER BY project_id, milestone_order, id`
+    )
   }
 
   async getComments (): Promise<PerfexComment[]> {

@@ -22,6 +22,7 @@ import {
   type MarkupBlobRef,
   type Domain,
   type Markup,
+  type Rank,
   type Ref,
   type RelatedDocument,
   type Timestamp,
@@ -47,6 +48,7 @@ import {
   TypeMarkup,
   TypeNumber,
   TypeAccountUuid,
+  TypeRank,
   TypeRecord,
   TypeRef,
   TypeString,
@@ -55,6 +57,7 @@ import {
 import attachment from '@hcengineering/model-attachment'
 import core, { TAttachedDoc, TDoc, TStatus, TType } from '@hcengineering/model-core'
 import task, { TTask, TProject as TTaskProject } from '@hcengineering/model-task'
+import view from '@hcengineering/model-view'
 import { getEmbeddedLabel, type IntlString } from '@hcengineering/platform'
 import tags, { type TagElement } from '@hcengineering/tags'
 import time, { type ToDo } from '@hcengineering/time'
@@ -452,6 +455,15 @@ export class TMilestone extends TDoc implements Milestone {
 
   @Prop(TypeDate(), tracker.string.TargetDate)
     targetDate!: Timestamp
+
+  @Prop(TypeNumber(), view.string.Color)
+  @Hidden()
+    color?: number
+
+  @Prop(TypeRank(), core.string.Rank)
+  @Index(IndexKind.IndexedDsc)
+  @Hidden()
+    rank?: Rank
 
   declare space: Ref<Project>
 }

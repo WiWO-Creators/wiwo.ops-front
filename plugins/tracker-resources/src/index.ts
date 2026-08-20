@@ -107,6 +107,7 @@ import { formatIssueValue } from './issueTableFormatter'
 import MilestoneEditor from './components/milestones/MilestoneEditor.svelte'
 import MilestonePresenter from './components/milestones/MilestonePresenter.svelte'
 import Milestones from './components/milestones/Milestones.svelte'
+import MilestonesBoard from './components/milestones/MilestonesBoard.svelte'
 import MilestoneSelector from './components/milestones/MilestoneSelector.svelte'
 import MilestoneStatusEditor from './components/milestones/MilestoneStatusEditor.svelte'
 import MilestoneStatusIcon from './components/milestones/MilestoneStatusIcon.svelte'
@@ -138,6 +139,7 @@ import EditIssueTemplate from './components/templates/EditIssueTemplate.svelte'
 import TemplateEstimationEditor from './components/templates/EstimationEditor.svelte'
 import {
   activeProjects,
+  excludeCompletedQuery,
   getAllComponents,
   getAllMilestones,
   getAllPriority,
@@ -435,6 +437,7 @@ export default async (): Promise<Resources> => ({
     EditComponent,
     IssuesView,
     KanbanView,
+    MilestonesBoard,
     ProjectComponents,
     IssuePreview,
     RelationsPopup,
@@ -508,6 +511,7 @@ export default async (): Promise<Resources> => ({
     IssuePrioritySort: issuePrioritySort,
     MilestoneSort: milestoneSort,
     SubIssueQuery: subIssueQuery,
+    ExcludeCompletedQuery: excludeCompletedQuery,
     GetAllPriority: getAllPriority,
     GetAllComponents: getAllComponents,
     GetAllMilestones: getAllMilestones,

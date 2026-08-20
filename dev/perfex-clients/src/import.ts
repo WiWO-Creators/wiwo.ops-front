@@ -15,11 +15,11 @@ import { generateId, type AccountUuid, type Class, type Data, type Ref, type TxO
 import { readFileSync, writeFileSync } from 'fs'
 
 import { type FileUploader } from '@hcengineering/importer'
-import { type Issue, type Project } from '@hcengineering/tracker'
+import { type Issue, type Milestone, type Project } from '@hcengineering/tracker'
 
 import { belongsToEnvironment, type Environment } from './environments'
 import { type PerfexClient, type PerfexContact, type PerfexReader } from './perfex'
-import { importProjects } from './proyectos'
+import { importMilestones, importProjects } from './proyectos'
 
 export interface Logger {
   log: (msg: string) => void
@@ -27,9 +27,9 @@ export interface Logger {
 }
 
 /** Partes de la migración. Por defecto se corren todas, en este orden. */
-export type Stage = 'personas' | 'clientes' | 'proyectos'
+export type Stage = 'personas' | 'clientes' | 'proyectos' | 'hitos'
 
-export const ALL_STAGES: Stage[] = ['personas', 'clientes', 'proyectos']
+export const ALL_STAGES: Stage[] = ['personas', 'clientes', 'proyectos', 'hitos']
 
 export interface ImportOptions {
   /** Ambiente destino: define qué clientes entran en esta corrida. */
@@ -59,6 +59,8 @@ interface MigrationState {
   /** Proyectos de Huly, por id de proyecto de Perfex (`cliente-<id>` y `orphan` para el resto). */
   proyectos: Record<string, Ref<Project>>
   tareas: Record<string, Ref<Issue>>
+  /** Hitos de Huly, por id de hito de Perfex. */
+  hitos: Record<string, Ref<Milestone>>
 }
 
 const EMPTY_STATE: MigrationState = {
@@ -66,7 +68,8 @@ const EMPTY_STATE: MigrationState = {
   personas: {},
   staff: {},
   proyectos: {},
-  tareas: {}
+  tareas: {},
+  hitos: {}
 }
 
 function loadState (path: string): MigrationState {
@@ -138,6 +141,7 @@ export async function importClients (
 
   if (!stages.has('clientes')) {
     await runProjectsStage(client, perfex, logger, options, state, clients, uploader)
+    await runMilestonesStage(client, perfex, logger, options, state)
     return
   }
 
@@ -190,10 +194,32 @@ export async function importClients (
   }
 
   await runProjectsStage(client, perfex, logger, options, state, clients, uploader)
+  await runMilestonesStage(client, perfex, logger, options, state)
 
   if (options.dryRun) {
     logger.log('Simulación: no se escribió nada en Huly')
   }
+}
+
+/** Corre la parte de hitos, si está pedida. Necesita los proyectos y las tareas ya migrados. */
+async function runMilestonesStage (
+  client: TxOperations,
+  perfex: PerfexReader,
+  logger: Logger,
+  options: ImportOptions,
+  state: MigrationState
+): Promise<void> {
+  if (!options.stages.includes('hitos')) return
+
+  await importMilestones(client, perfex, logger, {
+    migratedProjects: state.proyectos,
+    migratedTasks: state.tareas,
+    migratedMilestones: state.hitos,
+    dryRun: options.dryRun,
+    onProgress: () => {
+      saveState(options.statePath, state)
+    }
+  })
 }
 
 /** Corre la parte de proyectos, tareas y comentarios, si está pedida. */

@@ -13,6 +13,8 @@ Migra los clientes de Perfex CRM a Huly. Sólo clientes: no toca proyectos, tare
 | Proyecto (`tblprojects`) | Proyecto del Tracker; los cerrados quedan archivados |
 | Tarea (`tbltasks`) | Tarea con estado, prioridad, responsable, fechas, área de la compañía y link de Drive |
 | Comentario (`tbltask_comments`) | Comentario de la tarea, con el nombre del autor de Perfex al principio |
+| Hito (`tblmilestones`) | Hito del proyecto, con su rango de fechas, su color y el orden que tenía en el board |
+| Tarea con hito (`tbltasks.milestone`) | La tarea queda dentro de ese hito |
 | Tarea sin proyecto | Va al proyecto **Sin proyecto (Perfex)** |
 
 Los estados de Perfex se crean tal cual: Sin empezar, En progreso, Testing, Esperando feedback y
@@ -30,6 +32,10 @@ que pasar ese flag.
 - Los archivos adjuntos no se migran: la base sólo guarda las rutas, los archivos están en el
   disco del servidor de Perfex.
 - Los comentarios quedan a nombre de quien corre la migración, con el autor original en el texto.
+- Perfex no guarda el estado de un hito: se deduce. Completado si todas sus tareas lo están,
+  planificado si todavía no empezó, y en progreso en cualquier otro caso.
+- El color del hito se aproxima al tono más parecido de la paleta de Huly: Perfex admite cualquier
+  hexadecimal y Huly trabaja con una paleta fija.
 - Las tareas escriben `companyArea` y `driveLink`, que existen a partir de los cambios de este
   fork: **hay que desplegarlo antes de migrar**.
 
@@ -103,9 +109,12 @@ rushx run import -e palta          -w palta          --incluir-inactivos
 rushx run import -e sin-clasificar -w sin-clasificar --incluir-inactivos
 ```
 
-Si preferís ir por partes, `--stages personas`, `--stages clientes` o `--stages proyectos` corren
-sólo esa parte. El orden importa: las tareas necesitan el staff ya creado para poder asignar
-responsables.
+Si preferís ir por partes, `--stages personas`, `--stages clientes`, `--stages proyectos` o
+`--stages hitos` corren sólo esa parte. El orden importa: las tareas necesitan el staff ya creado
+para poder asignar responsables, y los hitos necesitan los proyectos y las tareas ya migrados.
+
+Para cargar los hitos sobre un workspace que ya se migró antes, alcanza con
+`--stages hitos`: se apoya sólo en el archivo de estado, así que no repite nada de lo anterior.
 
 Los workspaces tienen que existir de antes, y el usuario indicado tiene que ser miembro de cada
 uno.
@@ -306,7 +315,7 @@ tras un error o un corte. Si se borra ese archivo, la próxima corrida duplica t
 | `--desde <AAAA-MM-DD>` | Sólo tareas creadas desde esa fecha |
 | `--ultimos-meses <n>` | Sólo tareas de los últimos n meses |
 | `--solo-abiertas` | Deja fuera las tareas ya completadas |
-| `-s, --stages` | `personas`, `clientes`, `proyectos`, separadas por coma |
+| `-s, --stages` | `personas`, `clientes`, `proyectos`, `hitos`, separadas por coma |
 | `--state` | Archivo de estado propio |
 | `--dry-run` | Sólo informa qué haría |
 
