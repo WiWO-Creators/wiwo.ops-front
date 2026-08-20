@@ -31,6 +31,7 @@ import { closeProjects } from './cerrar'
 import { aplicarPermisos } from './permisos'
 import { createPermanentInvite } from './invitacion'
 import { cleanWorkspace } from './limpiar'
+import { limpiarTiposRepetidos } from './tipos'
 import { notifyResult } from './aviso'
 import { ALL_STAGES, importClients, type Logger, type Stage } from './import'
 import { moveClient } from './move'
@@ -261,6 +262,33 @@ export function perfexClientsTool (): void {
       const transactor = cmd.transactor ?? process.env.TRANSACTOR_URL
       await withTokenClient(token, transactor, async (client) => {
         await cleanWorkspace(client, consoleLogger, { dryRun })
+      })
+    })
+
+  program
+    .command('tipos')
+    .description('borra los tipos de proyecto repetidos que no use ningún proyecto')
+    .requiredOption('-t, --token <token>', 'token del workspace (o variable HULY_TOKEN)')
+    .option('-f, --front <url>', 'url del front de Huly (o variable FRONT_URL)')
+    .option('--transactor <url>', 'url directa del transactor (o variable TRANSACTOR_URL)')
+    .option('--si-borrar', 'confirma el borrado; sin esto sólo informa', false)
+    .action(async (cmd) => {
+      const frontUrl = cmd.front ?? process.env.FRONT_URL
+      if (frontUrl === undefined || frontUrl === '') {
+        throw new Error('Falta la url del front: usá --front o la variable FRONT_URL')
+      }
+      await setupAccounts(frontUrl)
+
+      // El borrado no se puede deshacer, así que hay que pedirlo expresamente.
+      const dryRun = cmd.siBorrar !== true
+      if (dryRun) {
+        console.log('Modo informe: no se borra nada. Agregá --si-borrar para hacerlo de verdad.')
+      }
+
+      const token = cmd.token ?? process.env.HULY_TOKEN
+      const transactor = cmd.transactor ?? process.env.TRANSACTOR_URL
+      await withTokenClient(token, transactor, async (client) => {
+        await limpiarTiposRepetidos(client, consoleLogger, { dryRun })
       })
     })
 

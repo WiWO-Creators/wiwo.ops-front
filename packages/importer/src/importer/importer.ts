@@ -264,7 +264,13 @@ export class WorkspaceImporter {
     if (this.workspaceData.projectTypes === undefined) return
 
     for (const projectType of this.workspaceData.projectTypes) {
-      const projectTypeId = await this.createProjectTypeWithTaskTypes(projectType)
+      // Reusar el tipo que ya exista con ese nombre: sin esto, cada corrida de la importación deja
+      // un tipo de proyecto nuevo y repetido en el selector de espacios.
+      const existing = await this.client.findOne(task.class.ProjectType, {
+        name: projectType.name,
+        descriptor: tracker.descriptors.ProjectType
+      })
+      const projectTypeId = existing?._id ?? (await this.createProjectTypeWithTaskTypes(projectType))
       this.projectTypeByName.set(projectType.name, projectTypeId)
     }
   }
