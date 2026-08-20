@@ -15,25 +15,20 @@
 
 const fs = require('fs')
 const path = require('path')
-const exec = require('child_process').exec
 
+// La version del modelo vive en version.txt. Antes solo se leia si
+// `git describe --tags` tenia exito: el clon del servidor viene del fork, que no
+// publica tags, asi que fallaba y las imagenes se compilaban como 0.6.0. Con un
+// modelo por debajo del que quedo guardado en el workspace, el transactor
+// rechaza a todos los clientes ("Preparando el espacio de trabajo...") y el
+// servicio workspace tampoco lo arregla: solo migra hacia arriba.
 function main() {
-  exec('git describe --tags --abbrev=0', (err, stdout) => {
-    if (err !== null) {
-      console.log('"0.6.0"')
-      return
-    }
-    // Take version from file
-    let version
-    try {
-      const versionFilePath = path.resolve(__dirname, 'version.txt')
-      version = fs.readFileSync(versionFilePath, 'utf8').trim()
-    } catch (error) {
-      version = '"0.6.0"'
-    }
-
-    console.log(version)
-  })
+  try {
+    const versionFilePath = path.resolve(__dirname, 'version.txt')
+    console.log(fs.readFileSync(versionFilePath, 'utf8').trim())
+  } catch (error) {
+    console.log('"0.6.0"')
+  }
 }
 
 main()
