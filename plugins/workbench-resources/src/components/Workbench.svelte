@@ -105,7 +105,14 @@
   import { getContext, onDestroy, onMount, tick } from 'svelte'
   import { subscribeMobile } from '../mobile'
   import workbench from '../plugin'
-  import { buildNavModel, filterVisibleApplications, logOut, workspacesStore } from '../utils'
+  import {
+    buildNavModel,
+    filterVisibleApplications,
+    findLocalApplication,
+    logOut,
+    withLocalApplications,
+    workspacesStore
+  } from '../utils'
   import AccountPopup from './AccountPopup.svelte'
   import AppItem from './AppItem.svelte'
   import AppSwitcher from './AppSwitcher.svelte'
@@ -158,7 +165,7 @@
   const client = getClient()
 
   const apps: Application[] = filterVisibleApplications(
-    client.getModel().findAllSync<Application>(workbench.class.Application, {})
+    withLocalApplications(client.getModel().findAllSync<Application>(workbench.class.Application, {}))
   )
 
   let panelInstance: PanelInstance
@@ -474,9 +481,8 @@
 
     if (currentAppAlias !== app) {
       clear(1)
-      const newApplication: Application | undefined = await client.findOne<Application>(workbench.class.Application, {
-        alias: app
-      })
+      const newApplication: Application | undefined =
+        (await client.findOne<Application>(workbench.class.Application, { alias: app })) ?? findLocalApplication(app)
       if (newApplication?.accessLevel === undefined || hasAccountRole(account, newApplication.accessLevel)) {
         currentApplication = newApplication
         currentAppAlias = currentApplication?.alias

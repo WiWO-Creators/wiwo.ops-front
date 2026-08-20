@@ -39,8 +39,60 @@ import {
   setMetadataLocalStorage
 } from '@hcengineering/ui'
 import view from '@hcengineering/view'
-import workbench, { type Application, type NavigatorModel } from '@hcengineering/workbench'
+import workbench, { homeId, type Application, type NavigatorModel } from '@hcengineering/workbench'
 import { derived, writable } from 'svelte/store'
+
+/**
+ * La aplicación Inicio, declarada desde el front.
+ *
+ * El servicio `workspace` corre la imagen upstream (backend/wiwo.ops/compose.yml), así que los
+ * documentos de modelo que agrega el fork nunca llegan a la base del workspace: sin esto, en
+ * producción no existe el `Application` de Inicio, la barra lateral no lo muestra y la URL del
+ * módulo queda en blanco. Los valores repiten los de models/workbench/src/index.ts y conservan el
+ * mismo `_id`, de modo que el día que `workspace` se construya desde el fork el documento real
+ * ocupe su lugar sin duplicar la entrada ni perder las preferencias del usuario.
+ */
+const homeApplication: Application = {
+  _id: 'workbench:app:Home' as Ref<Application>,
+  _class: workbench.class.Application,
+  space: core.space.Model,
+  modifiedBy: core.account.System,
+  modifiedOn: 0,
+  label: workbench.string.HomeTitle,
+  icon: workbench.icon.Home,
+  alias: homeId,
+  hidden: false,
+  component: workbench.component.Home,
+  position: 'top',
+  order: 50
+}
+
+const localApplications: Application[] = [homeApplication]
+
+/**
+ * Completa las aplicaciones del modelo con las que declara el fork y el workspace todavía no
+ * conoce.
+ *
+ * @param apps aplicaciones tal como vienen del modelo del workspace
+ * @returns las mismas, más las locales que falten; el arreglo original si no falta ninguna
+ */
+export function withLocalApplications (apps: Application[]): Application[] {
+  const missing = localApplications.filter((local) => !apps.some((app) => app.alias === local.alias))
+
+  return missing.length === 0 ? apps : [...apps, ...missing]
+}
+
+/**
+ * Busca por alias una aplicación declarada sólo en el front.
+ *
+ * @param alias alias de la aplicación, tal como aparece en la URL
+ * @returns la aplicación local, o `undefined` si ese alias no es de una
+ */
+export function findLocalApplication (alias: string | undefined): Application | undefined {
+  if (alias === undefined) return undefined
+
+  return localApplications.find((app) => app.alias === alias)
+}
 
 export const workspaceCreating = writable<number | undefined>(undefined)
 
