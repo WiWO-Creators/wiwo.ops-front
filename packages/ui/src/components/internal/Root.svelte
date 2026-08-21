@@ -144,8 +144,11 @@
   // `isMobile` mira el user-agent, asi que no se entera de una ventana angosta y el iPad, que desde
   // iPadOS 13 se anuncia como Macintosh, queda afuera. `isCompact` es la señal de layout: mismo
   // modo compacto para el telefono y para cualquier pantalla de hasta 680px (breakpoint `sm`).
+  // Se calcula con `docWidth` y no con `$deviceInfo.size`: leer del mismo store al que despues se
+  // le escribe `isCompact` es un ciclo, y el compilador de Svelte lo rechaza.
+  const compactWidth = deviceWidths[deviceSizes.indexOf('sm')]
   let isCompact: boolean
-  $: isCompact = isMobile || checkAdaptiveMatching($deviceInfo.size, 'sm')
+  $: isCompact = isMobile || docWidth <= compactWidth
   let isPortrait: boolean
   $: isPortrait = docWidth <= docHeight
 
@@ -228,9 +231,7 @@
 
   $: secondRow = checkAdaptiveMatching($deviceInfo.size, 'xs')
   $: appsMini =
-    $deviceInfo.isCompact &&
-    (($deviceInfo.isPortrait && $deviceInfo.docWidth <= 480) ||
-      (!$deviceInfo.isPortrait && $deviceInfo.docHeight <= 480))
+    isCompact && ((isPortrait && docWidth <= 480) || (!isPortrait && docHeight <= 480))
 
   const weekInfoFirstDay: number = getLocalWeekStart()
   const savedFirstDayOfWeek = localStorage.getItem('firstDayOfWeek') ?? 'system'

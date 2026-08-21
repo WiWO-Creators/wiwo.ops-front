@@ -54,6 +54,7 @@
     Component,
     defineSeparators,
     checkAdaptiveMatching,
+    type DeviceOptions,
     deviceOptionsStore as deviceInfo,
     Dock,
     getCurrentLocation,
@@ -174,9 +175,16 @@
 
   const linkProviders = client.getModel().findAllSync(view.mixin.LinkIdProvider, {})
 
-  // Reactivo, no `const`: si no, rotar el telefono o redimensionar la ventana no lo actualiza.
-  let mobileAdaptive: boolean = $deviceInfo.isCompact && $deviceInfo.minWidth
-  $: mobileAdaptive = $deviceInfo.isCompact && $deviceInfo.minWidth
+  /**
+   * Pantalla compacta y angosta a la vez: ahi el navigator y el aside no pueden convivir.
+   *
+   * Es una funcion y no un `$:`: como declaracion reactiva entra en el ciclo que el compilador de
+   * Svelte rechaza —depende de `$deviceInfo` y los bloques que la leen le escriben al mismo store—,
+   * y como `const` se evaluaba una sola vez y no se enteraba de rotar el telefono.
+   */
+  function isMobileAdaptive (device: DeviceOptions): boolean {
+    return device.isCompact && device.minWidth
+  }
   const defaultNavigator = !(getMetadata(workbench.metadata.NavigationExpandedDefault) ?? true)
   const savedNavigator = localStorage.getItem('hiddenNavigator')
   let hiddenNavigator: boolean = savedNavigator !== null ? savedNavigator === 'true' : defaultNavigator
@@ -668,11 +676,10 @@
   }
   checkWorkbenchWidth()
   // El aside flota de `lg` para abajo (1024px), el mismo corte que usa el resto del layout.
-  $: floatAside = checkAdaptiveMatching($deviceInfo.size, 'lg')
-  $: if (floatAside && !$sidebarStore.float) {
+  $: if (checkAdaptiveMatching($deviceInfo.size, 'lg') && !$sidebarStore.float) {
     hiddenAside = $sidebarStore.variant === SidebarVariant.MINI
     $sidebarStore.float = true
-  } else if (!floatAside && $sidebarStore.float) {
+  } else if (!checkAdaptiveMatching($deviceInfo.size, 'lg') && $sidebarStore.float) {
     $sidebarStore.float = false
     $sidebarStore.variant = hiddenAside ? SidebarVariant.MINI : SidebarVariant.EXPANDED
   }
@@ -685,7 +692,7 @@
     oldNavVisible !== $deviceInfo.navigator.visible ||
     oldASideVisible !== ($sidebarStore.variant !== SidebarVariant.MINI)
   ) {
-    if (mobileAdaptive && $deviceInfo.navigator.float) {
+    if (isMobileAdaptive($deviceInfo) && $deviceInfo.navigator.float) {
       if ($deviceInfo.navigator.visible && $sidebarStore.variant !== SidebarVariant.MINI) {
         if (oldNavVisible) $deviceInfo.navigator.visible = false
         else $sidebarStore.variant = SidebarVariant.MINI
@@ -703,7 +710,9 @@
     $sidebarStore.widget = Array.from($sidebarStore.widgetsState.keys())[0]
   }
   location.subscribe(() => {
-    if (mobileAdaptive && $sidebarStore.variant !== SidebarVariant.MINI) $sidebarStore.variant = SidebarVariant.MINI
+    if (isMobileAdaptive(get(deviceInfo)) && $sidebarStore.variant !== SidebarVariant.MINI) {
+      $sidebarStore.variant = SidebarVariant.MINI
+    }
   })
   $: $deviceInfo.navigator.direction = $deviceInfo.isCompact && $deviceInfo.isPortrait ? 'horizontal' : 'vertical'
   let appsMini: boolean
@@ -1067,7 +1076,7 @@
           class={navigatorModel === undefined ? 'hulyPanels-container' : 'hulyComponent overflow-hidden'}
           class:straighteningCorners={$sidebarStore.float &&
             $sidebarStore.variant === SidebarVariant.EXPANDED &&
-            !(mobileAdaptive && $deviceInfo.isPortrait)}
+            !(isMobileAdaptive($deviceInfo) && $deviceInfo.isPortrait)}
           data-id={'contentPanel'}
         >
           {#if currentApplication && currentApplication.component}
