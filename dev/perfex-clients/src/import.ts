@@ -31,14 +31,23 @@ import {
   organizacionesPorNombre,
   personasPorEmail
 } from './existente'
+import { importColaboradores } from './colaboradores'
 import { importMilestones, importProjects } from './proyectos'
 
 export { type Logger }
 
 /** Partes de la migración. Por defecto se corren todas, en este orden. */
-export type Stage = 'personas' | 'clientes' | 'proyectos' | 'hitos' | 'etiquetas' | 'adjuntos'
+export type Stage = 'personas' | 'clientes' | 'proyectos' | 'hitos' | 'etiquetas' | 'adjuntos' | 'colaboradores'
 
-export const ALL_STAGES: Stage[] = ['personas', 'clientes', 'proyectos', 'hitos', 'etiquetas', 'adjuntos']
+export const ALL_STAGES: Stage[] = [
+  'personas',
+  'clientes',
+  'proyectos',
+  'hitos',
+  'etiquetas',
+  'adjuntos',
+  'colaboradores'
+]
 
 export interface ImportOptions {
   /** Ambiente destino: define qué clientes entran en esta corrida. */
@@ -59,6 +68,8 @@ export interface ImportOptions {
   minTagUses: number
   /** Carpeta con los archivos rescatados del board. Sin ella la etapa de adjuntos se saltea. */
   attachmentsDir?: string
+  /** Si es true migra también los colaboradores de las tareas ya completadas en el board. */
+  includeClosedTaskCollaborators: boolean
 }
 
 /** Nombre visible de un contacto, con respaldo al email cuando no tiene nombre cargado. */
@@ -102,6 +113,7 @@ export async function importClients (
   await runMilestonesStage(client, perfex, logger, options)
   await runTagsStage(client, perfex, logger, options)
   await runAttachmentsStage(client, perfex, logger, options, clients, uploader)
+  await runColaboradoresStage(client, perfex, logger, options)
 
   if (options.dryRun) {
     logger.log('Simulación: no se escribió nada en Huly')
@@ -265,6 +277,25 @@ async function runTagsStage (
   await importTags(client, perfex, logger, {
     minUsos: options.minTagUses,
     dryRun: options.dryRun
+  })
+}
+
+/**
+ * Corre la parte de colaboradores, si está pedida.
+ *
+ * Va después de las tareas: escribe sobre las que ya están migradas, buscándolas por su `perfexId`.
+ */
+async function runColaboradoresStage (
+  client: TxOperations,
+  perfex: PerfexReader,
+  logger: Logger,
+  options: ImportOptions
+): Promise<void> {
+  if (!options.stages.includes('colaboradores')) return
+
+  await importColaboradores(client, perfex, logger, {
+    dryRun: options.dryRun,
+    includeClosedTasks: options.includeClosedTaskCollaborators
   })
 }
 

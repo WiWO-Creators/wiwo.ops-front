@@ -113,6 +113,11 @@ export function perfexClientsTool (): void {
     .option('--solo-abiertas', 'deja fuera las tareas ya completadas en Perfex', false)
     .option('--min-usos <n>', 'deja fuera las etiquetas con menos de n usos en el board', '1')
     .option('--dir-adjuntos <ruta>', 'carpeta con los archivos rescatados del board (o variable DIR_ADJUNTOS)')
+    .option(
+      '--colaboradores-tareas-cerradas',
+      'migra también los colaboradores de las tareas ya completadas en el board',
+      false
+    )
     .option('--dry-run', 'no escribe nada en Huly: sólo informa qué haría', false)
     .option('--avisar-a <url>', 'url a la que avisar cuando termine (o variable AVISAR_URL)')
     .action(async (cmd) => {
@@ -126,7 +131,8 @@ export function perfexClientsTool (): void {
         tasksUntil: parseSince(cmd.hasta, undefined),
         onlyOpenTasks: cmd.soloAbiertas === true,
         minTagUses: Number(cmd.minUsos ?? 1),
-        attachmentsDir: cmd.dirAdjuntos ?? process.env.DIR_ADJUNTOS
+        attachmentsDir: cmd.dirAdjuntos ?? process.env.DIR_ADJUNTOS,
+        includeClosedTaskCollaborators: cmd.colaboradoresTareasCerradas === true
       }
 
       const avisarA = cmd.avisarA ?? process.env.AVISAR_URL

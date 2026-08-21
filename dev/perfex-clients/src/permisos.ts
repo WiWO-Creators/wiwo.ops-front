@@ -137,7 +137,7 @@ export function calcularAccesos (
 }
 
 /** Cuentas del workspace por correo, más sus nombres para el informe. */
-interface Cuentas {
+export interface Cuentas {
   porCorreo: Map<string, AccountUuid>
   nombres: Map<AccountUuid, string>
 }
@@ -148,7 +148,7 @@ interface Cuentas {
  * El correo de acceso es una identidad social de tipo EMAIL colgada de la persona; el empleado es
  * el que tiene la cuenta (`personUuid`).
  */
-async function cargarCuentas (client: TxOperations): Promise<Cuentas> {
+export async function cargarCuentas (client: TxOperations): Promise<Cuentas> {
   const porPersona = new Map<Ref<Person>, AccountUuid>()
   const nombres = new Map<AccountUuid, string>()
   for (const employee of await client.findAll(contact.mixin.Employee, {})) {

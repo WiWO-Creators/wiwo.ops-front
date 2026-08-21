@@ -27,8 +27,9 @@ que pasar ese flag.
 ### Límites conocidos
 
 - Una tarea de Perfex puede tener varios asignados; Huly admite un solo responsable. Queda el
-  primero y los demás se listan al final de la descripción, porque los colaboradores de Huly son
-  cuentas de usuario y el staff migrado todavía no las tiene.
+  primero y los demás pasan a colaboradores de la tarea, junto con los seguidores del board
+  (etapa `colaboradores`). Como el colaborador de Huly es una cuenta de usuario, el staff que
+  todavía no entró al workspace queda afuera y se informa al final de la corrida.
 - Los archivos adjuntos se migran con la etapa `adjuntos`, que necesita los archivos rescatados
   antes del corte: la base sólo guarda las rutas, los binarios están en el disco del servidor de
   Perfex. Los que en el board colgaban de un comentario quedan en el panel de adjuntos de la tarea.
@@ -111,7 +112,8 @@ rushx run import -e sin-clasificar -w sin-clasificar --incluir-inactivos
 ```
 
 Si preferís ir por partes, `--stages personas`, `--stages clientes`, `--stages proyectos`,
-`--stages hitos`, `--stages etiquetas` o `--stages adjuntos` corren sólo esa parte. El orden
+`--stages hitos`, `--stages etiquetas`, `--stages adjuntos` o `--stages colaboradores` corren sólo
+esa parte. El orden
 importa: los hitos necesitan los proyectos y las tareas ya migrados. El staff y las empresas se
 resuelven siempre, corra o no su etapa, porque las tareas necesitan a quién asignarse y los
 proyectos, a qué cliente pertenecen.
@@ -139,6 +141,30 @@ saltea lo que ya está puesto: repetirla no duplica nada.
 
 Los workspaces tienen que existir de antes, y el usuario indicado tiene que ser miembro de cada
 uno.
+
+### Colaboradores
+
+Los seguidores del board (`tbltask_followers`) y los asignados que Huly no puede representar pasan a
+ser colaboradores de la tarea. Como las etiquetas, la etapa encuentra las tareas por su `perfexId` y
+saltea las que ya tienen puesto ese colaborador.
+
+```bash
+rushx run import -e mgc -w mgc --stages colaboradores --dry-run
+rushx run import -e mgc -w mgc --stages colaboradores
+rushx run import -e mgc -w mgc --stages colaboradores --colaboradores-tareas-cerradas
+```
+
+Por defecto sólo entran las tareas que en el board siguen abiertas: las cerradas son las tres
+cuartas partes del volumen y sus colaboradores no aportan más que ruido en la bandeja.
+
+**Un colaborador no da acceso.** La lectura en Huly se filtra por espacio y no hay ningún trigger
+sobre `core.class.Collaborator`, así que esta etapa **no toca `members`, `owners` ni los roles** de
+ningún proyecto: eso lo decide el focal desde la pantalla del proyecto. Lo que deja listo es que,
+cuando el focal le da a alguien el rol `Restringido`, esa persona vea de entrada las tareas que en
+el board seguía o tenía asignadas.
+
+El staff que todavía no entró a ops no tiene cuenta y por eso no puede ser colaborador: la corrida
+lo informa por correo al terminar y entra solo la próxima vez que se corra la etapa.
 
 ### Adjuntos
 
@@ -420,7 +446,8 @@ Consecuencias prácticas:
 | `--desde <AAAA-MM-DD>` | Sólo tareas creadas desde esa fecha |
 | `--ultimos-meses <n>` | Sólo tareas de los últimos n meses |
 | `--solo-abiertas` | Deja fuera las tareas ya completadas |
-| `-s, --stages` | `personas`, `clientes`, `proyectos`, `hitos`, `etiquetas`, `adjuntos`, separadas por coma |
+| `-s, --stages` | `personas`, `clientes`, `proyectos`, `hitos`, `etiquetas`, `adjuntos`, `colaboradores`, separadas por coma |
+| `--colaboradores-tareas-cerradas` | Migra también los colaboradores de las tareas ya completadas en el board |
 | `--min-usos <n>` | Deja fuera las etiquetas con menos de n usos en el board |
 | `--dir-adjuntos <ruta>` | Carpeta con los archivos rescatados del board (o variable `DIR_ADJUNTOS`) |
 | `--dry-run` | Sólo informa qué haría |

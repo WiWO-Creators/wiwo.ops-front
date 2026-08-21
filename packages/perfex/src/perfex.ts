@@ -108,6 +108,12 @@ export interface PerfexTagAssignment {
   rel_type: string
 }
 
+/** Seguidor de una tarea del board: en ops, un colaborador de la tarea. */
+export interface PerfexFollower {
+  taskid: number
+  staffid: number
+}
+
 export interface PerfexComment {
   id: number
   taskid: number
@@ -392,6 +398,16 @@ export class PerfexReader {
        FROM {p}taggables
        WHERE rel_type IN ('task', 'project') ORDER BY tag_id, rel_id`
     )
+  }
+
+  /**
+   * Seguidores de tarea del board.
+   *
+   * En Perfex el seguidor sólo recibe avisos; en ops el equivalente es el colaborador de la tarea.
+   * La tabla no tiene índice único, así que el par (taskid, staffid) puede venir repetido.
+   */
+  async getFollowers (): Promise<PerfexFollower[]> {
+    return await this.query<PerfexFollower>('SELECT taskid, staffid FROM {p}task_followers ORDER BY id')
   }
 
   async getComments (): Promise<PerfexComment[]> {

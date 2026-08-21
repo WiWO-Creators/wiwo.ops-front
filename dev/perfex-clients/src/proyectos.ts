@@ -93,21 +93,14 @@ function toTimestamp (value: string | Date | null | undefined): number | null {
 }
 
 /**
- * Cuerpo de la descripción de una tarea: el texto de Perfex más, si hace falta, la lista de los
- * asignados que Huly no puede representar, porque sólo admite un responsable por tarea.
+ * Cuerpo de la descripción de una tarea: el texto de Perfex, traducido a markdown.
+ *
+ * Los asignados que Huly no puede representar —sólo admite un responsable por tarea— ya no van
+ * acá como nota: la etapa `colaboradores` los da de alta como colaboradores de la tarea, que sí
+ * es un dato consultable.
  */
-export function buildIssueDescription (task: PerfexTask, staffById: Map<number, PerfexStaff>): string {
-  const description = htmlToMarkdown(task.description)
-  const extraAssignees = task.assignees
-    .slice(1)
-    .map((id) => staffById.get(id))
-    .filter((s): s is PerfexStaff => s !== undefined)
-    .map((s) => `${s.firstname} ${s.lastname}`.trim())
-
-  if (extraAssignees.length === 0) return description
-
-  const note = `**Otros asignados en Perfex:** ${extraAssignees.join(', ')}`
-  return description === '' ? note : `${description}\n\n${note}`
+export function buildIssueDescription (task: PerfexTask): string {
+  return htmlToMarkdown(task.description)
 }
 
 /**
@@ -271,7 +264,7 @@ export async function importProjects (
   const buildIssue = (task: PerfexTask): ImportIssue => {
     const issueId = generateId<Issue>()
     issueIdByTask.set(task.id, issueId)
-    const description = buildIssueDescription(task, staffById)
+    const description = buildIssueDescription(task)
     const assignee = task.assignees.length > 0 ? options.peopleByStaffId[task.assignees[0]] : undefined
 
     return {
