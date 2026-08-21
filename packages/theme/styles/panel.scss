@@ -13,6 +13,7 @@
 // limitations under the License.
 //
 
+@use './_breakpoints.scss' as *;
 @use './_print.scss' as *;
 
 /* Huly Panels */
@@ -242,7 +243,7 @@
 /* Dialogs */
 .antiPanel {
   overflow: hidden;
-  min-width: 400px;
+  min-width: min(400px, 100vw);
 
   background-color: var(--theme-popup-color);
   border: 1px solid var(--theme-popup-divider);
@@ -413,7 +414,12 @@
         // flex-shrink: 0;
         margin-left: auto;
         margin-right: auto;
-        width: calc(100% - 7.5rem);
+        // Los 7.5rem de margen son aire de escritorio; en una tablet dejan el contenido en una
+        // franja angosta en el medio.
+        width: calc(100% - 2rem);
+        @include above-tablet {
+          width: calc(100% - 7.5rem);
+        }
         max-width: 54rem;
 
         &.side-content-space {

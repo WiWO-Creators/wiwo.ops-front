@@ -51,7 +51,7 @@
         assignee: value.employee,
         defaultTimeReportDay
       },
-      $deviceInfo.isMobile ? 'top' : eventToHTMLElement(event)
+      $deviceInfo.isCompact ? 'top' : eventToHTMLElement(event)
     )
   }
   $: twoRows = $deviceInfo.twoRows

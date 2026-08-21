@@ -121,7 +121,7 @@
     {#if floatNavigator}
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <!-- svelte-ignore a11y-no-static-element-interactions -->
-      <div class="cover" class:mobile={$deviceInfo.isMobile} on:click={toggleNavigator} />
+      <div class="cover" class:mobile={$deviceInfo.isCompact} on:click={toggleNavigator} />
     {/if}
     <div
       class="antiPanel-navigator {$deviceInfo.navigator.direction === 'horizontal' ? 'portrait' : 'landscape'} second"
@@ -156,7 +156,7 @@
           on:select={onSelected}
         />
       </div>
-      {#if !($deviceInfo.isMobile && $deviceInfo.isPortrait && $deviceInfo.minWidth)}
+      {#if !($deviceInfo.isCompact && $deviceInfo.isPortrait && $deviceInfo.minWidth)}
         <Separator
           name={'parentsNavigator'}
           float={floatNavigator ? 'navigator' : true}

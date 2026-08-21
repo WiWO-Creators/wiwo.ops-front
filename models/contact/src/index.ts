@@ -558,7 +558,7 @@ export function createModel (builder: Builder): void {
           label: contact.string.Channel,
           sortingKey: ['$lookup.contact.$lookup.channels.lastMessage', '$lookup.contact.channels']
         },
-        'modifiedOn'
+        { key: 'modifiedOn', displayProps: { optional: true } }
       ],
       configOptions: {
         hiddenKeys: ['name', 'contact'],
@@ -581,10 +581,15 @@ export function createModel (builder: Builder): void {
       descriptor: view.viewlet.Table,
       config: [
         '',
-        'city',
-        'attachments',
-        'modifiedOn',
-        { key: '', presenter: view.component.RolePresenter, label: view.string.Role },
+        { key: 'city', displayProps: { optional: true } },
+        { key: 'attachments', displayProps: { optional: true } },
+        { key: 'modifiedOn', displayProps: { optional: true } },
+        {
+          key: '',
+          presenter: view.component.RolePresenter,
+          label: view.string.Role,
+          displayProps: { optional: true }
+        },
         {
           key: '$lookup.channels',
           label: contact.string.ContactInfo,
@@ -612,10 +617,15 @@ export function createModel (builder: Builder): void {
       descriptor: view.viewlet.Table,
       config: [
         { key: '', props: { showStatus: true } },
-        'city',
-        'attachments',
-        'modifiedOn',
-        { key: '', presenter: view.component.RolePresenter, label: view.string.Role },
+        { key: 'city', displayProps: { optional: true } },
+        { key: 'attachments', displayProps: { optional: true } },
+        { key: 'modifiedOn', displayProps: { optional: true } },
+        {
+          key: '',
+          presenter: view.component.RolePresenter,
+          label: view.string.Role,
+          displayProps: { optional: true }
+        },
         {
           key: '$lookup.channels',
           label: contact.string.ContactInfo,
@@ -652,10 +662,15 @@ export function createModel (builder: Builder): void {
       descriptor: view.viewlet.Table,
       config: [
         '',
-        'city',
-        'attachments',
-        'modifiedOn',
-        { key: '', presenter: view.component.RolePresenter, label: view.string.Role },
+        { key: 'city', displayProps: { optional: true } },
+        { key: 'attachments', displayProps: { optional: true } },
+        { key: 'modifiedOn', displayProps: { optional: true } },
+        {
+          key: '',
+          presenter: view.component.RolePresenter,
+          label: view.string.Role,
+          displayProps: { optional: true }
+        },
         {
           key: '$lookup.channels',
           label: contact.string.ContactInfo,

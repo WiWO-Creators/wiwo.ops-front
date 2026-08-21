@@ -659,7 +659,7 @@
   border-radius: .5rem;
   box-shadow: var(--theme-popup-shadow);
   
-  &:not(.min-w-168) { min-width: 22rem; }
+  &:not(.min-w-168) { min-width: min(22rem, calc(100vw - 1rem)); }
   
   .header {
     display: flex;
@@ -683,7 +683,7 @@
 .helpAndSupportPopup {
   height: 100%;
   min-height: 100%;
-  min-width: 20rem;
+  min-width: min(20rem, calc(100vw - 1rem));
 }
 
 // Remove highlights table rows and hide dots in popups

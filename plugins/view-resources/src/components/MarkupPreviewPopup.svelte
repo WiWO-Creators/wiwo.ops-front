@@ -24,7 +24,7 @@
 </script>
 
 <div
-  class="antiCard {$deviceInfo.isMobile ? 'mobile' : 'dialog'}"
+  class="antiCard {$deviceInfo.isCompact ? 'mobile' : 'dialog'}"
   use:resizeObserver={() => {
     dispatch('changeContent')
   }}

@@ -78,7 +78,7 @@
   $: document.body.style.cursor = drag ? 'all-scroll' : ''
   $: docSize = checkAdaptiveMatching($deviceInfo.size, 'md')
   $: isFullMobile =
-    $deviceInfo.isMobile &&
+    $deviceInfo.isCompact &&
     $deviceInfo.isPortrait &&
     ['right', 'top', 'float', 'full', 'content', 'middle', 'centered', 'center', 'full-centered'].some(
       (el) => element === el

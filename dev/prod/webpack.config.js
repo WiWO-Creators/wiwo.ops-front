@@ -439,7 +439,7 @@ module.exports = [
         : []),
       new HtmlWebpackPlugin({
         meta: {
-          viewport: 'width=device-width, initial-scale=1.0'
+          viewport: 'width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content'
         }
       }),
       // gzip para clientes viejos y brotli para todo lo demas: sin el .br, express-static-gzip

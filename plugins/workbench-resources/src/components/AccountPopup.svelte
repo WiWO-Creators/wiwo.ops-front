@@ -235,7 +235,7 @@
     })
   }
   let menu: Menu
-  $: addClass = $deviceInfo.isMobile && $deviceInfo.isPortrait ? 'self-end' : undefined
+  $: addClass = $deviceInfo.isCompact && $deviceInfo.isPortrait ? 'self-end' : undefined
 
   const levelQuery = createQuery()
 

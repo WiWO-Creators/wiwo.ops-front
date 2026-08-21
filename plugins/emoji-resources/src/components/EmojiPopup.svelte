@@ -57,7 +57,7 @@
     }
   ]
   let timer: any = null
-  const isMobile = $deviceInfo.isMobile
+  const isMobile = $deviceInfo.isCompact
 
   let emojisCat = emojiCategories
   let currentCategory = emojisCat[0]

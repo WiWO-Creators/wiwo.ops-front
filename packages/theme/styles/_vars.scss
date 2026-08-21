@@ -117,3 +117,13 @@
   --global-modal-ShadowX: 0;
   --global-modal-ShadowY: 1.5rem;
 }
+
+// Areas tactiles: en pantalla compacta los controles llegan a 44px (2.75rem), el minimo comodo para
+// el dedo. Va tambien sobre los descendientes porque la escala de arriba se declara con `*`: sin
+// eso, cada hijo se vuelve a pisar el valor con el de escritorio.
+.mobile-theme,
+.mobile-theme * {
+  --global-extra-small-Size: 2.25rem;
+  --global-small-Size: 2.75rem;
+  --global-medium-Size: 2.75rem;
+}

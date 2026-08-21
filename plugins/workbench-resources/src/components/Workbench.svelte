@@ -53,6 +53,7 @@
     CompAndProps,
     Component,
     defineSeparators,
+    checkAdaptiveMatching,
     deviceOptionsStore as deviceInfo,
     Dock,
     getCurrentLocation,
@@ -137,8 +138,8 @@
   } from '../workbench'
   import { get } from 'svelte/store'
 
+  // Ancho del contenedor del workbench, no del viewport: no es un breakpoint de dispositivo.
   const HIDE_NAVIGATOR = 720
-  const FLOAT_ASIDE = 1024 // lg
   let contentPanel: HTMLElement
 
   const { setTheme } = getContext<{ setTheme: (theme: string) => void }>('theme')
@@ -173,7 +174,9 @@
 
   const linkProviders = client.getModel().findAllSync(view.mixin.LinkIdProvider, {})
 
-  const mobileAdaptive = $deviceInfo.isMobile && $deviceInfo.minWidth
+  // Reactivo, no `const`: si no, rotar el telefono o redimensionar la ventana no lo actualiza.
+  let mobileAdaptive: boolean = $deviceInfo.isCompact && $deviceInfo.minWidth
+  $: mobileAdaptive = $deviceInfo.isCompact && $deviceInfo.minWidth
   const defaultNavigator = !(getMetadata(workbench.metadata.NavigationExpandedDefault) ?? true)
   const savedNavigator = localStorage.getItem('hiddenNavigator')
   let hiddenNavigator: boolean = savedNavigator !== null ? savedNavigator === 'true' : defaultNavigator
@@ -664,10 +667,12 @@
     }
   }
   checkWorkbenchWidth()
-  $: if ($deviceInfo.docWidth <= FLOAT_ASIDE && !$sidebarStore.float) {
+  // El aside flota de `lg` para abajo (1024px), el mismo corte que usa el resto del layout.
+  $: floatAside = checkAdaptiveMatching($deviceInfo.size, 'lg')
+  $: if (floatAside && !$sidebarStore.float) {
     hiddenAside = $sidebarStore.variant === SidebarVariant.MINI
     $sidebarStore.float = true
-  } else if ($deviceInfo.docWidth > FLOAT_ASIDE && $sidebarStore.float) {
+  } else if (!floatAside && $sidebarStore.float) {
     $sidebarStore.float = false
     $sidebarStore.variant = hiddenAside ? SidebarVariant.MINI : SidebarVariant.EXPANDED
   }
@@ -700,17 +705,17 @@
   location.subscribe(() => {
     if (mobileAdaptive && $sidebarStore.variant !== SidebarVariant.MINI) $sidebarStore.variant = SidebarVariant.MINI
   })
-  $: $deviceInfo.navigator.direction = $deviceInfo.isMobile && $deviceInfo.isPortrait ? 'horizontal' : 'vertical'
+  $: $deviceInfo.navigator.direction = $deviceInfo.isCompact && $deviceInfo.isPortrait ? 'horizontal' : 'vertical'
   let appsMini: boolean
   $: appsMini =
-    $deviceInfo.isMobile &&
+    $deviceInfo.isCompact &&
     (($deviceInfo.isPortrait && $deviceInfo.docWidth <= 480) ||
       (!$deviceInfo.isPortrait && $deviceInfo.docHeight <= 480))
   let popupPosition: PopupPosAlignment
   $: popupPosition =
     $deviceInfo.navigator.direction === 'horizontal'
       ? 'account-portrait'
-      : $deviceInfo.navigator.direction === 'vertical' && $deviceInfo.isMobile
+      : $deviceInfo.navigator.direction === 'vertical' && $deviceInfo.isCompact
         ? 'account-mobile'
         : 'account'
   let popupSpacePosition: PopupPosAlignment
@@ -1039,7 +1044,7 @@
                 {/if}
               </NavFooter>
             </div>
-            {#if !($deviceInfo.isMobile && $deviceInfo.isPortrait && $deviceInfo.minWidth)}
+            {#if !($deviceInfo.isCompact && $deviceInfo.isPortrait && $deviceInfo.minWidth)}
               <Separator
                 name={'workbench'}
                 float={$deviceInfo.navigator.float ? 'navigator' : true}

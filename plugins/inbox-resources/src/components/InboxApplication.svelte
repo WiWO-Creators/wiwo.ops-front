@@ -227,7 +227,7 @@
           <InboxNavigation {doc} {legacyContext} on:select={select} />
         </div>
       </div>
-      {#if !($deviceInfo.isMobile && $deviceInfo.isPortrait && $deviceInfo.minWidth)}
+      {#if !($deviceInfo.isCompact && $deviceInfo.isPortrait && $deviceInfo.minWidth)}
         <Separator name="new-inbox" float={$deviceInfo.navigator.float ? 'navigator' : true} index={0} />
       {/if}
     </div>

@@ -275,7 +275,7 @@
     margin: 1.5rem 0 0;
     max-width: 28ch;
     font-family: var(--font-brand);
-    font-size: 1.75rem;
+    font-size: clamp(1.125rem, 4vw, 1.75rem);
     font-weight: 500;
     line-height: 1.25;
     letter-spacing: -0.015em;
@@ -370,9 +370,6 @@
     }
     .brand-orb {
       display: none;
-    }
-    .tagline {
-      font-size: 1.375rem;
     }
   }
 

@@ -1,0 +1,27 @@
+//
+// Copyright © 2026 WiWO.
+//
+// Los mismos cortes que `deviceWidths` en packages/ui/src/types.ts: el layout se decide en JS con
+// el store de dispositivo y en CSS con estos valores, asi que los dos lados tienen que coincidir.
+// packages/ui/src/__tests__/breakpoints.test.ts falla si alguien mueve uno solo de los dos.
+//
+
+$bp-xs: 480px;
+$bp-sm: 680px;
+$bp-md: 760px;
+$bp-lg: 1024px;
+$bp-xl: 1208px;
+
+// De escritorio para arriba: por debajo entra la tablet, que no tiene aire de sobra.
+@mixin above-tablet {
+  @media (min-width: $bp-lg + 1px) {
+    @content;
+  }
+}
+
+// El complemento de `tiny`, para encerrar reglas que solo valen de tablet para arriba.
+@mixin above-tiny {
+  @media (min-width: $bp-xs + 1px) {
+    @content;
+  }
+}

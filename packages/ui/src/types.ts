@@ -389,6 +389,10 @@ export interface DeviceOptions {
   docHeight: number
   isPortrait: boolean
   isMobile: boolean
+  // Pantalla angosta: es `isMobile` o un ancho de hasta 680px (el breakpoint `sm`). Es la señal que
+  // manda en el layout; `isMobile` sigue significando "dispositivo tactil" y decide cosas como el
+  // autofocus, que abriria el teclado virtual.
+  isCompact: boolean
   navigator: { visible: boolean, float: boolean, direction: 'vertical' | 'horizontal' }
   fontSize: number
   size: WidthType | null

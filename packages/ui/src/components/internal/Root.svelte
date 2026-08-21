@@ -141,6 +141,11 @@
   let isMobile: boolean
   const alwaysMobile: boolean = false
   $: isMobile = alwaysMobile || checkMobile()
+  // `isMobile` mira el user-agent, asi que no se entera de una ventana angosta y el iPad, que desde
+  // iPadOS 13 se anuncia como Macintosh, queda afuera. `isCompact` es la señal de layout: mismo
+  // modo compacto para el telefono y para cualquier pantalla de hasta 680px (breakpoint `sm`).
+  let isCompact: boolean
+  $: isCompact = isMobile || checkAdaptiveMatching($deviceInfo.size, 'sm')
   let isPortrait: boolean
   $: isPortrait = docWidth <= docHeight
 
@@ -148,12 +153,33 @@
   $: $deviceInfo.docHeight = docHeight
   $: $deviceInfo.isPortrait = isPortrait
   $: $deviceInfo.isMobile = isMobile
+  $: $deviceInfo.isCompact = isCompact
   $: $deviceInfo.minWidth = docWidth <= 480
   $: $deviceInfo.twoRows = docWidth <= 680
   $: $deviceInfo.language = $themeStore.language
   $: $deviceInfo.fontSize = $themeStore.fontSize
 
   $: document.documentElement.style.setProperty('--app-height', `${docHeight}px`)
+
+  // Teclado virtual: Android lo resuelve con `interactive-widget=resizes-content` en el meta
+  // viewport, pero iOS no reduce el viewport, solo desplaza visualViewport. Se publica cuanto se
+  // come el teclado para que el layout pueda apartarse.
+  let keyboardInset: number = 0
+  const viewport = window.visualViewport ?? undefined
+  const updateKeyboardInset = (): void => {
+    if (viewport === undefined) return
+    keyboardInset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
+  }
+  $: document.documentElement.style.setProperty('--keyboard-inset', `${keyboardInset}px`)
+  onMount(() => {
+    viewport?.addEventListener('resize', updateKeyboardInset)
+    viewport?.addEventListener('scroll', updateKeyboardInset)
+    updateKeyboardInset()
+    return () => {
+      viewport?.removeEventListener('resize', updateKeyboardInset)
+      viewport?.removeEventListener('scroll', updateKeyboardInset)
+    }
+  })
 
   let doubleTouchStartTimestamp = 0
   document.addEventListener('touchstart', (event) => {
@@ -202,7 +228,7 @@
 
   $: secondRow = checkAdaptiveMatching($deviceInfo.size, 'xs')
   $: appsMini =
-    $deviceInfo.isMobile &&
+    $deviceInfo.isCompact &&
     (($deviceInfo.isPortrait && $deviceInfo.docWidth <= 480) ||
       (!$deviceInfo.isPortrait && $deviceInfo.docHeight <= 480))
 
@@ -221,7 +247,7 @@
 />
 
 <Theme>
-  <div id="ui-root" class:mobile-theme={isMobile}>
+  <div id="ui-root" class:mobile-theme={isCompact} class:keyboard-open={keyboardInset > 0}>
     <div class="antiStatusBar">
       <div class="flex-row-center h-full content-color gap-3 px-4">
         {#if desktopPlatform}
@@ -321,12 +347,17 @@
     height: calc(100% - var(--huly-top-indent, 0rem));
     height: calc(100dvh - var(--huly-top-indent, 0rem));
     // height: var(--app-height);
+    // Notch lateral en landscape.
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
 
     .antiStatusBar {
       -webkit-app-region: drag;
       min-width: 0;
-      min-height: var(--status-bar-height);
-      height: var(--status-bar-height);
+      // El notch y la isla dinamica viven arriba: la barra de estado crece lo que haga falta.
+      min-height: calc(var(--status-bar-height) + var(--safe-top));
+      height: calc(var(--status-bar-height) + var(--safe-top));
+      padding-top: var(--safe-top);
       // min-width: 600px;
       font-size: 0.75rem;
       line-height: 150%;

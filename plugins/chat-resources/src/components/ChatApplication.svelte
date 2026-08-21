@@ -192,7 +192,7 @@
           on:selectAll={selectAll}
         />
       </div>
-      {#if !($deviceInfo.isMobile && $deviceInfo.isPortrait && $deviceInfo.minWidth)}
+      {#if !($deviceInfo.isCompact && $deviceInfo.isPortrait && $deviceInfo.minWidth)}
         <Separator name="new-chat" float={$deviceInfo.navigator.float ? 'navigator' : true} index={0} />
       {/if}
     </div>

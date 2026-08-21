@@ -185,7 +185,7 @@
   <Header
     type={'type-panel'}
     noPrint={!printHeader}
-    adaptive={$deviceInfo.isMobile ? 'disabled' : adaptive}
+    adaptive={$deviceInfo.isCompact ? 'disabled' : adaptive}
     {hideBefore}
     {hideSearch}
     {hideActions}
@@ -281,8 +281,8 @@
       <slot name="extra" />
     </svelte:fragment>
   </Header>
-  <div class="popupPanel-body {$deviceInfo.isMobile ? 'mobile' : 'main'}" class:asideShown>
-    {#if $deviceInfo.isMobile}
+  <div class="popupPanel-body {$deviceInfo.isCompact ? 'mobile' : 'main'}" class:asideShown>
+    {#if $deviceInfo.isCompact}
       <div
         class="popupPanel-body__mobile"
         use:resizeObserver={(element) => {
