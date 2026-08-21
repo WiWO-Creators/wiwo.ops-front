@@ -43,7 +43,7 @@
 
     <NavFooter />
   </div>
-  {#if !($deviceInfo.isMobile && $deviceInfo.isPortrait && $deviceInfo.minWidth)}
+  {#if !($deviceInfo.isCompact && $deviceInfo.isPortrait && $deviceInfo.minWidth)}
     <Separator
       name={'schedule'}
       float={$deviceInfo.navigator.float ? 'navigator' : true}

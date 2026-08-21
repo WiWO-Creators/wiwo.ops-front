@@ -49,6 +49,8 @@
 
   $: editable = value !== undefined && !readonly && !$restrictionStore.readonly
   $: showNewSubIssue = $deviceInfo.docWidth > NARROW_WIDTH_PX
+  // En un telefono el nombre del estado se come la cabecera: queda solo el color.
+  $: showStatusLabel = !$deviceInfo.isCompact
 
   /**
    * Abre el diálogo de creación de tarea con la tarea actual como padre.
@@ -66,7 +68,7 @@
 
 {#if editable}
   <div class="buttons-group xsmall-gap">
-    <StatusEditor {value} {size} kind={'regular'} iconSize={'small'} shouldShowLabel isEditable />
+    <StatusEditor {value} {size} kind={'regular'} iconSize={'small'} shouldShowLabel={showStatusLabel} isEditable />
     <AssigneeEditor object={value} {size} {kind} avatarSize={'card'} shouldShowName={false} />
     {#if showNewSubIssue}
       <Button

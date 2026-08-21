@@ -121,7 +121,7 @@
   let element: HTMLElement
   let titleEl: HTMLElement | null = null
   let extraEl: HTMLElement | null = null
-  let expandedParents: boolean = !$deviceInfo.isMobile
+  let expandedParents: boolean = !$deviceInfo.isCompact
   let dropdownTags: boolean = false
 
   const shrinkElement = (el: 'title' | 'extra'): void => {
@@ -148,7 +148,7 @@
       shrinkElement('extra')
     }
     if (headerWidth < NO_PARENTS_POINT && expandedParents) expandedParents = false
-    else if (headerWidth >= NO_PARENTS_POINT && !expandedParents) expandedParents = !$deviceInfo.isMobile
+    else if (headerWidth >= NO_PARENTS_POINT && !expandedParents) expandedParents = !$deviceInfo.isCompact
   }
 
   afterUpdate(() => {

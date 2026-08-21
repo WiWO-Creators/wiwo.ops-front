@@ -44,7 +44,7 @@
     showPopup(CreateReminder, { attachedTo, attachedToClass, title }, ev.target as HTMLElement)
   }
 
-  $: isMobile = $deviceInfo.isMobile
+  $: isMobile = $deviceInfo.isCompact
 </script>
 
 <div class="notifyPopup" class:min-w-168={!isMobile}>

@@ -103,7 +103,7 @@
 </script>
 
 <div class="sidebar-wrap__content{float ? ` float apps-${$deviceInfo.navigator.direction}` : ''}">
-  {#if float && !($deviceInfo.isMobile && $deviceInfo.isPortrait && $deviceInfo.minWidth)}
+  {#if float && !($deviceInfo.isCompact && $deviceInfo.isPortrait && $deviceInfo.minWidth)}
     <Separator name={'main'} index={0} color={'var(--theme-navpanel-border)'} float={'sidebar'} />
   {/if}
   <div class="sidebar-content">
