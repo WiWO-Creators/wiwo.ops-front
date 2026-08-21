@@ -18,7 +18,7 @@
   import { myEmployeeStore } from '@hcengineering/contact-resources'
   import { type IntlString } from '@hcengineering/platform'
   import { createQuery, getClient } from '@hcengineering/presentation'
-  import { Icon, Label, Scroller, getPlatformColorForTextDef, themeStore } from '@hcengineering/ui'
+  import { Icon, Label, Scroller, themeStore } from '@hcengineering/ui'
   import { NavLink } from '@hcengineering/view-resources'
   import workbenchPlugin, { type Application } from '@hcengineering/workbench'
 
@@ -34,8 +34,27 @@
     document: workbench.string.HomeCardDocument,
     chunter: workbench.string.HomeCardChunter,
     time: workbench.string.HomeCardTime,
-    love: workbench.string.HomeCardLove
+    love: workbench.string.HomeCardLove,
+    calendar: workbench.string.HomeCardCalendar,
+    recruit: workbench.string.HomeCardRecruit,
+    lead: workbench.string.HomeCardLead,
+    hr: workbench.string.HomeCardHr,
+    process: workbench.string.HomeCardProcess,
+    drive: workbench.string.HomeCardDrive,
+    team: workbench.string.HomeCardTeam,
+    github: workbench.string.HomeCardGithub,
+    questions: workbench.string.HomeCardQuestions,
+    testManagement: workbench.string.HomeCardTestManagement
   }
+
+  // Ni la propia vista Inicio ni la bandeja de entrada son módulos: son navegación.
+  // Todo lo demás va al grid, incluidos los que además están fijos arriba en la barra
+  // (Seguimiento, Planificador, Teletrabajo).
+  const notModules = new Set(['home', 'inbox', 'notification'])
+
+  // Matices vibrantes al estilo WiwoLab. Cada módulo elige el suyo por hash del alias:
+  // uno nuevo se pinta solo, sin mapa manual que mantener.
+  const accentHues = [226, 262, 292, 330, 8, 28, 45, 142, 168, 196]
 
   const allApps = getClient().getModel().findAllSync<Application>(workbenchPlugin.class.Application, {})
 
@@ -59,14 +78,32 @@
   // El empleado puede no estar cargado todavía, o no tener nombre: entonces se saluda sin nombre.
   $: firstName = $myEmployeeStore?.name !== undefined ? getFirstName($myEmployeeStore.name).trim() : ''
 
-  // Los módulos de verdad: los de arriba (Inicio, Bandeja) y los de abajo ya viven en la barra.
   $: modules = filterVisibleApplications(allApps, hiddenAppsIds, disabledApplications)
-    .filter((app) => app.position !== 'top' && app.position !== 'bottom')
+    .filter((app) => !notModules.has(app.alias) && app.position !== 'bottom')
     .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))
 
-  function cardColor (alias: string, dark: boolean): { background: string, icon: string } {
-    const def = getPlatformColorForTextDef(alias, dark)
-    return { background: def.background ?? def.color, icon: def.icon ?? def.color }
+  /**
+   * Hash estable de un texto, para elegir siempre el mismo matiz por módulo.
+   *
+   * @param text - alias del módulo
+   * @returns entero no negativo
+   */
+  function hashCode (text: string): number {
+    const hash = text.split('').reduce((prev, char) => ((prev << 5) - prev + char.charCodeAt(0)) | 0, 0)
+    return Math.abs(hash)
+  }
+
+  /**
+   * Color de acento de una tarjeta: pinta el ícono, tiñe su recuadro y marca el
+   * borde en hover.
+   *
+   * @param alias - alias del módulo
+   * @param dark - si el tema oscuro está activo
+   * @returns color CSS
+   */
+  function cardAccent (alias: string, dark: boolean): string {
+    const hue = accentHues[hashCode(alias) % accentHues.length]
+    return dark ? `hsl(${hue}, 82%, 66%)` : `hsl(${hue}, 88%, 52%)`
   }
 </script>
 
@@ -85,11 +122,11 @@
     {:else}
       <div class="grid">
         {#each modules as app (app._id)}
-          {@const color = cardColor(app.alias, $themeStore.dark)}
+          {@const accent = cardAccent(app.alias, $themeStore.dark)}
           <NavLink app={app.alias} restoreLastLocation>
-            <article class="card" data-id={`home-card-${app.alias}`}>
-              <div class="badge" style:background-color={color.background}>
-                <Icon icon={app.icon} size={'medium'} fill={color.icon} />
+            <article class="card" data-id={`home-card-${app.alias}`} style:--card-accent={accent}>
+              <div class="badge">
+                <Icon icon={app.icon} size={'medium'} fill={accent} />
               </div>
               <h2 class="heading-medium-16"><Label label={app.label} /></h2>
               {#if descriptions[app.alias] !== undefined}
@@ -109,6 +146,15 @@
     max-width: 64rem;
     width: 100%;
   }
+  // El degradé de marca en movimiento, compartido por el nombre y el filete.
+  @keyframes wiwo-gradient-shift {
+    from {
+      background-position: 0% 50%;
+    }
+    to {
+      background-position: 100% 50%;
+    }
+  }
   .greeting {
     margin: 0;
     font-family: var(--font-brand);
@@ -119,7 +165,12 @@
     color: var(--global-primary-TextColor);
 
     .accent {
-      color: var(--global-accent-TextColor);
+      background-image: var(--wiwo-gradient-flow);
+      background-size: 220% 100%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation: wiwo-gradient-shift 6s var(--wiwo-ease-emphasized) infinite alternate;
     }
   }
   .subtitle {
@@ -134,7 +185,9 @@
     width: 7.5rem;
     height: 0.25rem;
     border-radius: var(--min-BorderRadius);
-    background-color: var(--global-accent-BackgroundColor);
+    background-image: var(--wiwo-gradient-flow);
+    background-size: 220% 100%;
+    animation: wiwo-gradient-shift 6s var(--wiwo-ease-emphasized) infinite alternate;
   }
   .grid {
     display: grid;
@@ -151,10 +204,19 @@
     border: 1px solid var(--global-surface-01-BorderColor);
     border-radius: var(--medium-BorderRadius);
     background-color: var(--global-surface-01-BackgroundColor);
-    transition: background-color 0.15s ease;
+    transition:
+      border-color var(--wiwo-motion-fast) var(--wiwo-ease-expressive),
+      box-shadow var(--wiwo-motion-fast) var(--wiwo-ease-expressive),
+      transform var(--wiwo-motion-fast) var(--wiwo-ease-expressive);
 
+    // La tarjeta no se tiñe: sólo se marca el borde con el color de su ícono y
+    // suelta un halo del mismo color, como en WiwoLab.
     &:hover {
-      background-color: var(--global-surface-01-hover-BackgroundColor);
+      border-color: var(--card-accent);
+      box-shadow:
+        0 10px 30px -12px color-mix(in srgb, var(--card-accent) 55%, transparent),
+        0 0 0 3px color-mix(in srgb, var(--card-accent) 12%, transparent);
+      transform: translateY(-2px);
     }
 
     h2 {
@@ -170,9 +232,24 @@
     width: 2.75rem;
     height: 2.75rem;
     border-radius: var(--small-BorderRadius);
+    background-color: color-mix(in srgb, var(--card-accent) 14%, transparent);
   }
   :global(a:focus-visible) .card {
     outline: 2px solid var(--global-focus-BorderColor);
     outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .greeting .accent,
+    .rule {
+      animation: none;
+      background-position: 50% 50%;
+    }
+    .card {
+      transition: none;
+
+      &:hover {
+        transform: none;
+      }
+    }
   }
 </style>

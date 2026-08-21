@@ -117,7 +117,17 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: var(--theme-navpanel-color);
+  // Glass al estilo WiwoLab: la barra deja pasar las auras del fondo
+  // (--wiwo-aura, aplicada en .workbench-container).
+  background-color: var(--wiwo-glass-BackgroundColor);
+  -webkit-backdrop-filter: blur(var(--wiwo-glass-Blur));
+  backdrop-filter: blur(var(--wiwo-glass-Blur));
+
+  // Sin backdrop-filter el fondo translucido deja ver el aura sin difuminar:
+  // se vuelve al panel opaco de siempre.
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: var(--theme-navpanel-color);
+  }
 
   &.vertical {
     flex-direction: column;

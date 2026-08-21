@@ -52,10 +52,10 @@
   --activity-status-active: var(--wiwo-lime);
   --activity-status-dnd: var(--wiwo-danger);
   --activity-status-busy: var(--wiwo-warning);
-  --activity-status-away: #8B8D85;
+  --activity-status-away: #888A94;
 
   --primary-color-blue: var(--wiwo-blue);
-  --grayscale-grey-03: #8B8D85;
+  --grayscale-grey-03: #888A94;
   --primary-color-purple-01: #5B4BE0;
   --primary-color-purple-02: var(--wiwo-purple);
   --primary-color-purple-03: #B3A9FF;
@@ -100,7 +100,21 @@
 
 /* Dark Theme */
 .theme-dark {
-  --theme-drawing-bg-color: #323330;
+  /** Auras de marca del fondo y superficies glass (ver Workbench.svelte y common.scss) **/
+  --wiwo-aura:
+    radial-gradient(58rem 40rem at 6% 0%, rgba(59, 255, 0, .07), transparent 60%),
+    radial-gradient(52rem 38rem at 96% 2%, rgba(141, 124, 255, .10), transparent 62%),
+    radial-gradient(46rem 34rem at 88% 96%, rgba(66, 66, 255, .08), transparent 60%);
+  --wiwo-glass-BackgroundColor: rgba(41, 41, 41, .55);
+  --wiwo-glass-BorderColor: rgba(248, 250, 215, .08);
+  --wiwo-glass-Blur: 18px;
+
+  /** Item seleccionado de la barra de apps: azul translucido con borde **/
+  --wiwo-selected-BackgroundColor: rgba(110, 110, 255, .22);
+  --wiwo-selected-BorderColor: rgba(110, 110, 255, .55);
+  --wiwo-selected-IconColor: var(--wiwo-blue-300);
+
+  --theme-drawing-bg-color: #303137;
 
   --theme-text-primary-color: rgba(248, 250, 215, .84);
   --theme-text-placeholder-color: rgba(248, 250, 215, .44);
@@ -138,7 +152,7 @@
   --theme-button-contrast-disabled-color: rgba(0, 0, 0, .5);
   --theme-button-contrast-border: rgba(248, 250, 215, .22);
 
-  --theme-button-container-color: #323330;
+  --theme-button-container-color: #303137;
 
   --theme-button-attention-gradient: linear-gradient(103deg, #3BFF00, #4242FF);
   --theme-button-attention-border: var(--wiwo-blue-300);
@@ -164,18 +178,18 @@
   --theme-bg-color: #292929;
   --theme-bg-accent-color: rgba(248, 250, 215, .05);
   --theme-bg-dark-color: rgba(0, 0, 0, .24);
-  --theme-back-color: #20211F;
+  --theme-back-color: #1E1F23;
   --theme-overlay-color: rgba(0, 0, 0, .45);
-  --theme-statusbar-color: #20211F;
-  --theme-navpanel-color: #20211F;
+  --theme-statusbar-color: #1E1F23;
+  --theme-navpanel-color: #1E1F23;
   --theme-navpanel-hovered: rgba(248, 250, 215, .05);
   --theme-navpanel-selected: rgba(248, 250, 215, .1);
   --theme-navpanel-divider: rgba(248, 250, 215, .14);
   --theme-navpanel-border: rgba(248, 250, 215, .12);
-  --theme-navpanel-icons-color: #8B8D85;
+  --theme-navpanel-icons-color: #888A94;
   --theme-navpanel-icons-divider: rgba(248, 250, 215, .14);
   --theme-navpanel-shadow-mobile: drop-shadow(0 0 3px rgba(0, 0, 0, .5));
-  --theme-comp-header-color: #2F302D;
+  --theme-comp-header-color: #2D2E34;
   --theme-divider-color: rgba(248, 250, 215, .08);
   --theme-bg-divider-color: #3B3C38;
   --theme-mention-bg-color: rgba(141, 124, 255, .16);
@@ -194,18 +208,18 @@
 
   --theme-list-border-color: rgba(248, 250, 215, .08);
   --theme-list-header-color: #C2C4AD;
-  --theme-list-subheader-color: #2F302D;
+  --theme-list-subheader-color: #2D2E34;
   --theme-list-row-color: #2E2F2C;
   --theme-list-divider-color: rgba(248, 250, 215, .1);
   --theme-list-subheader-divider: rgba(248, 250, 215, .07);
   
-  --theme-list-button-color: #323330;
+  --theme-list-button-color: #303137;
   --theme-list-button-hover: #3B3C38;
-  --theme-link-button-color: #323330;
+  --theme-link-button-color: #303137;
   --theme-link-button-hover: #3B3C38;
 
   --theme-table-border-color: rgba(248, 250, 215, .12);
-  --theme-table-header-color: #2F302D;
+  --theme-table-header-color: #2D2E34;
   --theme-table-row-color: #2E2F2C;
 
   --theme-kanban-card-bg-color: rgba(248, 250, 215, .055);
@@ -222,9 +236,9 @@
   --theme-checkbox-border: rgba(248, 250, 215, .22);
   --theme-checkbox-disabled: #999;
   --theme-progress-color: var(--wiwo-lime);
-  --theme-popup-color: #323330;
-  --theme-popup-trans-color: #323330EE;
-  --theme-popup-trans-gradient: linear-gradient(to bottom, #323330FF, #32333000);
+  --theme-popup-color: #303137;
+  --theme-popup-trans-color: #303137EE;
+  --theme-popup-trans-gradient: linear-gradient(to bottom, #303137FF, #30313700);
   --theme-popup-hover: #41423E;
   --theme-popup-divider: rgba(248, 250, 215, .1);
   --theme-popup-header: #3B3C38;
@@ -260,7 +274,7 @@
 
   --theme-inbox-notify: var(--wiwo-green);
   --theme-inbox-people-notify: var(--wiwo-purple);
-  --theme-inbox-activity-bgcolor: #20211F;
+  --theme-inbox-activity-bgcolor: #1E1F23;
   --theme-inbox-activitymsg-bgcolor: rgba(248, 250, 215, .04);
   --theme-inbox-activitymsg-divider: rgba(255, 255, 255, .1);
   --theme-inbox-activitymsg-border: rgba(255, 255, 255, .03);
@@ -319,7 +333,7 @@
   --theme-text-editor-palette-bg-pink: rgba(78, 44, 60, 1);
   --theme-text-editor-palette-bg-red:rgba(82, 46, 42, 1);
 
-  --accent-bg-color: #323330;
+  --accent-bg-color: #303137;
   --accent-shadow: 0 8px 26px rgba(0, 0, 0, .32);
 
   --highlight-hover: #3B3C38;
@@ -331,7 +345,7 @@
   --scrollbar-bar-hover: #6C6E64;
   --scrollbar-track-color: transparent;
 
-  --dark-color: #8B8D85;
+  --dark-color: #888A94;
   --content-color: #C2C4AD;
   --theme-accent-color: rgba(248, 250, 215, .84);
   --accent-color: #E2E4CA;
@@ -343,8 +357,8 @@
   --menu-bg-select: rgba(141, 124, 255, .14);
   --menu-bg-select-trans: rgba(141, 124, 255, .08);
   --menu-icon-hover: #f3f3f8;
-  --header-bg-color: #2F302D;
-  --popup-bg-color: #323330;
+  --header-bg-color: #2D2E34;
+  --popup-bg-color: #303137;
   --popup-bg-hover: #41423E;
   --popup-divider: rgba(248, 250, 215, .1);
   --popup-shadow: 0 22px 70px rgba(0, 0, 0, .5);
@@ -356,13 +370,13 @@
   --avatar-border-color: rgba(248, 250, 215, .12);
   --tooltip-bg-color: #41423E;
 
-  --button-bg-color: #323330;
+  --button-bg-color: #303137;
   --button-bg-hover: #41423E;
   --button-border-color: #43443F;
   --button-border-hover: #55564F;
   --button-shadow: 0 1px 2px rgba(0, 0, 0, .35);
-  --button-disabled-color: #2F302D;
-  --noborder-bg-color: #323330;
+  --button-disabled-color: #2D2E34;
+  --noborder-bg-color: #303137;
   --noborder-bg-hover: #41423E;
   --primary-bg-color: var(--wiwo-blue);
   --primary-bg-hover: var(--wiwo-blue-300);
@@ -391,12 +405,12 @@
   --theme-clockface-arrows-holder: radial-gradient(at top center, #2F2F3A, #555555);
   --theme-clockface-arrows-shadow: 0 0 1px white;
 
-  --theme-link-preview-bg-color: #2F302D;
+  --theme-link-preview-bg-color: #2D2E34;
   --theme-link-preview-description-color: #C2C4AD;
   --theme-link-preview-text-color:#FFFFFF;
 
   --theme-dialog-border-color: rgba(248, 250, 215, .14);
-  --theme-dialog-background-color: #323330;
+  --theme-dialog-background-color: #303137;
   --theme-dialog-back-color: #848484;
   --theme-icon-stroke: #E2E4CA;
   --theme-state-ghost-color: rgba(123, 123, 123, 0.6);
@@ -410,7 +424,7 @@
   --theme-state-regular-border-color: rgba(123, 123, 123, 0.15);
   --theme-wizard-not-visited-color: #34343c;
 
-  --calendar-event-back-color: #2F302D;
+  --calendar-event-back-color: #2D2E34;
   --calendar-event-border-color: rgba(66, 66, 255, 0.28);
   --calendar-event-handle-color: var(--wiwo-blue);
 
@@ -433,7 +447,21 @@
 
 /* Light Theme */
 .theme-light {
-  --theme-drawing-bg-color: var(--wiwo-beige-100);
+  /** Auras de marca del fondo y superficies glass (ver Workbench.svelte y common.scss) **/
+  --wiwo-aura:
+    radial-gradient(58rem 40rem at 6% 0%, rgba(59, 255, 0, .14), transparent 60%),
+    radial-gradient(52rem 38rem at 96% 2%, rgba(141, 124, 255, .16), transparent 62%),
+    radial-gradient(46rem 34rem at 88% 96%, rgba(66, 66, 255, .10), transparent 60%);
+  --wiwo-glass-BackgroundColor: rgba(255, 255, 255, .62);
+  --wiwo-glass-BorderColor: rgba(41, 41, 41, .06);
+  --wiwo-glass-Blur: 18px;
+
+  /** Item seleccionado de la barra de apps: azul translucido con borde **/
+  --wiwo-selected-BackgroundColor: rgba(66, 66, 255, .12);
+  --wiwo-selected-BorderColor: rgba(66, 66, 255, .45);
+  --wiwo-selected-IconColor: var(--wiwo-blue);
+
+  --theme-drawing-bg-color: var(--wiwo-surface-100);
   
   --theme-text-primary-color: rgba(41, 41, 41, .84);
   --theme-text-placeholder-color: rgba(41, 41, 41, .42);
@@ -471,7 +499,7 @@
   --theme-button-contrast-disabled-color: rgba(255, 255, 255, .5);
   --theme-button-contrast-border: rgba(41, 41, 41, .18);
 
-  --theme-button-container-color: var(--wiwo-beige-50);
+  --theme-button-container-color: var(--wiwo-surface-50);
 
   --theme-button-attention-gradient: linear-gradient(135deg, #EC4899, #F97316);
   --theme-button-attention-border: #F97316;
@@ -497,56 +525,56 @@
   --theme-refinput-border: rgba(41, 41, 41, .1);
 
   // Be aware to update defineAlpha() function in colors.ts
-  --theme-bg-color: var(--wiwo-almost-white);
+  --theme-bg-color: var(--wiwo-surface-50);
   --theme-bg-accent-color: rgba(41, 41, 41, .04);
   --theme-bg-dark-color: rgba(255, 255, 255, .86);
-  --theme-back-color: var(--wiwo-beige-100);
+  --theme-back-color: var(--wiwo-surface-100);
   --theme-overlay-color: rgba(41, 41, 41, .24);
-  --theme-statusbar-color: var(--wiwo-almost-white);
-  --theme-navpanel-color: var(--wiwo-beige-50);
+  --theme-statusbar-color: var(--wiwo-surface-50);
+  --theme-navpanel-color: var(--wiwo-surface-50);
   --theme-navpanel-hovered: rgba(66, 66, 255, .05);
   --theme-navpanel-selected: rgba(66, 66, 255, .1);
   --theme-navpanel-divider: rgba(41, 41, 41, .1);
   --theme-navpanel-border: rgba(41, 41, 41, .07);
-  --theme-navpanel-icons-color: #66685F;
+  --theme-navpanel-icons-color: #63656F;
   --theme-navpanel-icons-divider: rgba(41, 41, 41, .1);
   --theme-navpanel-shadow-mobile: drop-shadow(0 0 2px rgba(0, 0, 0, .2));
-  --theme-comp-header-color: var(--wiwo-almost-white);
+  --theme-comp-header-color: var(--wiwo-surface-50);
   --theme-divider-color: rgba(41, 41, 41, .08);
-  --theme-bg-divider-color: var(--wiwo-beige-300);
+  --theme-bg-divider-color: var(--wiwo-surface-300);
   --theme-mention-bg-color: rgba(66, 66, 255, .1);
   --theme-mention-focused-bg-color: rgba(66, 66, 255, .2);
   --theme-broken-mention-bg-color: rgba(0, 0, 0, .12);
   --theme-broken-mention-color: rgba(0, 0, 0, .4);
   --theme-broken-mention-focused-bg-color: rgba(0, 0, 0, .2);
 
-  --theme-link-preview-bg-color: var(--wiwo-beige-100);
-  --theme-link-preview-description-color: #66685F;
+  --theme-link-preview-bg-color: var(--wiwo-surface-100);
+  --theme-link-preview-description-color: #63656F;
   --theme-link-preview-text-color: var(--wiwo-ink);
 
   --theme-trans-color: rgba(41, 41, 41, .3);
   --theme-darker-color: rgba(41, 41, 41, .44);
   --theme-halfcontent-color: rgba(41, 41, 41, .58);
-  --theme-dark-color: #66685F;
+  --theme-dark-color: #63656F;
   --theme-content-color: rgba(41, 41, 41, .82);
   --theme-caption-color: var(--wiwo-ink);
   --theme-link-color: var(--wiwo-blue);
 
   --theme-list-border-color: rgba(41, 41, 41, .09);
-  --theme-list-header-color: #66685F; //#ECD4CA;
-  --theme-list-subheader-color: var(--wiwo-beige-100);
-  --theme-list-row-color: var(--wiwo-beige-50);
+  --theme-list-header-color: #63656F; //#ECD4CA;
+  --theme-list-subheader-color: var(--wiwo-surface-100);
+  --theme-list-row-color: var(--wiwo-surface-0);
   --theme-list-divider-color: rgba(41, 41, 41, .07);
   --theme-list-subheader-divider: rgba(41, 41, 41, .06);
 
-  --theme-list-button-color: var(--wiwo-beige-100);
-  --theme-list-button-hover: var(--wiwo-beige);
-  --theme-link-button-color: var(--wiwo-beige-100);
-  --theme-link-button-hover: var(--wiwo-beige);
+  --theme-list-button-color: var(--wiwo-surface-50);
+  --theme-list-button-hover: var(--wiwo-surface-100);
+  --theme-link-button-color: var(--wiwo-surface-50);
+  --theme-link-button-hover: var(--wiwo-surface-100);
 
   --theme-table-border-color: rgba(41, 41, 41, .1);
-  --theme-table-header-color: var(--wiwo-beige-100);
-  --theme-table-row-color: var(--wiwo-beige-50);
+  --theme-table-header-color: var(--wiwo-surface-100);
+  --theme-table-row-color: var(--wiwo-surface-0);
 
   --theme-kanban-card-bg-color: #FFFFFF;
   --theme-kanban-card-border: rgba(41, 41, 41, .08);
@@ -671,9 +699,9 @@
   --scrollbar-bar-hover: #B4B4BB;
   --scrollbar-track-color: transparent;
 
-  --dark-color: #8B8D85;
-  --content-color: #4F504A;
-  --accent-color: #33352F;
+  --dark-color: #888A94;
+  --content-color: #4D4E57;
+  --accent-color: #313239;
   --theme-accent-color: rgba(41, 41, 41, .84);
   --caption-color: var(--wiwo-ink);
   --white-color: #fff;

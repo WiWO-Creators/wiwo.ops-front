@@ -46,6 +46,16 @@
     "HomeCardDocument": "Notas, actas y documentos compartidos",
     "HomeCardChunter": "Conversaciones del equipo por canal",
     "HomeCardTime": "Tu agenda y lo que tenés que hacer hoy",
-    "HomeCardLove": "Salas de audio y video para trabajar a distancia"
+    "HomeCardLove": "Salas de audio y video para trabajar a distancia",
+    "HomeCardCalendar": "Reuniones y eventos del equipo",
+    "HomeCardRecruit": "Búsquedas, candidatos y entrevistas",
+    "HomeCardLead": "Oportunidades de venta y su seguimiento",
+    "HomeCardHr": "Personas, áreas y licencias del equipo",
+    "HomeCardProcess": "Flujos automáticos que corren solos",
+    "HomeCardDrive": "Archivos y carpetas compartidas",
+    "HomeCardTeam": "La semana del equipo: quién hace qué",
+    "HomeCardGithub": "Repositorios conectados y sus tareas",
+    "HomeCardQuestions": "Cuestionarios y encuestas internas",
+    "HomeCardTestManagement": "Casos de prueba y su ejecución"
   }
 }
