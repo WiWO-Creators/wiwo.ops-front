@@ -93,6 +93,8 @@ export interface Project extends TaskProject, IconProps {
   estadoBoard?: string
   fechaInicio?: Timestamp
   deadline?: Timestamp
+  /** Etiquetas del proyecto, con su propio juego de TagElement (targetClass Project). */
+  labels?: CollectionSize<TagReference>
 }
 
 /**
@@ -576,6 +578,7 @@ const pluginState = plugin(trackerId, {
     EditProject: '' as Ref<Action>,
     SetMilestone: '' as Ref<Action<Doc, any>>,
     SetLabels: '' as Ref<Action<Doc, any>>,
+    SetProjectLabels: '' as Ref<Action<Doc, any>>,
     EditRelatedTargets: '' as Ref<Action<Doc, any>>,
     UnsetParent: '' as Ref<Action<Doc, any>>
   },
@@ -663,4 +666,64 @@ export function createStatesData (data: TaskStatusFactory[]): Omit<Data<Status>,
     }
   }
   return states
+}
+
+/**
+ * @public
+ *
+ * Un tipo de proyecto con la cantidad de proyectos que lo usan.
+ */
+export interface TipoConUso {
+  id: Ref<ProjectType>
+  name: string
+  createdOn: number
+  projects: number
+}
+
+/**
+ * @public
+ */
+export interface PlanDeLimpieza {
+  /** Tipos repetidos y sin proyectos: se pueden borrar. */
+  borrar: TipoConUso[]
+  /** Tipos repetidos que sí tienen proyectos: los decide una persona. */
+  enUso: TipoConUso[]
+}
+
+/**
+ * @public
+ *
+ * Decide qué tipos de proyecto repetidos se pueden borrar.
+ *
+ * Las corridas viejas de la migración de Perfex dejaban un tipo nuevo con el mismo nombre en cada
+ * pasada, y todos aparecen juntos en el selector al crear un espacio. Un tipo sólo entra en
+ * `borrar` si comparte nombre con otro y no lo usa ningún proyecto: de cada nombre repetido se
+ * conserva siempre uno, el que más proyectos tenga y, a igualdad, el más viejo.
+ *
+ * @param tipos todos los tipos de proyecto, con su cantidad de proyectos.
+ * @returns qué borrar y qué repetidos quedan en uso.
+ */
+export function planificarLimpiezaDeTipos (tipos: TipoConUso[]): PlanDeLimpieza {
+  const porNombre = new Map<string, TipoConUso[]>()
+  for (const tipo of tipos) {
+    const grupo = porNombre.get(tipo.name) ?? []
+    grupo.push(tipo)
+    porNombre.set(tipo.name, grupo)
+  }
+
+  const borrar: TipoConUso[] = []
+  const enUso: TipoConUso[] = []
+  for (const grupo of porNombre.values()) {
+    if (grupo.length < 2) continue
+
+    const ordenados = [...grupo].sort((a, b) =>
+      a.projects !== b.projects ? b.projects - a.projects : a.createdOn - b.createdOn
+    )
+    const [, ...resto] = ordenados
+    for (const tipo of resto) {
+      if (tipo.projects === 0) borrar.push(tipo)
+      else enUso.push(tipo)
+    }
+  }
+  return { borrar, enUso }
 }

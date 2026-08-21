@@ -299,8 +299,11 @@ Es un borrado sin vuelta atrás: si en esos proyectos ya hay trabajo cargado a m
 ## Tipos de proyecto repetidos
 
 Al crear un espacio, el selector de tipo mostraba un "Perfex" por cada corrida vieja de la
-migración: el importador creaba un tipo nuevo cada vez en lugar de reusar el que ya existía. Eso
-ya no pasa, y los tipos que quedaron se limpian así:
+migración: el importador creaba un tipo nuevo cada vez en lugar de reusar el que ya existía. Eso ya
+no pasa, y **los que quedaron se borran solos** al actualizar el workspace tras un despliegue
+(migración `limpiar-tipos-de-proyecto-repetidos`, en `models/tracker`).
+
+Para verlo o correrlo a mano:
 
 ```bash
 export HULY_TOKEN='<token del workspace>'

@@ -7,61 +7,13 @@
 //
 import { type Ref, type TxOperations } from '@hcengineering/core'
 import task, { type ProjectType, type TaskType } from '@hcengineering/task'
-import tracker from '@hcengineering/tracker'
+import tracker, { planificarLimpiezaDeTipos, type TipoConUso } from '@hcengineering/tracker'
 
 import { type Logger } from './import'
-
-export interface TipoConUso {
-  id: Ref<ProjectType>
-  name: string
-  createdOn: number
-  projects: number
-}
-
-export interface PlanDeLimpieza {
-  /** Tipos repetidos y sin proyectos: se pueden borrar. */
-  borrar: TipoConUso[]
-  /** Tipos repetidos que sí tienen proyectos: los decide una persona. */
-  enUso: TipoConUso[]
-}
 
 export interface CleanTypesOptions {
   /** Si es true no borra nada: sólo informa qué borraría. */
   dryRun: boolean
-}
-
-/**
- * Decide qué tipos repetidos se pueden borrar.
- *
- * Un tipo sólo entra en `borrar` si comparte nombre con otro y no lo usa ningún proyecto. De cada
- * nombre repetido se conserva siempre uno: el que más proyectos tenga y, a igualdad, el más viejo.
- *
- * @param tipos todos los tipos de proyecto del workspace, con su cantidad de proyectos.
- * @returns qué borrar y qué repetidos quedan en uso.
- */
-export function planificarLimpieza (tipos: TipoConUso[]): PlanDeLimpieza {
-  const porNombre = new Map<string, TipoConUso[]>()
-  for (const tipo of tipos) {
-    const grupo = porNombre.get(tipo.name) ?? []
-    grupo.push(tipo)
-    porNombre.set(tipo.name, grupo)
-  }
-
-  const borrar: TipoConUso[] = []
-  const enUso: TipoConUso[] = []
-  for (const grupo of porNombre.values()) {
-    if (grupo.length < 2) continue
-
-    const ordenados = [...grupo].sort((a, b) =>
-      a.projects !== b.projects ? b.projects - a.projects : a.createdOn - b.createdOn
-    )
-    const [, ...resto] = ordenados
-    for (const tipo of resto) {
-      if (tipo.projects === 0) borrar.push(tipo)
-      else enUso.push(tipo)
-    }
-  }
-  return { borrar, enUso }
 }
 
 /** Lee del workspace todos los tipos de proyecto del tracker con su cantidad de proyectos. */
@@ -100,7 +52,7 @@ export async function limpiarTiposRepetidos (
     logger.log(`  ${tipo.name} — ${tipo.projects} proyecto(s)`)
   }
 
-  const { borrar, enUso } = planificarLimpieza(tipos)
+  const { borrar, enUso } = planificarLimpiezaDeTipos(tipos)
   for (const tipo of enUso) {
     logger.log(`Repetido pero con proyectos, no se toca: ${tipo.name} (${tipo.projects} proyecto(s))`)
   }

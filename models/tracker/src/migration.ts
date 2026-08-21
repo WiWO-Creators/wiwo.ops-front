@@ -37,12 +37,13 @@ import { DOMAIN_ACTIVITY } from '@hcengineering/model-activity'
 import { DOMAIN_SPACE } from '@hcengineering/model-core'
 import { DOMAIN_TASK, migrateDefaultStatusesBase } from '@hcengineering/model-task'
 import tags from '@hcengineering/tags'
-import task from '@hcengineering/task'
+import task, { type ProjectType } from '@hcengineering/task'
 import tracker, {
   type Issue,
   type IssueStatus,
   type Project,
   TimeReportDayType,
+  planificarLimpiezaDeTipos,
   trackerId
 } from '@hcengineering/tracker'
 
@@ -375,6 +376,45 @@ async function migrateIssueStatuses (client: MigrationClient): Promise<void> {
   )
 }
 
+/**
+ * Borra los tipos de proyecto repetidos que no use ningún proyecto.
+ *
+ * Las corridas viejas de la migración de Perfex creaban un tipo nuevo con el mismo nombre en cada
+ * pasada, así que el selector de tipo al crear un espacio mostraba un "Perfex" por corrida. Corre
+ * sola en cada actualización del workspace para que no haga falta limpiar a mano.
+ *
+ * Los tipos viven en el modelo del workspace, que se arma con las transacciones de
+ * `DOMAIN_MODEL_TX`: borrar el tipo es borrar sus transacciones y las de sus tipos de tarea.
+ */
+async function limpiarTiposRepetidos (client: MigrationClient, logger: ModelLogger): Promise<void> {
+  const tipos = client.model.findAllSync(task.class.ProjectType, { descriptor: tracker.descriptors.ProjectType })
+  const usos = await client.groupBy<Ref<ProjectType>, Project>(DOMAIN_SPACE, 'type', {
+    _class: tracker.class.Project
+  })
+
+  const { borrar, enUso } = planificarLimpiezaDeTipos(
+    tipos.map((t) => ({
+      id: t._id,
+      name: t.name,
+      createdOn: t.createdOn ?? t.modifiedOn,
+      projects: usos.get(t._id) ?? 0
+    }))
+  )
+  for (const tipo of enUso) {
+    logger.log('project type repeated but in use, kept', { name: tipo.name, projects: tipo.projects })
+  }
+  if (borrar.length === 0) return
+
+  for (const tipo of borrar) {
+    const taskTypes = client.model.findAllSync(task.class.TaskType, { parent: tipo.id })
+    for (const taskType of taskTypes) {
+      await client.deleteMany(DOMAIN_MODEL_TX, { objectId: taskType._id })
+    }
+    await client.deleteMany(DOMAIN_MODEL_TX, { objectId: tipo.id })
+  }
+  logger.log('removed repeated project types', { count: borrar.length })
+}
+
 export const trackerOperation: MigrateOperation = {
   async preMigrate (client: MigrationClient, logger: ModelLogger, mode): Promise<void> {
     await tryMigrate(mode, client, trackerId, [
@@ -414,6 +454,11 @@ export const trackerOperation: MigrateOperation = {
         state: 'gantt-add-startdate',
         mode: 'upgrade',
         func: migrateAddStartDate
+      },
+      {
+        state: 'limpiar-tipos-de-proyecto-repetidos',
+        mode: 'upgrade',
+        func: (client) => limpiarTiposRepetidos(client, client.logger)
       }
     ])
   },
