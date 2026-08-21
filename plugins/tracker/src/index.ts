@@ -93,6 +93,8 @@ export interface Project extends TaskProject, IconProps {
   estadoBoard?: string
   fechaInicio?: Timestamp
   deadline?: Timestamp
+  numeroCotizacion?: string
+  palabraClave?: string
   /** Etiquetas del proyecto, con su propio juego de TagElement (targetClass Project). */
   labels?: CollectionSize<TagReference>
 }
@@ -378,6 +380,9 @@ export interface TimeSpendReport extends AttachedDoc {
   value: number
 
   description: string
+
+  /** Id del timer original de Perfex; ancla oculta para reintentos de migración. */
+  perfexTimerId?: number
 }
 
 /**
@@ -608,6 +613,8 @@ const pluginState = plugin(trackerId, {
     EstadoBoard: '' as IntlString,
     FechaInicio: '' as IntlString,
     FechaDeadline: '' as IntlString,
+    NumeroCotizacion: '' as IntlString,
+    PalabraClave: '' as IntlString,
     RelatedIssues: '' as IntlString,
     Issue: '' as IntlString,
     IssueStartDate: '' as IntlString,

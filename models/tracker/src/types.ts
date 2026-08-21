@@ -164,6 +164,12 @@ export class TProject extends TTaskProject implements Project {
   @Prop(TypeDate(), tracker.string.FechaDeadline)
     deadline?: Timestamp
 
+  @Prop(TypeString(), tracker.string.NumeroCotizacion)
+    numeroCotizacion?: string
+
+  @Prop(TypeString(), tracker.string.PalabraClave)
+    palabraClave?: string
+
   @Prop(Collection(tags.class.TagReference), tracker.string.Labels)
     labels?: number
 }
@@ -376,7 +382,7 @@ export class TTimeSpendReport extends TAttachedDoc implements TimeSpendReport {
   declare attachedTo: Ref<Issue>
 
   @Prop(TypeRef(contact.mixin.Employee), contact.string.Employee)
-    employee!: Ref<Employee>
+    employee!: Ref<Employee> | null
 
   @Prop(TypeDate(), tracker.string.TimeSpendReportDate)
     date!: Timestamp | null
@@ -386,6 +392,11 @@ export class TTimeSpendReport extends TAttachedDoc implements TimeSpendReport {
 
   @Prop(TypeString(), tracker.string.TimeSpendReportDescription)
     description!: string
+
+  @Prop(TypeNumber(), tracker.string.Number)
+  @Index(IndexKind.Indexed)
+  @Hidden()
+    perfexTimerId?: number
 }
 
 /**

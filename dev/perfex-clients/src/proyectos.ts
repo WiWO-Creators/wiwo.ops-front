@@ -329,6 +329,8 @@ export async function importProjects (
     if (inicio !== null) update.fechaInicio = inicio
     const deadline = toTimestamp(campaign.deadline)
     if (deadline !== null) update.deadline = deadline
+    if (campaign.numeroCotizacion !== undefined) update.numeroCotizacion = campaign.numeroCotizacion
+    if (campaign.palabraClave !== undefined) update.palabraClave = campaign.palabraClave
     // Una campaña terminada o cancelada ya no es trabajo en curso: se archiva.
     if (CLOSED_PROJECT_STATUSES.has(campaign.status)) update.archived = true
 

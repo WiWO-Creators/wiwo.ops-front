@@ -34,11 +34,21 @@ import {
 } from './existente'
 import { importColaboradores } from './colaboradores'
 import { importMilestones, importProjects } from './proyectos'
+import { importTimeEntries } from './tiempo'
 
 export { type Logger }
 
 /** Partes de la migración. Por defecto se corren todas, en este orden. */
-export type Stage = 'personas' | 'clientes' | 'proyectos' | 'hitos' | 'checklists' | 'etiquetas' | 'adjuntos' | 'colaboradores'
+export type Stage =
+  | 'personas'
+  | 'clientes'
+  | 'proyectos'
+  | 'hitos'
+  | 'checklists'
+  | 'tiempo'
+  | 'etiquetas'
+  | 'adjuntos'
+  | 'colaboradores'
 
 export const ALL_STAGES: Stage[] = [
   'personas',
@@ -46,6 +56,7 @@ export const ALL_STAGES: Stage[] = [
   'proyectos',
   'hitos',
   'checklists',
+  'tiempo',
   'etiquetas',
   'adjuntos',
   'colaboradores'
@@ -114,6 +125,7 @@ export async function importClients (
   await runProjectsStage(client, perfex, logger, options, clients, peopleByStaffId, organizationsByClientId, uploader)
   await runMilestonesStage(client, perfex, logger, options)
   await runChecklistsStage(client, uploader, perfex, logger, options, peopleByStaffId)
+  await runTimeEntriesStage(client, perfex, logger, options, peopleByStaffId)
   await runTagsStage(client, perfex, logger, options)
   await runAttachmentsStage(client, perfex, logger, options, clients, uploader)
   await runColaboradoresStage(client, perfex, logger, options)
@@ -278,6 +290,22 @@ async function runChecklistsStage (
   }
 
   await importChecklists(client, uploader as FileUploader, perfex, logger, {
+    dryRun: options.dryRun,
+    peopleByStaffId
+  })
+}
+
+/** Corre la carga de tiempo después de que las tareas ya existen. */
+async function runTimeEntriesStage (
+  client: TxOperations,
+  perfex: PerfexReader,
+  logger: Logger,
+  options: ImportOptions,
+  peopleByStaffId: Record<string, Ref<Person>>
+): Promise<void> {
+  if (!options.stages.includes('tiempo')) return
+
+  await importTimeEntries(client, perfex, logger, {
     dryRun: options.dryRun,
     peopleByStaffId
   })

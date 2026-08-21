@@ -109,6 +109,8 @@
     "EstadoBoard": "Estado del espacio",
     "FechaInicio": "Fecha de inicio",
     "FechaDeadline": "Fecha límite",
+    "NumeroCotizacion": "N° de cotización",
+    "PalabraClave": "Palabra clave",
     "Issue": "Proceso",
     "SubIssue": "Subproceso",
     "Document": "",

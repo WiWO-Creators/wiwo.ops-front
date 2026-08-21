@@ -59,6 +59,9 @@ export interface PerfexProject {
   clientid: number
   start_date: string | null
   deadline: string | null
+  /** Identificador comercial: conserva ceros iniciales del board. */
+  numeroCotizacion?: string
+  palabraClave?: string
 }
 
 export interface PerfexTask {
@@ -122,6 +125,18 @@ export interface PerfexChecklistItem {
   finished: number
   list_order: number
   assigned: number | null
+}
+
+/** Registro de tiempo de una tarea en el board. */
+export interface PerfexTimeEntry {
+  id: number
+  task_id: number
+  /** Segundos Unix, almacenados como varchar por Perfex. */
+  start_time: string
+  /** Segundos Unix, o nulo mientras el cronómetro sigue abierto. */
+  end_time: string | null
+  staff_id: number
+  note: string | null
 }
 
 export interface PerfexComment {
@@ -336,10 +351,26 @@ export class PerfexReader {
   }
 
   async getProjects (): Promise<PerfexProject[]> {
-    return await this.query<PerfexProject>(
+    const projects = await this.query<PerfexProject>(
       `SELECT id, name, description, status, clientid, start_date, deadline
        FROM {p}projects ORDER BY id`
     )
+    const customValues = await this.query<{ relid: number, fieldid: number, value: string }>(
+      `SELECT relid, fieldid, value
+       FROM {p}customfieldsvalues
+       WHERE fieldto = 'projects' AND fieldid IN (4, 8) AND value <> ''`
+    )
+    const quoteNumberByProject = new Map<number, string>()
+    const keywordByProject = new Map<number, string>()
+    for (const value of customValues) {
+      if (value.fieldid === 4) quoteNumberByProject.set(value.relid, value.value)
+      if (value.fieldid === 8) keywordByProject.set(value.relid, value.value)
+    }
+    for (const project of projects) {
+      project.numeroCotizacion = quoteNumberByProject.get(project.id)
+      project.palabraClave = keywordByProject.get(project.id)
+    }
+    return projects
   }
 
   /** Tareas con sus asignados y campos personalizados ya resueltos. */
@@ -424,6 +455,13 @@ export class PerfexReader {
   async getChecklistItems (): Promise<PerfexChecklistItem[]> {
     return await this.query<PerfexChecklistItem>(
       'SELECT id, taskid, description, finished, list_order, assigned FROM {p}task_checklist_items ORDER BY taskid, list_order, id'
+    )
+  }
+
+  /** Registros de tiempo de las tareas, en orden estable para la migración. */
+  async getTimeEntries (): Promise<PerfexTimeEntry[]> {
+    return await this.query<PerfexTimeEntry>(
+      'SELECT id, task_id, start_time, end_time, staff_id, note FROM {p}taskstimers ORDER BY task_id, start_time, id'
     )
   }
 

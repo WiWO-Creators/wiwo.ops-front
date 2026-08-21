@@ -84,6 +84,8 @@
     project?.owners !== undefined ? hierarchy.clone(project.owners) : [getCurrentAccount().uuid]
   // Gente vinculada al proyecto que todavía no lo ve: no son miembros, sólo quedan anotados.
   let asociados: AccountUuid[] = project?.asociados !== undefined ? hierarchy.clone(project.asociados) : []
+  let numeroCotizacion: string = project?.numeroCotizacion ?? ''
+  let palabraClave: string = project?.palabraClave ?? ''
   // Con `restricted` mandan los roles: quien no tenga uno no puede crear ni editar tareas.
   let restricted: boolean = project?.restricted ?? true
   let projectsIdentifiers = new Set<string>()
@@ -143,7 +145,9 @@
       defaultTimeReportDay: project?.defaultTimeReportDay ?? TimeReportDayType.PreviousWorkDay,
       autoJoinForRoles: normalizeAutoJoinForRoles(autoJoinForRoles),
       asociados,
-      restricted
+      restricted,
+      numeroCotizacion: numeroCotizacion.trim(),
+      palabraClave: palabraClave.trim()
     }
   }
 
@@ -211,6 +215,12 @@
     }
     if (projectData.restricted !== project?.restricted) {
       update.restricted = projectData.restricted
+    }
+    if (projectData.numeroCotizacion !== (project?.numeroCotizacion ?? '')) {
+      update.numeroCotizacion = projectData.numeroCotizacion
+    }
+    if (projectData.palabraClave !== (project?.palabraClave ?? '')) {
+      update.palabraClave = projectData.palabraClave
     }
     if (projectData.members.length !== project?.members.length) {
       update.members = projectData.members
@@ -509,6 +519,24 @@
           bind:value={description}
           placeholder={tracker.string.IssueDescriptionPlaceholder}
         />
+      </div>
+    </div>
+
+    <div class="antiGrid-row">
+      <div class="antiGrid-row__header">
+        <Label label={tracker.string.NumeroCotizacion} />
+      </div>
+      <div class="padding">
+        <EditBox id="project-quote-number" bind:value={numeroCotizacion} kind={'large-style'} />
+      </div>
+    </div>
+
+    <div class="antiGrid-row">
+      <div class="antiGrid-row__header">
+        <Label label={tracker.string.PalabraClave} />
+      </div>
+      <div class="padding">
+        <EditBox id="project-keyword" bind:value={palabraClave} kind={'large-style'} />
       </div>
     </div>
   </div>

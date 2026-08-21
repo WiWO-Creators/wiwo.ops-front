@@ -111,6 +111,8 @@
     "EstadoBoard": "Project status",
     "FechaInicio": "Start date",
     "FechaDeadline": "Deadline",
+    "NumeroCotizacion": "Quote number",
+    "PalabraClave": "Keyword",
     "Issue": "Issue",
     "SubIssue": "Sub-issue",
     "Document": "",
