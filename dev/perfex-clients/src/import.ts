@@ -34,6 +34,7 @@ import {
 } from './existente'
 import { importColaboradores } from './colaboradores'
 import { importMilestones, importProjects } from './proyectos'
+import { formatProgress } from './progreso'
 import { importTimeEntries } from './tiempo'
 
 export { type Logger }
@@ -162,6 +163,7 @@ async function runStaffStage (
   }
 
   let resueltas = 0
+  const total = staff.filter((person) => person.email.trim() !== '').length
   for (const person of staff) {
     const email = person.email.trim()
     if (email === '') {
@@ -170,6 +172,7 @@ async function runStaffStage (
     }
     peopleByStaffId[person.staffid] = await ensurePerson(email, person.firstname.trim(), person.lastname.trim())
     resueltas++
+    logger.log(`Usuario resuelto: ${email} (${formatProgress(resueltas, total)})`)
   }
   logger.log(`Staff: ${resueltas} personas resueltas`)
   return peopleByStaffId
@@ -205,6 +208,8 @@ async function runClientsStage (
   let creadas = 0
   let reusadas = 0
   let actualizadas = 0
+  let procesadas = 0
+  const total = clients.filter((client) => client.company !== '').length
   const nuevas: Array<{ perfexClient: PerfexClient, orgId: Ref<Organization> }> = []
 
   for (const perfexClient of clients) {
@@ -224,6 +229,8 @@ async function runClientsStage (
         })
         actualizadas++
       }
+      procesadas++
+      logger.log(`Organización actualizada: ${perfexClient.company} (${formatProgress(procesadas, total)})`)
       continue
     }
     if (!stages.has('clientes')) continue
@@ -233,6 +240,8 @@ async function runClientsStage (
     existentes.set(normalizarNombre(perfexClient.company), orgId)
     nuevas.push({ perfexClient, orgId })
     creadas++
+    procesadas++
+    logger.log(`Organización creada: ${perfexClient.company} (${formatProgress(procesadas, total)})`)
   }
 
   if (!stages.has('clientes')) return organizationsByClientId
@@ -246,6 +255,10 @@ async function runClientsStage (
 
   let contactosCreados = 0
   let contactosVinculados = 0
+  let contactosProcesados = 0
+  const totalContactos = clients
+    .filter((client) => organizationsByClientId[client.id] !== undefined)
+    .reduce((count, client) => count + client.contacts.length, 0)
   for (const perfexClient of clients) {
     const orgId = organizationsByClientId[perfexClient.id]
     if (orgId === undefined) continue
@@ -254,7 +267,8 @@ async function runClientsStage (
       const email = perfexContact.email.trim().toLowerCase()
       let personId = email !== '' ? personasExistentes.get(email) : undefined
 
-      if (personId === undefined) {
+      const esNuevo = personId === undefined
+      if (esNuevo) {
         personId = await createPerson(client, perfexContact)
         if (email !== '') personasExistentes.set(email, personId)
         contactosCreados++
@@ -264,10 +278,19 @@ async function runClientsStage (
         })
       }
 
-      if (miembros.has(`${orgId}:${personId}`)) continue
-      await linkContactToOrganization(client, orgId, personId)
-      miembros.add(`${orgId}:${personId}`)
-      contactosVinculados++
+      const claveMiembro = `${orgId}:${personId}`
+      const seVincula = !miembros.has(claveMiembro)
+      if (seVincula) {
+        await linkContactToOrganization(client, orgId, personId)
+        miembros.add(claveMiembro)
+        contactosVinculados++
+      }
+      contactosProcesados++
+      const accion = esNuevo ? 'creado' : 'actualizado'
+      logger.log(
+        `Contacto ${accion}${seVincula ? ' y vinculado' : ''}: ${buildContactName(perfexContact)} ` +
+          `(${formatProgress(contactosProcesados, totalContactos)})`
+      )
     }
   }
   logger.log(`Contactos: ${contactosCreados} nuevos, ${contactosVinculados} vinculados a su empresa`)

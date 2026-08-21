@@ -39,6 +39,7 @@ import {
   type PerfexTask
 } from '@hcengineering/perfex'
 import { toHulyMilestone } from './hitos'
+import { formatProgress } from './progreso'
 import {
   buildProjectIdentifier,
   CLOSED_PROJECT_STATUSES,
@@ -55,6 +56,54 @@ import {
 
 /** Cuántas tareas se actualizan a la vez. Más alto satura el servidor sin ganar tiempo. */
 const UPDATE_BATCH = 25
+
+/**
+ * Traduce los eventos del importador a mensajes con nombre y avance de proyectos y tareas.
+ *
+ * @param logger destino final de cada mensaje.
+ * @param totalProyectos cantidad de proyectos nuevos planificados.
+ * @param totalTareas cantidad de tareas nuevas planificadas.
+ * @returns logger compatible con WorkspaceImporter.
+ */
+export function crearLoggerConProgreso (logger: Logger, totalProyectos: number, totalTareas: number) {
+  let proyectoPendiente: string | undefined
+  let tareaPendiente: string | undefined
+  let proyectosCreados = 0
+  let tareasCreadas = 0
+
+  return {
+    log: (message: string, data?: unknown) => {
+      if (message === 'Creating project: ') {
+        proyectoPendiente = String(data)
+        logger.log(`Creando proyecto: ${proyectoPendiente}`)
+        return
+      }
+      if (message.startsWith('Project created: ')) {
+        proyectosCreados++
+        const nombre = proyectoPendiente ?? message.slice('Project created: '.length)
+        logger.log(`Proyecto creado: ${nombre} (${formatProgress(proyectosCreados, totalProyectos)})`)
+        proyectoPendiente = undefined
+        return
+      }
+      if (message.startsWith('Creating issue: ')) {
+        tareaPendiente = message.slice('Creating issue: '.length)
+        logger.log(`Creando tarea: ${tareaPendiente}`)
+        return
+      }
+      if (message.startsWith('Issue created: ')) {
+        tareasCreadas++
+        const nombre = tareaPendiente ?? message.slice('Issue created: '.length)
+        logger.log(`Tarea creada: ${nombre} (${formatProgress(tareasCreadas, totalTareas)})`)
+        tareaPendiente = undefined
+        return
+      }
+      logger.log(data === undefined ? message : `${message}${String(data)}`)
+    },
+    error: (message: string, data?: unknown) => {
+      logger.error(data === undefined ? message : `${message}${String(data)}`)
+    }
+  }
+}
 
 export interface ProjectImportOptions {
   /** Clientes del ambiente, para nombrar los proyectos de tareas sueltas de cada uno. */
@@ -425,7 +474,7 @@ export async function importProjects (
     spaces: importProjectList.map((p) => ({ ...p, projectType: { name: PROJECT_TYPE_NAME } }))
   }
 
-  const importer = new WorkspaceImporter(client, logger, uploader, workspaceData)
+  const importer = new WorkspaceImporter(client, crearLoggerConProgreso(logger, porCrear.length, plan.total), uploader, workspaceData)
   if (importProjectList.length > 0) await importer.performImport()
 
   // Cliente, id de Perfex, estado y fechas: el importador no escribe ninguno de los cuatro. Los
