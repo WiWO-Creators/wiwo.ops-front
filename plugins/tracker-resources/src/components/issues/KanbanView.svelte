@@ -39,7 +39,10 @@
     ColorDefinition,
     Component,
     defaultBackground,
+    eventToHTMLElement,
     getEventPositionElement,
+    getPlatformColorDef,
+    Icon,
     IconAdd,
     Label,
     Loading,
@@ -50,6 +53,7 @@
   import {
     enabledConfig,
     focusStore,
+    ColorsPopup,
     getCategoryQueryNoLookup,
     getCategoryQueryNoLookupOptions,
     getCategoryQueryProjection,
@@ -105,11 +109,32 @@
 
   const myEmployeeId = getCurrentEmployee()
 
-  /** Una tarea está atrasada si venció y no llegó a un estado terminal. */
+  /** Una tarea está terminada cuando su estado es de categoría ganada o perdida. */
+  function isCompleted (issue: WithLookup<Issue>): boolean {
+    const category = $statusStore.byId.get(issue.status)?.category
+    return category === task.statusCategory.Won || category === task.statusCategory.Lost
+  }
+
+  /** Una tarea está atrasada si venció y todavía no terminó. */
   function isOverdue (issue: WithLookup<Issue>): boolean {
     if (issue.dueDate == null || issue.dueDate >= Date.now()) return false
-    const category = $statusStore.byId.get(issue.status)?.category
-    return category !== task.statusCategory.Won && category !== task.statusCategory.Lost
+    return !isCompleted(issue)
+  }
+
+  /** Abre la paleta de Huly y guarda el color elegido en el hito de la columna. */
+  async function elegirColorDeHito (milestone: Ref<Milestone> | undefined, ev: MouseEvent): Promise<void> {
+    if (milestone === undefined) return
+    const doc = await client.findOne(tracker.class.Milestone, { _id: milestone })
+    if (doc === undefined) return
+    showPopup(
+      ColorsPopup,
+      { selected: doc.color !== undefined ? getPlatformColorDef(doc.color, $themeStore.dark).name : undefined },
+      eventToHTMLElement(ev),
+      (color) => {
+        if (color == null) return
+        void client.updateDoc(tracker.class.Milestone, doc.space, doc._id, { color })
+      }
+    )
   }
 
   /** La categoría de una columna de hitos es su id, salvo en la columna de las tareas sin hito. */
@@ -222,6 +247,12 @@
   // saca de la lista de hitos y no de las tareas— las impone. Sin esto un hito sin tareas no
   // genera columna, y un espacio sin ninguna tarea deja el tablero en blanco.
   export let forcedCategories: CategoryType[] | undefined = undefined
+
+  /** Reordenar columnas arrastrando. Lo pasa el tablero de hitos; el de Procesos no. */
+  export let onCategoryReorder: ((from: number, to: number) => void) | undefined = undefined
+
+  /** Columnas fijas, que no se mueven ni dejan que otra quede antes. */
+  export let fixedCategories: number[] = []
 
   let categories: CategoryType[] = []
   let loadCategories = true
@@ -361,6 +392,8 @@
   <KanbanUI
     bind:this={kanbanUI}
     {categories}
+    {onCategoryReorder}
+    {fixedCategories}
     {dontUpdateRank}
     {_class}
     query={resultQuery}
@@ -427,6 +460,18 @@
             </span>
           </div>
           <div class="tools gap-1">
+            {#if isMilestoneBoard && state != null}
+              <!-- Elegir el color del hito desde su columna, como el popover del board. El
+                   presenter ya pinta la cabecera con ese color, asi que el cambio se ve solo. -->
+              <Button
+                icon={view.icon.Circle}
+                kind={'ghost'}
+                showTooltip={{ label: view.string.Color, direction: 'left' }}
+                on:click={(ev) => {
+                  void elegirColorDeHito(toMilestoneRef(state), ev)
+                }}
+              />
+            {/if}
             <Button
               icon={IconAdd}
               kind={'ghost'}
@@ -441,6 +486,16 @@
           <MilestoneColumnSubtitle milestone={toMilestoneRef(state)} issues={getGroupByValues(groupByDocs, state)} />
         {/if}
       </div>
+    </svelte:fragment>
+    <!-- Una columna sin tareas lo dice, en vez de quedar en blanco. En el board es el bloque
+         `kanban-empty` de milestones_kan_ban.php. -->
+    <svelte:fragment slot="afterCard" let:state>
+      {#if isMilestoneBoard && getGroupByValues(groupByDocs, state).length === 0}
+        <div class="empty-column">
+          <Icon icon={tracker.icon.Milestone} size={'medium'} />
+          <span><Label label={tracker.string.MilestoneNoTasks} /></span>
+        </div>
+      {/if}
     </svelte:fragment>
     <svelte:fragment slot="card" let:object>
       {@const issue = toIssue(object)}
@@ -474,7 +529,10 @@
               <AssigneeEditor object={issue} avatarSize={'card'} shouldShowName={false} />
             </div>
           </div>
-          <div class="card-content text-md caption-color lines-limit-2">
+          <div
+            class="card-content text-md caption-color lines-limit-2"
+            class:done={isMilestoneBoard && isCompleted(issue)}
+          >
             {object.title}
           </div>
           <div class="card-labels">
@@ -605,6 +663,15 @@
       min-height: 3.5rem;
     }
   }
+  .empty-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 2rem 0;
+    color: var(--theme-darker-color);
+    font-size: 0.8125rem;
+  }
   .tracker-card {
     position: relative;
     display: flex;
@@ -632,6 +699,12 @@
       .separator {
         opacity: 0.6;
       }
+    }
+
+    // Igual que en el board: la tarea terminada se tacha y se atenua.
+    .card-content.done {
+      color: var(--theme-dark-color);
+      text-decoration: line-through;
     }
 
     .card-header {

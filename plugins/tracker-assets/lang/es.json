@@ -211,6 +211,7 @@
     "DeleteIssueConfirm": "¿Desea eliminar {issueCount, plural, =1 {proceso} other {procesos}}{subIssueCount, plural, =0 {?} =1 { y subproceso?} other { y subprocesos?}}",
     "Milestone": "Hitos",
     "NoMilestone": "Sin hito",
+    "MilestoneNoTasks": "Sin tareas",
     "MoveToMilestone": "Seleccionar hito",
     "Milestones": "Hitos",
     "AllMilestones": "Todos",

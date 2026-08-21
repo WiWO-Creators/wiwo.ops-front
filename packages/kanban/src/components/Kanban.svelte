@@ -56,6 +56,43 @@
   export let getUpdateProps: (doc: Doc, state: CategoryType) => DocumentUpdate<Item> | undefined
   export let getAvailableCategories: ((doc: Doc) => Promise<CategoryType[]>) | undefined = undefined
 
+  /**
+   * Reordenar las columnas arrastrando su cabecera.
+   *
+   * Sin esta prop las cabeceras no se arrastran y el tablero se comporta igual que siempre: la usa
+   * sólo el tablero de hitos. Recibe la posición de origen y la de destino dentro de `categories`.
+   */
+  export let onCategoryReorder: ((from: number, to: number) => void) | undefined = undefined
+
+  /**
+   * Columnas que no se pueden mover ni recibir otra antes.
+   *
+   * En el tablero de hitos es la de las tareas sin hito, que queda fija a la izquierda igual que la
+   * columna "Sin categoría" del board.
+   */
+  export let fixedCategories: number[] = []
+
+  // Índice de la columna que se está arrastrando. Mientras vale algo, el drop de la columna manda y
+  // el de las tarjetas no corre: los dos viven en el mismo contenedor.
+  let dragCategory: number | undefined
+
+  function categoryDragStart (index: number): void {
+    dragCategory = index
+  }
+
+  function categoryDragOver (event: DragEvent, index: number): void {
+    if (dragCategory === undefined || fixedCategories.includes(index)) return
+    event.preventDefault()
+  }
+
+  function categoryDrop (index: number): void {
+    const from = dragCategory
+    dragCategory = undefined
+    if (from === undefined || from === index) return
+    if (fixedCategories.includes(index) || fixedCategories.includes(from)) return
+    onCategoryReorder?.(from, index)
+  }
+
   const dispatch = createEventDispatcher()
 
   const limiter = new RateLimiter(10)
@@ -391,9 +428,17 @@
           class="panel-container"
           bind:this={stateRefs[si]}
           on:dragover={(event) => {
+            if (dragCategory !== undefined) {
+              categoryDragOver(event, si)
+              return
+            }
             panelDragOver(event, state)
           }}
           on:drop={() => {
+            if (dragCategory !== undefined) {
+              categoryDrop(si)
+              return
+            }
             void move(state).then(() => {
               isDragging = false
             })
@@ -401,7 +446,18 @@
         >
           {#if $$slots.header !== undefined}
             {#key si}
-              <slot name="header" state={toAny(state)} count={stateObjects.length} index={si} />
+              <!-- svelte-ignore a11y-no-static-element-interactions -->
+              <div
+                draggable={onCategoryReorder !== undefined && !fixedCategories.includes(si)}
+                on:dragstart={() => {
+                  categoryDragStart(si)
+                }}
+                on:dragend={() => {
+                  dragCategory = undefined
+                }}
+              >
+                <slot name="header" state={toAny(state)} count={stateObjects.length} index={si} />
+              </div>
             {/key}
           {/if}
           <Scroller padding={'.25rem .5rem'} on:dragover on:drop>

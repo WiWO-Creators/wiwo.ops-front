@@ -221,6 +221,7 @@
 
     "Milestone": "Milestone",
     "NoMilestone": "No Milestone",
+    "MilestoneNoTasks": "No tasks",
     "MoveToMilestone": "Select Milestone",
     "Milestones": "Milestones",
     "AllMilestones": "All",

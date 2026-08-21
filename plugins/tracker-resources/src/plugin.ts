@@ -263,6 +263,7 @@ export default mergeIds(trackerId, tracker, {
     AddToMilestone: '' as IntlString,
     MoveToMilestone: '' as IntlString,
     NoMilestone: '' as IntlString,
+    MilestoneNoTasks: '' as IntlString,
 
     MoveAndDeleteMilestone: '' as IntlString,
     MoveAndDeleteMilestoneConfirm: '' as IntlString,
