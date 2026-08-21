@@ -91,7 +91,7 @@
           ? {
               props: {
                 top: 'var(--status-bar-height)',
-                bottom: '4.25rem',
+                bottom: 'calc(4.25rem + var(--safe-bottom))',
                 left: '0',
                 right: '3.5rem',
                 width: '',

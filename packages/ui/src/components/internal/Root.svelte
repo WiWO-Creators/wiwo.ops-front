@@ -161,6 +161,27 @@
 
   $: document.documentElement.style.setProperty('--app-height', `${docHeight}px`)
 
+  // Teclado virtual: Android lo resuelve con `interactive-widget=resizes-content` en el meta
+  // viewport, pero iOS no reduce el viewport, solo desplaza visualViewport. Se publica cuanto se
+  // come el teclado para que el layout pueda apartarse.
+  let keyboardInset: number = 0
+  const visualViewport = window.visualViewport ?? undefined
+  const updateKeyboardInset = (): void => {
+    if (visualViewport === undefined) return
+    keyboardInset = Math.max(0, window.innerHeight - visualViewport.height - visualViewport.offsetTop)
+  }
+  $: document.documentElement.style.setProperty('--keyboard-inset', `${keyboardInset}px`)
+  onMount(() => {
+    if (visualViewport === undefined) return
+    visualViewport.addEventListener('resize', updateKeyboardInset)
+    visualViewport.addEventListener('scroll', updateKeyboardInset)
+    updateKeyboardInset()
+    return () => {
+      visualViewport.removeEventListener('resize', updateKeyboardInset)
+      visualViewport.removeEventListener('scroll', updateKeyboardInset)
+    }
+  })
+
   let doubleTouchStartTimestamp = 0
   document.addEventListener('touchstart', (event) => {
     const now = +new Date()
@@ -227,7 +248,7 @@
 />
 
 <Theme>
-  <div id="ui-root" class:mobile-theme={isCompact}>
+  <div id="ui-root" class:mobile-theme={isCompact} class:keyboard-open={keyboardInset > 0}>
     <div class="antiStatusBar">
       <div class="flex-row-center h-full content-color gap-3 px-4">
         {#if desktopPlatform}
@@ -327,12 +348,17 @@
     height: calc(100% - var(--huly-top-indent, 0rem));
     height: calc(100dvh - var(--huly-top-indent, 0rem));
     // height: var(--app-height);
+    // Notch lateral en landscape.
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
 
     .antiStatusBar {
       -webkit-app-region: drag;
       min-width: 0;
-      min-height: var(--status-bar-height);
-      height: var(--status-bar-height);
+      // El notch y la isla dinamica viven arriba: la barra de estado crece lo que haga falta.
+      min-height: calc(var(--status-bar-height) + var(--safe-top));
+      height: calc(var(--status-bar-height) + var(--safe-top));
+      padding-top: var(--safe-top);
       // min-width: 600px;
       font-size: 0.75rem;
       line-height: 150%;

@@ -638,7 +638,7 @@
     }
   }
   &.type-popup {
-    min-width: 45rem;
+    min-width: min(45rem, 100vw);
     background-color: var(--theme-popup-color); // var(--global-surface-02-BackgroundColor);
     border: 1px solid var(--theme-popup-divider); // var(--global-surface-02-BorderColor);
     border-radius: var(--large-BorderRadius);

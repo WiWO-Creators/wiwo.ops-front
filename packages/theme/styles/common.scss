@@ -13,6 +13,8 @@
 // limitations under the License.
 //
 
+@use './_breakpoints.scss' as *;
+
 /* Typography */
 .font-regular-11,
 .font-medium-11,
@@ -136,14 +138,20 @@
     height: 100%;
     border-right: 1px solid var(--theme-navpanel-divider);
   }
-  &.horizonatl {
-    min-height: var(--app-panel-width);
-    height: var(--app-panel-width);
+  // La clase que emite Workbench.svelte es `horizontal`; con el typo original esta regla no
+  // aplicaba a nada y la barra de apps de abajo se quedaba sin alto propio.
+  &.horizontal {
+    min-height: calc(var(--app-panel-width) + var(--safe-bottom));
+    height: calc(var(--app-panel-width) + var(--safe-bottom));
     width: 100%;
+    padding-bottom: var(--safe-bottom);
     border-top: 1px solid var(--theme-navpanel-divider);
   }
   &.lastDivider { border-color: var(--theme-navpanel-border); }
 }
+// Con el teclado virtual abierto la barra de apps quedaria flotando en el medio de la pantalla.
+#ui-root.keyboard-open .antiPanel-application.horizontal { display: none; }
+
 .normal-font .antiPanel-application .app .icon-container.noty { clip-path: url(#notify-normal); }
 .small-font .antiPanel-application .app .icon-container.noty { clip-path: url(#notify-small); }
 
@@ -235,9 +243,12 @@
   flex-grow: 1;
 }
 .antiPanel-component.aside {
-  min-width: 30rem;
-  width: 30rem;
-  max-width: 30rem;
+  // Los 30rem no entran en un telefono: ahi el aside ocupa lo que haya.
+  @include above-tiny {
+    min-width: 30rem;
+    width: 30rem;
+    max-width: 30rem;
+  }
 }
 
 .antiPanel-wrap__content {

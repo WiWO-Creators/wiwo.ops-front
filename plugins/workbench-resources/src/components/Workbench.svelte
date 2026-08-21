@@ -53,6 +53,7 @@
     CompAndProps,
     Component,
     defineSeparators,
+    checkAdaptiveMatching,
     deviceOptionsStore as deviceInfo,
     Dock,
     getCurrentLocation,
@@ -137,8 +138,8 @@
   } from '../workbench'
   import { get } from 'svelte/store'
 
+  // Ancho del contenedor del workbench, no del viewport: no es un breakpoint de dispositivo.
   const HIDE_NAVIGATOR = 720
-  const FLOAT_ASIDE = 1024 // lg
   let contentPanel: HTMLElement
 
   const { setTheme } = getContext<{ setTheme: (theme: string) => void }>('theme')
@@ -666,10 +667,12 @@
     }
   }
   checkWorkbenchWidth()
-  $: if ($deviceInfo.docWidth <= FLOAT_ASIDE && !$sidebarStore.float) {
+  // El aside flota de `lg` para abajo (1024px), el mismo corte que usa el resto del layout.
+  $: floatAside = checkAdaptiveMatching($deviceInfo.size, 'lg')
+  $: if (floatAside && !$sidebarStore.float) {
     hiddenAside = $sidebarStore.variant === SidebarVariant.MINI
     $sidebarStore.float = true
-  } else if ($deviceInfo.docWidth > FLOAT_ASIDE && $sidebarStore.float) {
+  } else if (!floatAside && $sidebarStore.float) {
     $sidebarStore.float = false
     $sidebarStore.variant = hiddenAside ? SidebarVariant.MINI : SidebarVariant.EXPANDED
   }
