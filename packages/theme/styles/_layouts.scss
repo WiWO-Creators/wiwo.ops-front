@@ -25,7 +25,7 @@ a {
   &:hover {
     color: var(--theme-caption-color);
     
-    &:not(:has(button)):not(.stealth):not(.no-underline) {
+    &:not(:has(button)):not(.stealth):not(.no-underline):not(.noUnderline) {
       text-decoration: underline;
     }
   }
@@ -33,7 +33,7 @@ a {
   &:active {
     color: var(--theme-content-color);
     
-    &:not(:has(button)):not(.stealth):not(.no-underline) {
+    &:not(:has(button)):not(.stealth):not(.no-underline):not(.noUnderline) {
       text-decoration: underline;
     }
   }
