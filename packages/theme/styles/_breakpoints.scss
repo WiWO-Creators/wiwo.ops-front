@@ -12,9 +12,9 @@ $bp-md: 760px;
 $bp-lg: 1024px;
 $bp-xl: 1208px;
 
-// Telefono en vertical y ventanas muy angostas.
-@mixin tiny {
-  @media (max-width: $bp-xs) {
+// De escritorio para arriba: por debajo entra la tablet, que no tiene aire de sobra.
+@mixin above-tablet {
+  @media (min-width: $bp-lg + 1px) {
     @content;
   }
 }
