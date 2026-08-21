@@ -105,7 +105,6 @@ export function perfexClientsTool (): void {
       '--transactor <url>',
       'url directa del transactor, para saltear el proxy (o variable TRANSACTOR_URL)'
     )
-    .option('--state <file>', 'archivo de estado para poder repetir la corrida (por defecto, uno por ambiente)')
     .option('--incluir-inactivos', 'migra también los clientes dados de baja en Perfex', false)
     .option('-s, --stages <stages>', `partes a correr, separadas por coma (${ALL_STAGES.join(', ')})`)
     .option('--desde <fecha>', 'sólo tareas creadas desde esta fecha, en formato AAAA-MM-DD')
@@ -118,10 +117,8 @@ export function perfexClientsTool (): void {
     .option('--avisar-a <url>', 'url a la que avisar cuando termine (o variable AVISAR_URL)')
     .action(async (cmd) => {
       const environment = getEnvironment(cmd.env)
-      const statePath = cmd.state ?? `./perfex-clients-state-${environment.id}.json`
       const options = {
         environment,
-        statePath,
         stages: parseStages(cmd.stages),
         dryRun: cmd.dryRun === true,
         includeInactive: cmd.incluirInactivos === true,

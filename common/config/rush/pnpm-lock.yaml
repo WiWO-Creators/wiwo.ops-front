@@ -1075,6 +1075,9 @@ importers:
       '@hcengineering/attachment':
         specifier: workspace:^0.7.0
         version: link:../../plugins/attachment
+      '@hcengineering/chunter':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/chunter
       '@hcengineering/contact':
         specifier: workspace:^0.7.0
         version: link:../../plugins/contact
