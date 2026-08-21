@@ -145,6 +145,7 @@
     margin: 0 auto;
     max-width: 64rem;
     width: 100%;
+    padding-inline: 1rem;
   }
   // El degradé de marca en movimiento, compartido por el nombre y el filete.
   @keyframes wiwo-gradient-shift {
@@ -158,7 +159,7 @@
   .greeting {
     margin: 0;
     font-family: var(--font-brand);
-    font-size: 3rem;
+    font-size: clamp(1.75rem, 7vw, 3rem);
     font-weight: 700;
     line-height: 1.1;
     letter-spacing: -0.015em;
@@ -182,7 +183,7 @@
   }
   .rule {
     margin: var(--spacing-3) 0 var(--spacing-6);
-    width: 7.5rem;
+    width: clamp(4rem, 20vw, 7.5rem);
     height: 0.25rem;
     border-radius: var(--min-BorderRadius);
     background-image: var(--wiwo-gradient-flow);
