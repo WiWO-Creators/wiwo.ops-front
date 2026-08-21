@@ -79,6 +79,8 @@
     "Name": "Nombre",
     "Description": "Descripción",
     "Status": "Estado",
+    "General": "General",
+    "ByStatus": "Por estado",
     "Number": "Número",
     "Assignee": "Asignado a",
     "AssignTo": "Asignar a...",

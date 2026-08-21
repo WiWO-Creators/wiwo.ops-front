@@ -38,6 +38,8 @@
   let subscribed = { _id: { $in: [] as Ref<Issue>[] } }
   let query: DocumentQuery<Issue> | undefined = undefined
   let modeSelectorProps: IModeSelector | undefined = undefined
+  let displayModeSelectorProps: IModeSelector<'general' | 'status'> | undefined = undefined
+  let displayMode: 'general' | 'status' = 'general'
   let mode: string | undefined = undefined
 
   const activeStatusQuery = createQuery()
@@ -79,6 +81,15 @@
   )
 
   $: queries = { assigned, active, backlog, created, subscribed }
+  $: displayMode = $resolvedLocationStore.query?.view === 'status' ? 'status' : 'general'
+  $: displayModeSelectorProps = {
+    config: [
+      ['general', tracker.string.General, {}],
+      ['status', tracker.string.ByStatus, {}]
+    ],
+    mode: displayMode,
+    onChange: (newMode) => dispatch('action', { view: newMode })
+  }
   $: mode = $resolvedLocationStore.query?.mode ?? undefined
   $: if (mode === undefined || (queries as any)[mode] === undefined) {
     ;[[mode]] = config
@@ -95,5 +106,14 @@
 </script>
 
 {#if query !== undefined && modeSelectorProps !== undefined}
-  <IssuesView {query} space={undefined} {icon} title={tracker.string.MyIssues} {modeSelectorProps} />
+  <IssuesView
+    query={displayMode === 'status' ? assigned : query}
+    space={undefined}
+    {icon}
+    title={tracker.string.MyIssues}
+    modeSelectorProps={displayMode === 'general' ? modeSelectorProps : undefined}
+    {displayModeSelectorProps}
+    statusBoard={displayMode === 'status'}
+    viewletQuery={displayMode === 'status' ? { attachTo: tracker.class.Issue, descriptor: tracker.viewlet.Kanban } : undefined}
+  />
 {/if}

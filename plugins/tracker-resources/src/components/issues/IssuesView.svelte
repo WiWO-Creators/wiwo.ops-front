@@ -3,7 +3,7 @@
   import { Asset, IntlString, translateCB } from '@hcengineering/platform'
   import { ComponentExtensions } from '@hcengineering/presentation'
   import { Issue, TrackerEvents } from '@hcengineering/tracker'
-  import { IModeSelector, themeStore } from '@hcengineering/ui'
+  import { IModeSelector, ModeSelector, themeStore } from '@hcengineering/ui'
   import { ViewOptions, Viewlet } from '@hcengineering/view'
   import { FilterBar, SpaceHeader, ViewletContentView, ViewletSettingButton } from '@hcengineering/view-resources'
   import tracker from '../../plugin'
@@ -15,6 +15,9 @@
   export let label: string = ''
   export let icon: Asset | undefined = undefined
   export let modeSelectorProps: IModeSelector | undefined = undefined
+  export let displayModeSelectorProps: IModeSelector | undefined = undefined
+  export let statusBoard = false
+  export let viewletQuery: DocumentQuery<Viewlet> | undefined = undefined
 
   let viewlet: WithLookup<Viewlet> | undefined = undefined
   const viewlets: WithLookup<Viewlet>[] | undefined = undefined
@@ -41,7 +44,7 @@
   bind:viewlet
   bind:search
   showLabelSelector={$$slots.label_selector}
-  viewletQuery={{
+  viewletQuery={viewletQuery ?? {
     attachTo: tracker.class.Issue,
     variant: { $nin: ['subissue', 'component', 'milestone', 'milestone-board'] }
   }}
@@ -49,7 +52,7 @@
   {label}
   {space}
   {resultQuery}
-  {modeSelectorProps}
+  modeSelectorProps={displayModeSelectorProps}
 >
   <svelte:fragment slot="header-tools">
     <ViewletSettingButton bind:viewOptions bind:viewlet />
@@ -70,6 +73,11 @@
     />
   </svelte:fragment>
 </SpaceHeader>
+{#if !statusBoard && modeSelectorProps !== undefined}
+  <div class="issues-modes">
+    <ModeSelector kind={'subtle'} props={modeSelectorProps} />
+  </div>
+{/if}
 <FilterBar
   _class={tracker.class.Issue}
   {space}
@@ -91,3 +99,10 @@
     createItemDialogProps={{ shouldSaveDraft: true }}
   />
 {/if}
+
+<style lang="scss">
+  .issues-modes {
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--theme-divider-color);
+  }
+</style>

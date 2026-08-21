@@ -60,6 +60,8 @@ export default mergeIds(trackerId, tracker, {
     Issues: '' as IntlString,
     Views: '' as IntlString,
     Active: '' as IntlString,
+    General: '' as IntlString,
+    ByStatus: '' as IntlString,
     AllIssues: '' as IntlString,
     ActiveIssues: '' as IntlString,
     BacklogIssues: '' as IntlString,

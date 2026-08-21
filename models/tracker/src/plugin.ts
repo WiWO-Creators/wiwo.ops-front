@@ -43,6 +43,8 @@ export default mergeIds(trackerId, tracker, {
     MapRelatedIssues: '' as IntlString,
     Extensions: '' as IntlString,
     AllowCreatingIssues: '' as IntlString,
+    General: '' as IntlString,
+    ByStatus: '' as IntlString,
     ControlCenter: '' as IntlString,
     ActiveTimers: '' as IntlString,
     TimerStartedOn: '' as IntlString,
