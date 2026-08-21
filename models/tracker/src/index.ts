@@ -309,7 +309,6 @@ function defineApplication (
     myIssuesId: string
     allIssuesId: string
     issuesId: string
-    componentsId: string
     milestonesId: string
     templatesId: string
     labelsId: string
@@ -413,12 +412,6 @@ function defineApplication (
                     ['backlog', tracker.string.Backlog, {}]
                   ]
                 }
-              },
-              {
-                id: opt.componentsId,
-                label: tracker.string.Components,
-                icon: tracker.icon.Components,
-                component: tracker.component.ProjectComponents
               },
               {
                 id: opt.milestonesId,
@@ -536,7 +529,6 @@ export function createModel (builder: Builder): void {
   )
 
   const issuesId = 'issues'
-  const componentsId = 'components'
   const milestonesId = 'milestones'
   const templatesId = 'templates'
   const myIssuesId = 'my-issues'
@@ -667,9 +659,9 @@ export function createModel (builder: Builder): void {
     tracker.ids.IssueTemplateUpdatedActivityViewlet
   )
 
-  defineApplication(builder, { myIssuesId, allIssuesId, issuesId, componentsId, milestonesId, templatesId, labelsId })
+  defineApplication(builder, { myIssuesId, allIssuesId, issuesId, milestonesId, templatesId, labelsId })
 
-  defineActions(builder, issuesId, componentsId, myIssuesId)
+  defineActions(builder, issuesId, myIssuesId)
 
   defineFilters(builder)
 
