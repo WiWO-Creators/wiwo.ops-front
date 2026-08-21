@@ -168,7 +168,10 @@ export async function importTags (
   }
 
   // 1. Los documentos migrados, buscados por el id que traen del board.
-  const tareas = await tareasPorPerfexId(client, plan)
+  const tareas = await tareasPorPerfexId(
+    client,
+    plan.elementos.flatMap((e) => e.tareas)
+  )
   const proyectos = await proyectosPorPerfexId(client, plan)
   logger.log(`Tareas encontradas en este workspace: ${tareas.size}, proyectos: ${proyectos.size}`)
   if (tareas.size === 0 && proyectos.size === 0) return
@@ -295,12 +298,21 @@ async function asegurarElementos (
   return porNombre
 }
 
-/** Tareas migradas de este workspace, con su espacio, por id de tarea de Perfex. */
-async function tareasPorPerfexId (
+/**
+ * Tareas migradas de este workspace, con su espacio, por id de tarea de Perfex.
+ *
+ * Es el ancla de todas las pasadas posteriores a la importación: encuentra la tarea por el
+ * `perfexId` que le dejó puesto el importador, sin depender del archivo de estado, que sólo existe
+ * en la máquina desde donde se corrió la migración.
+ *
+ * @param idsDeTarea ids de tarea de Perfex a buscar; se consultan en lotes, sin repetir.
+ * @returns sólo las tareas que existen en este workspace.
+ */
+export async function tareasPorPerfexId (
   client: TxOperations,
-  plan: PlanDeEtiquetas
+  idsDeTarea: number[]
 ): Promise<Map<number, { id: Ref<Issue>, space: Ref<Project> }>> {
-  const ids = [...new Set(plan.elementos.flatMap((e) => e.tareas))]
+  const ids = [...new Set(idsDeTarea)]
   const encontradas = new Map<number, { id: Ref<Issue>, space: Ref<Project> }>()
 
   for (let i = 0; i < ids.length; i += QUERY_BATCH) {
