@@ -1,6 +1,7 @@
 import { type AccountUuid } from '@hcengineering/core'
+import { type PerfexClient, type PerfexProject, type PerfexStaff } from '@hcengineering/perfex'
 
-import { calcularAccesos, correosDeCelda, parsearCsv } from '../permisos'
+import { calcularAccesos, controlarAdminsClientes, correosDeCelda, parsearCsv, type Cuentas } from '../permisos'
 
 const ana = 'ana' as AccountUuid
 const beto = 'beto' as AccountUuid
@@ -92,5 +93,51 @@ describe('lectura del CSV del board', () => {
 
   it('avisa si el archivo está vacío', () => {
     expect(() => parsearCsv('')).toThrow('vacío')
+  })
+})
+
+describe('control de admins de cliente', () => {
+  const cuentas: Cuentas = {
+    porCorreo: new Map([
+      ['ana@wiwo.me', ana],
+      ['beto@wiwo.me', beto]
+    ]),
+    nombres: new Map()
+  }
+
+  it('informa cliente sin focal, admin sin cuenta y admin omitido por el CSV', () => {
+    const control = controlarAdminsClientes(
+      [
+        {
+          projectId: 7,
+          proyecto: 'Campaña uno',
+          focal: ['ana@wiwo.me'],
+          personas: []
+        }
+      ],
+      [
+        { id: 7, clientid: 10 },
+        { id: 8, clientid: 11 }
+      ] as unknown as PerfexProject[],
+      [
+        { id: 10, company: 'Acme' },
+        { id: 11, company: 'Beta' }
+      ] as unknown as PerfexClient[],
+      [
+        { clientId: 10, staffId: 1 },
+        { clientId: 10, staffId: 2 },
+        { clientId: 11, staffId: 3 }
+      ],
+      [
+        { staffid: 1, email: 'ana@wiwo.me' },
+        { staffid: 2, email: 'beto@wiwo.me' },
+        { staffid: 3, email: 'sin-cuenta@wiwo.me' }
+      ] as unknown as PerfexStaff[],
+      cuentas
+    )
+
+    expect(control.clientesSinFocal).toEqual(['Beta'])
+    expect(control.adminsFueraDelCsv).toEqual(['Acme: beto@wiwo.me'])
+    expect(control.adminsSinCuenta).toEqual(['Beta: sin-cuenta@wiwo.me'])
   })
 })

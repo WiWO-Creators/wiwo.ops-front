@@ -23,12 +23,13 @@ import serverClientPlugin, {
 } from '@hcengineering/server-client'
 import { FrontFileUploader, type FileUploader } from '@hcengineering/importer'
 import { program } from 'commander'
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 
 import { ENVIRONMENTS, getEnvironment } from './environments'
 import { openProjects } from './abrir'
 import { closeProjects } from './cerrar'
 import { aplicarPermisos } from './permisos'
+import { asignarOwners } from './owners'
 import { createPermanentInvite } from './invitacion'
 import { cleanWorkspace } from './limpiar'
 import { limpiarTiposRepetidos } from './tipos'
@@ -36,6 +37,14 @@ import { notifyResult } from './aviso'
 import { ALL_STAGES, importClients, type Logger, type Stage } from './import'
 import { moveClient } from './move'
 import { getPerfexConfig, PerfexReader } from '@hcengineering/perfex'
+import {
+  archivarAusentes,
+  buscarDuplicados,
+  duplicadosSinResolver,
+  idsDelAmbiente,
+  readDuplicateMap,
+  readSyncConfig
+} from './sync'
 
 function parseStages (value: string | undefined): Stage[] {
   if (value === undefined || value.trim() === '') return ALL_STAGES
@@ -177,6 +186,113 @@ export function perfexClientsTool (): void {
     })
 
   program
+    .command('sync-all')
+    .description('reconcilia todos los workspaces contra el dump restaurado de Perfex')
+    .requiredOption('-c, --config <archivo>', 'manifiesto local con destinos y variables de token')
+    .option('-o, --output <archivo>', 'resultado JSON', 'perfex-sync-result.json')
+    .option('--dry-run', 'planifica, detecta duplicados y no escribe nada', false)
+    .action(async (cmd) => {
+      const config = readSyncConfig(cmd.config)
+      const mapaDuplicados = readDuplicateMap(config.mapaDuplicados)
+      const permisosCsv = readFileSync(config.permisosCsv, 'utf8')
+      const results: Array<Record<string, unknown>> = []
+
+      for (const destination of config.workspaces) {
+        const environment = getEnvironment(destination.env)
+        const lines: string[] = []
+        const logger: Logger = {
+          log: (message: string) => {
+            console.log(`[${environment.id}] ${message}`)
+            if (!message.startsWith('  ...')) lines.push(message)
+          },
+          error: (message: string) => {
+            console.error(`[${environment.id}] ${message}`)
+            lines.push(message)
+          }
+        }
+        const startedAt = new Date().toISOString()
+
+        try {
+          const token = process.env[destination.tokenEnv]
+          if (token === undefined || token === '') throw new Error(`Falta la variable ${destination.tokenEnv}`)
+          const perfex = await PerfexReader.connect(getPerfexConfig())
+          try {
+            await withHulyClient(
+              {
+                frontUrl: config.front,
+                workspaceUrl: destination.workspace,
+                token,
+                transactor: config.transactor
+              },
+              async (client, uploader, ensurePerson) => {
+                const unresolved = duplicadosSinResolver(await buscarDuplicados(client), mapaDuplicados)
+                if (unresolved.length > 0) {
+                  throw new Error(
+                    `Duplicados sin canónico: ${unresolved.map((item) => `${item.tipo}:${item.clave}`).join(', ')}`
+                  )
+                }
+                logger.log('Preflight: sin duplicados sin resolver')
+                const options = {
+                  environment,
+                  stages: ALL_STAGES,
+                  dryRun: cmd.dryRun === true,
+                  includeInactive: true,
+                  onlyOpenTasks: false,
+                  minTagUses: 1,
+                  attachmentsDir: config.dirAdjuntos ?? process.env.DIR_ADJUNTOS,
+                  includeClosedTaskCollaborators: true,
+                  canonicalOrganizations: mapaDuplicados.organizaciones,
+                  canonicalPeople: mapaDuplicados.personas
+                }
+                await importClients(client, perfex, logger, options, uploader, ensurePerson)
+                const owners = await asignarOwners(client, token, logger, destination.owners, { dryRun: options.dryRun })
+                const permisos = await aplicarPermisos(client, perfex, logger, permisosCsv, { dryRun: options.dryRun })
+                const source = idsDelAmbiente(
+                  environment,
+                  await perfex.getClients(),
+                  await perfex.getProjects(),
+                  await perfex.getTasks()
+                )
+                const archived = await archivarAusentes(client, source.projectIds, source.taskIds, options.dryRun)
+                logger.log(
+                  `Archivado${options.dryRun ? ' planificado' : ''}: ${archived.proyectos} proyectos, ${archived.tareas} tareas`
+                )
+                results.push({
+                  environment: environment.id,
+                  workspace: destination.workspace,
+                  status: 'ok',
+                  startedAt,
+                  finishedAt: new Date().toISOString(),
+                  m08: { owners, permisos },
+                  archived,
+                  summary: lines
+                })
+              }
+            )
+          } finally {
+            await perfex.close()
+          }
+        } catch (err: any) {
+          const error = err instanceof Error ? err.message : String(err)
+          console.error(`[${environment.id}] RESULTADO: error — ${error}`)
+          results.push({
+            environment: environment.id,
+            workspace: destination.workspace,
+            status: 'error',
+            startedAt,
+            finishedAt: new Date().toISOString(),
+            error,
+            summary: lines
+          })
+          process.exitCode = 1
+        }
+      }
+
+      writeFileSync(cmd.output, `${JSON.stringify({ generatedAt: new Date().toISOString(), results }, null, 2)}\n`)
+      console.log(`RESULTADO: ${results.filter((result) => result.status === 'ok').length}/${results.length} workspaces correctos`)
+    })
+
+  program
     .command('abrir')
     .description('suma a todo el equipo como miembro de los proyectos, para que vean las tareas')
     .requiredOption('-w, --workspace <workspace>', 'url del workspace')
@@ -239,8 +355,35 @@ export function perfexClientsTool (): void {
       const csv = readFileSync(cmd.csv, 'utf8')
       const token = cmd.token ?? process.env.HULY_TOKEN
       const transactor = cmd.transactor ?? process.env.TRANSACTOR_URL
+      const perfex = await PerfexReader.connect(getPerfexConfig())
+      try {
+        await withTokenClient(token, transactor, async (client) => {
+          await aplicarPermisos(client, perfex, consoleLogger, csv, { dryRun: cmd.dryRun === true })
+        })
+      } finally {
+        await perfex.close()
+      }
+    })
+
+  program
+    .command('owners')
+    .description('promueve miembros explícitos a owner del workspace')
+    .requiredOption('-t, --token <token>', 'token del workspace (o variable HULY_TOKEN)')
+    .requiredOption('--owner <correo...>', 'correo de un owner; se puede repetir')
+    .option('-f, --front <url>', 'url del front de Huly (o variable FRONT_URL)')
+    .option('--transactor <url>', 'url directa del transactor (o variable TRANSACTOR_URL)')
+    .option('--dry-run', 'no escribe nada: sólo informa qué owners promovería', false)
+    .action(async (cmd) => {
+      const frontUrl = cmd.front ?? process.env.FRONT_URL
+      if (frontUrl === undefined || frontUrl === '') {
+        throw new Error('Falta la url del front: usá --front o la variable FRONT_URL')
+      }
+      await setupAccounts(frontUrl)
+
+      const token = cmd.token ?? process.env.HULY_TOKEN
+      const transactor = cmd.transactor ?? process.env.TRANSACTOR_URL
       await withTokenClient(token, transactor, async (client) => {
-        await aplicarPermisos(client, consoleLogger, csv, { dryRun: cmd.dryRun === true })
+        await asignarOwners(client, token, consoleLogger, cmd.owner as string[], { dryRun: cmd.dryRun === true })
       })
     })
 

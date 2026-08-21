@@ -109,6 +109,9 @@ tests/profiles
 dump
 **/logs/**
 dev/tool/history.json
+dev/perfex-clients/sync.json
+dev/perfex-clients/perfex-duplicados.json
+dev/perfex-clients/perfex-sync-result.json
 .aider*
 /combined_dependencies
 .tmp

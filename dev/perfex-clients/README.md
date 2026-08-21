@@ -243,6 +243,31 @@ hace nada la segunda: sólo toca lo que falta.
 Los permisos de trabajo no hay que darlos: en Huly, cualquiera que vea un proyecto puede crear
 tareas, asignarlas y cambiarles el estado. Lo único reservado es administrar el espacio.
 
+## Roles y permisos por proyecto
+
+El CSV del board decide el reparto inicial: el focal queda como owner y rol `Focal`; los admins del
+tipo de proyecto quedan como `Equipo`. Antes de escribir, revisar el plan y el cruce con
+`tblcustomer_admins`:
+
+```bash
+export HULY_TOKEN='<token del workspace>'
+node bundle.js permisos -w mgc -t "$HULY_TOKEN" -c wiwo_board_proyectos_focal_personas.csv --dry-run
+node bundle.js permisos -w mgc -t "$HULY_TOKEN" -c wiwo_board_proyectos_focal_personas.csv
+```
+
+El cruce informa clientes sin focal, admins sin cuenta y admins de cliente que no aparecen en el
+CSV; no les da acceso automáticamente.
+
+Cada workspace necesita al menos un owner humano ya miembro. Promoverlos explícitamente, primero
+en seco y luego de verdad:
+
+```bash
+node bundle.js owners -t "$HULY_TOKEN" --owner gerencia@wiwo.me --dry-run
+node bundle.js owners -t "$HULY_TOKEN" --owner gerencia@wiwo.me
+```
+
+El comando se puede repetir: sólo promueve cuentas que aún no son owner y nunca degrada roles.
+
 ### Quién figura como autor
 
 Los documentos quedan a nombre de la cuenta cuyo token se usó. Para que no aparezca todo a nombre
@@ -449,6 +474,33 @@ Consecuencias prácticas:
   completa el ancla, para que las pasadas de etiquetas, hitos y adjuntos los encuentren.
 - Si en el board cambia el nombre de una empresa o de un proyecto de tareas sueltas, la corrida
   siguiente lo toma como uno nuevo: esos dos no tienen id de Perfex que seguir.
+
+## Migración final desde dump
+
+Para reconciliar los cuatro workspaces contra el dump restaurado en MySQL, copiar
+`sync.example.json` a `sync.json`, ajustar URLs/rutas, `owners` por ambiente y exportar los tokens
+nombrados en `tokenEnv`. `permisosCsv` es el insumo de M08: se aplica después de importar datos y
+colaboradores. `sync.json`, el resultado y el mapa de duplicados están ignorados por Git.
+
+```bash
+node bundle.js sync-all --config sync.json --dry-run
+node bundle.js sync-all --config sync.json --output /tmp/perfex-sync-result.json
+```
+
+El comando continúa con los otros workspaces si uno falla y deja un JSON por workspace. Incluye
+todas las etapas, clientes inactivos y colaboradores de tareas cerradas. Antes de escribir bloquea
+duplicados; para organizaciones o personas, el mapa local elige el id canónico:
+
+```json
+{
+  "organizaciones": { "empresa spa": "id-huly-canonico" },
+  "personas": { "contacto@empresa.cl": "id-huly-canonico" }
+}
+```
+
+Duplicados de `perfexId` en proyectos o tareas siempre bloquean la corrida: hay que corregirlos
+antes porque su ancla debe ser única. Proyectos y tareas migrados que no aparecen en el dump se
+archivan; organizaciones y contactos se conservan.
 
 ## Opciones
 

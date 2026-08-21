@@ -51,6 +51,12 @@ export interface PerfexStaff {
   active: number
 }
 
+/** Staff asignado a un cliente en Perfex. */
+export interface PerfexCustomerAdmin {
+  clientId: number
+  staffId: number
+}
+
 export interface PerfexProject {
   id: number
   name: string
@@ -347,6 +353,13 @@ export class PerfexReader {
   async getStaff (): Promise<PerfexStaff[]> {
     return await this.query<PerfexStaff>(
       'SELECT staffid, email, firstname, lastname, active FROM {p}staff ORDER BY staffid'
+    )
+  }
+
+  /** Lee quién atiende cada cliente; se usa como control del reparto de permisos. */
+  async getCustomerAdmins (): Promise<PerfexCustomerAdmin[]> {
+    return await this.query<PerfexCustomerAdmin>(
+      'SELECT customer_id AS clientId, staff_id AS staffId FROM {p}customer_admins ORDER BY customer_id, staff_id'
     )
   }
 

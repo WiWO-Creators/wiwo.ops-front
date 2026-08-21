@@ -1,0 +1,12 @@
+{
+  "front": "https://ops.wiwo.me",
+  "dirAdjuntos": "/ruta/al/rescate/uploads",
+  "mapaDuplicados": "/ruta/local/perfex-duplicados.json",
+  "permisosCsv": "../../../wiwo_board_proyectos_focal_personas_2026_08_19_01ae6395_9a46_4.csv",
+  "workspaces": [
+    { "env": "wiwo", "workspace": "wiwo", "tokenEnv": "HULY_TOKEN_WIWO", "owners": ["gerencia@wiwo.me"] },
+    { "env": "palta", "workspace": "palta", "tokenEnv": "HULY_TOKEN_PALTA", "owners": ["gerencia@wiwo.me"] },
+    { "env": "mgc", "workspace": "mgc", "tokenEnv": "HULY_TOKEN_MGC", "owners": ["gerencia@wiwo.me"] },
+    { "env": "sin-clasificar", "workspace": "sin-clasificar", "tokenEnv": "HULY_TOKEN_SIN_CLASIFICAR", "owners": ["gerencia@wiwo.me"] }
+  ]
+}

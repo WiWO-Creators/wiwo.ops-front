@@ -53,7 +53,10 @@ export function normalizarNombre (nombre: string): string {
 }
 
 /** Organizaciones del workspace, por nombre normalizado. */
-export async function organizacionesPorNombre (client: TxOperations): Promise<Map<string, Ref<Organization>>> {
+export async function organizacionesPorNombre (
+  client: TxOperations,
+  canonicos: Record<string, string> = {}
+): Promise<Map<string, Ref<Organization>>> {
   const organizaciones = await client.findAll(
     contact.class.Organization,
     {},
@@ -64,7 +67,7 @@ export async function organizacionesPorNombre (client: TxOperations): Promise<Ma
     // La primera gana: si una corrida vieja dejó duplicados, no se reparten los contactos entre
     // las dos copias.
     const clave = normalizarNombre(organizacion.name)
-    if (!porNombre.has(clave)) porNombre.set(clave, organizacion._id)
+    if (canonicos[clave] === organizacion._id || !porNombre.has(clave)) porNombre.set(clave, organizacion._id)
   }
   return porNombre
 }
@@ -77,7 +80,8 @@ export async function organizacionesPorNombre (client: TxOperations): Promise<Ma
  */
 export async function personasPorEmail (
   client: TxOperations,
-  emails: string[]
+  emails: string[],
+  canonicos: Record<string, string> = {}
 ): Promise<Map<string, Ref<Person>>> {
   const buscados = emails.map((e) => e.trim().toLowerCase()).filter((e) => e !== '')
   const canales = await porLotes(buscados, async (lote) =>
@@ -91,7 +95,9 @@ export async function personasPorEmail (
   const porEmail = new Map<string, Ref<Person>>()
   for (const canal of canales) {
     const clave = canal.value.trim().toLowerCase()
-    if (!porEmail.has(clave)) porEmail.set(clave, canal.attachedTo as Ref<Person>)
+    if (canonicos[clave] === canal.attachedTo || !porEmail.has(clave)) {
+      porEmail.set(clave, canal.attachedTo as Ref<Person>)
+    }
   }
   return porEmail
 }

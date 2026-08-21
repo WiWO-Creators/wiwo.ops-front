@@ -83,6 +83,10 @@ export interface ImportOptions {
   attachmentsDir?: string
   /** Si es true migra también los colaboradores de las tareas ya completadas en el board. */
   includeClosedTaskCollaborators: boolean
+  /** Registro canónico de Huly para organizaciones duplicadas, por nombre normalizado. */
+  canonicalOrganizations?: Record<string, string>
+  /** Registro canónico de Huly para personas duplicadas, por correo normalizado. */
+  canonicalPeople?: Record<string, string>
 }
 
 /** Nombre visible de un contacto, con respaldo al email cuando no tiene nombre cargado. */
@@ -194,12 +198,13 @@ async function runClientsStage (
     return organizationsByClientId
   }
 
-  const existentes = await organizacionesPorNombre(client)
+  const existentes = await organizacionesPorNombre(client, options.canonicalOrganizations)
   const emails = clients.flatMap((c) => c.contacts.map((p) => p.email))
-  const personasExistentes = await personasPorEmail(client, emails)
+  const personasExistentes = await personasPorEmail(client, emails, options.canonicalPeople)
 
   let creadas = 0
   let reusadas = 0
+  let actualizadas = 0
   const nuevas: Array<{ perfexClient: PerfexClient, orgId: Ref<Organization> }> = []
 
   for (const perfexClient of clients) {
@@ -212,6 +217,13 @@ async function runClientsStage (
     if (yaExiste !== undefined) {
       organizationsByClientId[perfexClient.id] = yaExiste
       reusadas++
+      if (stages.has('clientes')) {
+        await client.updateDoc(contact.class.Organization, contact.space.Contacts, yaExiste, {
+          name: perfexClient.company,
+          city: perfexClient.city
+        })
+        actualizadas++
+      }
       continue
     }
     if (!stages.has('clientes')) continue
@@ -225,7 +237,7 @@ async function runClientsStage (
 
   if (!stages.has('clientes')) return organizationsByClientId
 
-  logger.log(`Organizaciones: ${creadas} nuevas, ${reusadas} ya existían`)
+  logger.log(`Organizaciones: ${creadas} nuevas, ${actualizadas} actualizadas, ${reusadas} ya existían`)
 
   // Los contactos se revisan para todos los clientes, no sólo para los nuevos: el board sigue vivo
   // hasta el corte y una persona cargada después de la primera corrida tiene que viajar igual.
@@ -246,6 +258,10 @@ async function runClientsStage (
         personId = await createPerson(client, perfexContact)
         if (email !== '') personasExistentes.set(email, personId)
         contactosCreados++
+      } else {
+        await client.updateDoc(contact.class.Person, contact.space.Contacts, personId, {
+          name: buildContactName(perfexContact)
+        })
       }
 
       if (miembros.has(`${orgId}:${personId}`)) continue

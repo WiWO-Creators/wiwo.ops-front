@@ -21,6 +21,13 @@ import core, {
 import contact, { formatName, type Person } from '@hcengineering/contact'
 import { createSpaceTypeRole } from '@hcengineering/setting'
 import tracker, { ROL_EQUIPO, ROL_FOCAL, ROL_RESTRINGIDO, type Project } from '@hcengineering/tracker'
+import {
+  type PerfexClient,
+  type PerfexCustomerAdmin,
+  type PerfexProject,
+  type PerfexReader,
+  type PerfexStaff
+} from '@hcengineering/perfex'
 import { parse } from 'csv-parse/sync'
 
 import { type Logger } from './import'
@@ -53,6 +60,9 @@ export interface Faltantes {
   sinProyecto: string[]
   correosDesconocidos: string[]
   nombresAmbiguos: string[]
+  clientesSinFocal: string[]
+  adminsSinCuenta: string[]
+  adminsFueraDelCsv: string[]
 }
 
 const COLUMNAS = ['project_id', 'proyecto', 'focal', 'personas_asociadas_board']
@@ -166,6 +176,77 @@ export async function cargarCuentas (client: TxOperations): Promise<Cuentas> {
   return { porCorreo, nombres }
 }
 
+/** Resultado del control cruzado entre focales del CSV y admins de cliente de Perfex. */
+export interface ControlAdmins {
+  clientesSinFocal: string[]
+  adminsSinCuenta: string[]
+  adminsFueraDelCsv: string[]
+}
+
+/**
+ * Detecta repartos que el CSV no cubre, sin modificar los permisos propuestos.
+ *
+ * @param filas reparto manual de focales por proyecto.
+ * @param projects campañas de Perfex, necesarias para llegar al cliente.
+ * @param clients clientes de Perfex, sólo para informar nombres legibles.
+ * @param admins asignaciones vivas de staff a cliente.
+ * @param staff staff de Perfex, para resolver el correo de cada admin.
+ * @param cuentas cuentas presentes en el workspace destino.
+ */
+export function controlarAdminsClientes (
+  filas: FilaCsv[],
+  projects: PerfexProject[],
+  clients: PerfexClient[],
+  admins: PerfexCustomerAdmin[],
+  staff: PerfexStaff[],
+  cuentas: Cuentas
+): ControlAdmins {
+  const projectsById = new Map(projects.map((project) => [project.id, project]))
+  const clientsById = new Map(clients.map((client) => [client.id, client.company]))
+  const staffById = new Map(staff.map((person) => [person.staffid, person]))
+  const correosCsvByClient = new Map<number, Set<string>>()
+  const focalesByClient = new Map<number, Set<string>>()
+
+  for (const fila of filas) {
+    const clientId = projectsById.get(fila.projectId)?.clientid
+    if (clientId === undefined) continue
+
+    const correos = correosCsvByClient.get(clientId) ?? new Set<string>()
+    for (const correo of [...fila.focal, ...fila.personas]) correos.add(correo)
+    correosCsvByClient.set(clientId, correos)
+
+    const focales = focalesByClient.get(clientId) ?? new Set<string>()
+    for (const correo of fila.focal) focales.add(correo)
+    focalesByClient.set(clientId, focales)
+  }
+
+  const clientsWithAdmins = new Set(admins.map((admin) => admin.clientId))
+  const clientesSinFocal = [...clientsWithAdmins]
+    .filter((clientId) => (focalesByClient.get(clientId)?.size ?? 0) === 0)
+    .map((clientId) => clientsById.get(clientId) ?? `Cliente ${clientId}`)
+
+  const adminsSinCuenta = new Set<string>()
+  const adminsFueraDelCsv = new Set<string>()
+  for (const admin of admins) {
+    const person = staffById.get(admin.staffId)
+    const client = clientsById.get(admin.clientId) ?? `Cliente ${admin.clientId}`
+    const email = person?.email.trim().toLowerCase() ?? ''
+    if (email === '' || !cuentas.porCorreo.has(email)) {
+      adminsSinCuenta.add(`${client}: ${email === '' ? `staff ${admin.staffId} sin correo` : email}`)
+      continue
+    }
+    if (!(correosCsvByClient.get(admin.clientId)?.has(email) ?? false)) {
+      adminsFueraDelCsv.add(`${client}: ${email}`)
+    }
+  }
+
+  return {
+    clientesSinFocal,
+    adminsSinCuenta: [...adminsSinCuenta],
+    adminsFueraDelCsv: [...adminsFueraDelCsv]
+  }
+}
+
 /**
  * Empareja cada fila del CSV con su proyecto de Huly.
  *
@@ -260,6 +341,7 @@ async function asegurarRoles (
  */
 export async function aplicarPermisos (
   client: TxOperations,
+  perfex: PerfexReader,
   logger: Logger,
   csv: string,
   options: PermisosOptions
@@ -278,8 +360,23 @@ export async function aplicarPermisos (
     sinFocal: [],
     sinProyecto,
     correosDesconocidos: [],
-    nombresAmbiguos: ambiguos
+    nombresAmbiguos: ambiguos,
+    clientesSinFocal: [],
+    adminsSinCuenta: [],
+    adminsFueraDelCsv: []
   }
+
+  const control = controlarAdminsClientes(
+    filas,
+    await perfex.getProjects(),
+    await perfex.getClients(),
+    await perfex.getCustomerAdmins(),
+    await perfex.getStaff(),
+    cuentas
+  )
+  faltantes.clientesSinFocal = control.clientesSinFocal
+  faltantes.adminsSinCuenta = control.adminsSinCuenta
+  faltantes.adminsFueraDelCsv = control.adminsFueraDelCsv
 
   const spaceTypes = new Map<Ref<SpaceType>, SpaceType>(
     (await client.findAll(core.class.SpaceType, {})).map((t: SpaceType) => [t._id, t])
@@ -395,6 +492,24 @@ function informarFaltantes (logger: Logger, faltantes: Faltantes): void {
     logger.error(
       `${faltantes.correosDesconocidos.length} correos del CSV no tienen cuenta en el workspace: ` +
         faltantes.correosDesconocidos.join(', ')
+    )
+  }
+  if (faltantes.clientesSinFocal.length > 0) {
+    logger.error(
+      `${faltantes.clientesSinFocal.length} clientes con admins en Perfex no tienen focal declarado en el CSV: ` +
+        faltantes.clientesSinFocal.join(', ')
+    )
+  }
+  if (faltantes.adminsSinCuenta.length > 0) {
+    logger.error(
+      `${faltantes.adminsSinCuenta.length} admins de cliente no tienen cuenta en el workspace: ` +
+        faltantes.adminsSinCuenta.join(', ')
+    )
+  }
+  if (faltantes.adminsFueraDelCsv.length > 0) {
+    logger.error(
+      `${faltantes.adminsFueraDelCsv.length} admins de cliente no aparecen en el CSV; sólo se informan: ` +
+        faltantes.adminsFueraDelCsv.join(', ')
     )
   }
 }

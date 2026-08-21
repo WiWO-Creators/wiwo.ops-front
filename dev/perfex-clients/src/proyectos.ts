@@ -260,6 +260,7 @@ export async function importProjects (
   // Los ids de las tareas se fijan de antemano para poder completarles después los atributos
   // que el importador no escribe, sin tener que volver a buscarlas.
   const issueIdByTask = new Map<number, Ref<Issue>>()
+  const spaceByExistingTask = new Map<number, { id: Ref<Issue>, space: Ref<Project> }>()
 
   const buildIssue = (task: PerfexTask): ImportIssue => {
     const issueId = generateId<Issue>()
@@ -314,6 +315,10 @@ export async function importProjects (
     client,
     tasks.map((t) => t.id)
   )
+  for (const [perfexId, existing] of tareasExistentes) {
+    issueIdByTask.set(perfexId, existing.id)
+    spaceByExistingTask.set(perfexId, existing)
+  }
 
   const destinos: Destino[] = []
 
@@ -321,7 +326,10 @@ export async function importProjects (
     const title = campaign.name?.trim() !== '' ? campaign.name : `Campaña ${campaign.id}`
     const update: Record<string, any> = {
       perfexId: campaign.id,
-      estadoBoard: getProjectStatusName(campaign.status)
+      estadoBoard: getProjectStatusName(campaign.status),
+      name: title,
+      description: htmlToMarkdown(campaign.description),
+      archived: CLOSED_PROJECT_STATUSES.has(campaign.status)
     }
     const organizacion = options.organizationsByClientId[campaign.clientid]
     if (organizacion !== undefined) update.cliente = organizacion
@@ -332,8 +340,6 @@ export async function importProjects (
     if (campaign.numeroCotizacion !== undefined) update.numeroCotizacion = campaign.numeroCotizacion
     if (campaign.palabraClave !== undefined) update.palabraClave = campaign.palabraClave
     // Una campaña terminada o cancelada ya no es trabajo en curso: se archiva.
-    if (CLOSED_PROJECT_STATUSES.has(campaign.status)) update.archived = true
-
     const anclado = campañasExistentes.get(campaign.id)
     const porNombre = proyectosExistentes.get(normalizarNombre(title))
     destinos.push({
@@ -385,6 +391,7 @@ export async function importProjects (
   if (options.dryRun) return
 
   const spaceByTask = new Map<number, Ref<Project>>()
+  for (const [perfexId, existing] of spaceByExistingTask) spaceByTask.set(perfexId, existing.space)
   const pendientes: Array<{ projectId: Ref<Project>, update: Record<string, any> }> = []
 
   // --- Proyectos nuevos, con sus tareas y comentarios, vía el importador -----------------------
@@ -456,7 +463,9 @@ export async function importProjects (
   //
   // Se arma la lista completa y después se manda por tandas en paralelo. Ir de a una tarea, y
   // encima buscándola antes de tocarla, era lo que hacía eternas las corridas grandes.
-  const taskById = new Map(tasks.map((t) => [t.id, t]))
+  const taskById = new Map<number, PerfexTask>(tasks.map((task): [number, PerfexTask] => [task.id, task]))
+  const statuses = await client.findAll(tracker.class.IssueStatus, {}, { projection: { _id: 1, name: 1 } })
+  const statusByName = new Map(statuses.map((status) => [status.name, status._id]))
   const pending: Array<{ issueId: Ref<Issue>, space: Ref<Project>, update: Record<string, any> }> = []
 
   for (const [perfexId, issueId] of issueIdByTask) {
@@ -467,13 +476,18 @@ export async function importProjects (
 
     // El id de Perfex viaja con la tarea para que las migraciones posteriores la encuentren sin
     // depender de nada local. Sin él, la tarea queda huérfana para etiquetas, hitos y adjuntos.
-    const update: Record<string, any> = { perfexId }
-    const startDate = toTimestamp(task.startdate)
-    const dueDate = toTimestamp(task.duedate)
-    if (startDate !== null) update.startDate = startDate
-    if (dueDate !== null) update.dueDate = dueDate
-    if (task.companyArea.length > 0) update.companyArea = task.companyArea
-    if (task.driveLink !== undefined && task.driveLink !== '') update.driveLink = task.driveLink
+    const update: Record<string, any> = {
+      perfexId,
+      title: task.name?.trim() !== '' ? task.name : `Tarea ${task.id}`,
+      assignee: task.assignees.length > 0 ? options.peopleByStaffId[task.assignees[0]] ?? null : null,
+      priority: getPriorityName(task.priority),
+      startDate: toTimestamp(task.startdate),
+      dueDate: toTimestamp(task.duedate),
+      companyArea: task.companyArea,
+      driveLink: task.driveLink ?? ''
+    }
+    const status = statusByName.get(getStatusName(task.status))
+    if (status !== undefined) update.status = status
     pending.push({ issueId, space, update })
   }
 

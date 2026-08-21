@@ -21,3 +21,19 @@ describe('PerfexReader.getProjects', () => {
     )
   })
 })
+
+describe('PerfexReader.getCustomerAdmins', () => {
+  it('lee las asignaciones de staff a cliente', async () => {
+    const query = jest.fn().mockResolvedValueOnce([[{ clientId: 12, staffId: 7 }]])
+    const reader = Object.create(PerfexReader.prototype) as PerfexReader
+    Object.assign(reader as unknown as { connection: { query: typeof query }, prefix: string }, {
+      connection: { query },
+      prefix: 'tbl'
+    })
+
+    await expect(reader.getCustomerAdmins()).resolves.toEqual([{ clientId: 12, staffId: 7 }])
+    expect(query).toHaveBeenCalledWith(
+      'SELECT customer_id AS clientId, staff_id AS staffId FROM tblcustomer_admins ORDER BY customer_id, staff_id'
+    )
+  })
+})
