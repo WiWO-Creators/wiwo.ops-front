@@ -141,6 +141,11 @@
   let isMobile: boolean
   const alwaysMobile: boolean = false
   $: isMobile = alwaysMobile || checkMobile()
+  // `isMobile` mira el user-agent, asi que no se entera de una ventana angosta y el iPad, que desde
+  // iPadOS 13 se anuncia como Macintosh, queda afuera. `isCompact` es la señal de layout: mismo
+  // modo compacto para el telefono y para cualquier pantalla de hasta 680px (breakpoint `sm`).
+  let isCompact: boolean
+  $: isCompact = isMobile || checkAdaptiveMatching($deviceInfo.size, 'sm')
   let isPortrait: boolean
   $: isPortrait = docWidth <= docHeight
 
@@ -148,6 +153,7 @@
   $: $deviceInfo.docHeight = docHeight
   $: $deviceInfo.isPortrait = isPortrait
   $: $deviceInfo.isMobile = isMobile
+  $: $deviceInfo.isCompact = isCompact
   $: $deviceInfo.minWidth = docWidth <= 480
   $: $deviceInfo.twoRows = docWidth <= 680
   $: $deviceInfo.language = $themeStore.language
@@ -202,7 +208,7 @@
 
   $: secondRow = checkAdaptiveMatching($deviceInfo.size, 'xs')
   $: appsMini =
-    $deviceInfo.isMobile &&
+    $deviceInfo.isCompact &&
     (($deviceInfo.isPortrait && $deviceInfo.docWidth <= 480) ||
       (!$deviceInfo.isPortrait && $deviceInfo.docHeight <= 480))
 
@@ -221,7 +227,7 @@
 />
 
 <Theme>
-  <div id="ui-root" class:mobile-theme={isMobile}>
+  <div id="ui-root" class:mobile-theme={isCompact}>
     <div class="antiStatusBar">
       <div class="flex-row-center h-full content-color gap-3 px-4">
         {#if desktopPlatform}

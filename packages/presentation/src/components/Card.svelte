@@ -98,7 +98,7 @@
 <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
 <form
   id={label}
-  class="antiCard {$deviceInfo.isMobile ? 'mobile' : 'dialog'} {width}"
+  class="antiCard {$deviceInfo.isCompact ? 'mobile' : 'dialog'} {width}"
   class:full={fullSize}
   on:keydown={handleKeyDown}
   on:submit|preventDefault={() => {}}

@@ -87,7 +87,7 @@
     if (modalHTML != null) {
       const device: DeviceOptions = $deviceInfo
       options =
-        device.isMobile && device.docWidth <= 480
+        device.isCompact && device.docWidth <= 480
           ? {
               props: {
                 top: 'var(--status-bar-height)',

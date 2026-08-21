@@ -173,7 +173,9 @@
 
   const linkProviders = client.getModel().findAllSync(view.mixin.LinkIdProvider, {})
 
-  const mobileAdaptive = $deviceInfo.isMobile && $deviceInfo.minWidth
+  // Reactivo, no `const`: si no, rotar el telefono o redimensionar la ventana no lo actualiza.
+  let mobileAdaptive: boolean = $deviceInfo.isCompact && $deviceInfo.minWidth
+  $: mobileAdaptive = $deviceInfo.isCompact && $deviceInfo.minWidth
   const defaultNavigator = !(getMetadata(workbench.metadata.NavigationExpandedDefault) ?? true)
   const savedNavigator = localStorage.getItem('hiddenNavigator')
   let hiddenNavigator: boolean = savedNavigator !== null ? savedNavigator === 'true' : defaultNavigator
@@ -700,17 +702,17 @@
   location.subscribe(() => {
     if (mobileAdaptive && $sidebarStore.variant !== SidebarVariant.MINI) $sidebarStore.variant = SidebarVariant.MINI
   })
-  $: $deviceInfo.navigator.direction = $deviceInfo.isMobile && $deviceInfo.isPortrait ? 'horizontal' : 'vertical'
+  $: $deviceInfo.navigator.direction = $deviceInfo.isCompact && $deviceInfo.isPortrait ? 'horizontal' : 'vertical'
   let appsMini: boolean
   $: appsMini =
-    $deviceInfo.isMobile &&
+    $deviceInfo.isCompact &&
     (($deviceInfo.isPortrait && $deviceInfo.docWidth <= 480) ||
       (!$deviceInfo.isPortrait && $deviceInfo.docHeight <= 480))
   let popupPosition: PopupPosAlignment
   $: popupPosition =
     $deviceInfo.navigator.direction === 'horizontal'
       ? 'account-portrait'
-      : $deviceInfo.navigator.direction === 'vertical' && $deviceInfo.isMobile
+      : $deviceInfo.navigator.direction === 'vertical' && $deviceInfo.isCompact
         ? 'account-mobile'
         : 'account'
   let popupSpacePosition: PopupPosAlignment
@@ -1039,7 +1041,7 @@
                 {/if}
               </NavFooter>
             </div>
-            {#if !($deviceInfo.isMobile && $deviceInfo.isPortrait && $deviceInfo.minWidth)}
+            {#if !($deviceInfo.isCompact && $deviceInfo.isPortrait && $deviceInfo.minWidth)}
               <Separator
                 name={'workbench'}
                 float={$deviceInfo.navigator.float ? 'navigator' : true}

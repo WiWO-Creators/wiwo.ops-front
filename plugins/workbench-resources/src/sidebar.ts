@@ -83,7 +83,7 @@ function getSidebarStateFromLocalStorage (workspace: string): SidebarState {
       ...defaultSidebarState,
       ...parsed,
       variant:
-        device.isMobile && device.minWidth ? SidebarVariant.MINI : (parsed.variant ?? defaultSidebarState.variant),
+        device.isCompact && device.minWidth ? SidebarVariant.MINI : (parsed.variant ?? defaultSidebarState.variant),
       widgetsState: new Map(Object.entries(parsed.widgetsState ?? {}))
     }
   } catch (e) {
@@ -104,7 +104,7 @@ function setSidebarStateToLocalStorage (state: SidebarState): void {
     sidebarStateLocalStorageKey,
     JSON.stringify({
       ...state,
-      variant: device.isMobile && device.minWidth ? SidebarVariant.MINI : state.variant,
+      variant: device.isCompact && device.minWidth ? SidebarVariant.MINI : state.variant,
       widgetsState: Object.fromEntries(state.widgetsState.entries())
     })
   )
