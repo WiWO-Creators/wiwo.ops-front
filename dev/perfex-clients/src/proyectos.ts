@@ -22,6 +22,16 @@ import tracker, { type Issue, type Milestone, type Project } from '@hcengineerin
 
 import { type Logger } from './import'
 import {
+  claveDeComentario,
+  claveDeHito,
+  comentariosPorTareaYFecha,
+  hitosPorProyectoYNombre,
+  normalizarNombre,
+  proyectosPorNombre,
+  proyectosPorPerfexId,
+  tareasPorPerfexId
+} from './existente'
+import {
   type PerfexComment,
   type PerfexMilestone,
   type PerfexReader,
@@ -55,13 +65,6 @@ export interface ProjectImportOptions {
   peopleByStaffId: Record<string, Ref<Person>>
   /** Organizaciones de Huly por id de cliente de Perfex, para vincular el proyecto a su cliente. */
   organizationsByClientId: Record<string, Ref<Organization>>
-  /**
-   * Proyectos de Huly ya creados. La clave es el id del proyecto de Perfex; las tareas que colgaban
-   * de un cliente usan `cliente-<id>` y las sueltas, `orphan`.
-   */
-  migratedProjects: Record<string, Ref<Project>>
-  /** Tareas ya migradas, por id de Perfex. Se completa durante la corrida. */
-  migratedTasks: Record<string, Ref<Issue>>
   /** Sólo tareas creadas desde esta fecha (timestamp). Sin valor, todas. */
   tasksSince?: number
   /** Sólo tareas creadas antes de esta fecha (timestamp). Sin valor, sin tope. */
@@ -69,8 +72,6 @@ export interface ProjectImportOptions {
   /** Si es true deja fuera las tareas ya completadas en Perfex. */
   onlyOpenTasks: boolean
   dryRun: boolean
-  /** Se llama cuando hay avance que conviene persistir. */
-  onProgress: () => void
 }
 
 /** Convierte el HTML que guarda Perfex al markdown que espera el importador. */
@@ -107,6 +108,82 @@ export function buildIssueDescription (task: PerfexTask, staffById: Map<number, 
 
   const note = `**Otros asignados en Perfex:** ${extraAssignees.join(', ')}`
   return description === '' ? note : `${description}\n\n${note}`
+}
+
+/**
+ * Comentario de Perfex traducido a comentario de ops.
+ *
+ * El autor va dentro del texto porque los comentarios se escriben con la cuenta que corre la
+ * migración: el staff del board todavía no tiene cuenta propia en ops.
+ */
+export function buildComment (comment: PerfexComment, staffById: Map<number, PerfexStaff>): ImportComment {
+  const author = comment.staffid != null ? staffById.get(comment.staffid) : undefined
+  const text = htmlToMarkdown(comment.content)
+  return {
+    text: author !== undefined ? `**${`${author.firstname} ${author.lastname}`.trim()}:** ${text}` : text,
+    date: toTimestamp(comment.dateadded) ?? undefined
+  }
+}
+
+/** Un proyecto de ops con las tareas del board que le corresponden. */
+export interface Destino {
+  /** Nombre del proyecto, que es el ancla de los que no salen de una campaña. */
+  title: string
+  description: string
+  /** Identificador fijo, sólo para el proyecto de tareas huérfanas. */
+  identifier?: string
+  tasks: PerfexTask[]
+  /** Atributos que el importador no escribe y hay que completar cuando el proyecto es nuevo. */
+  update: Record<string, any>
+  /** Proyecto de ops si ya existe; `undefined` si hay que crearlo. */
+  existente?: Ref<Project>
+  /**
+   * true si el proyecto se reconoció por nombre y no por `perfexId`.
+   *
+   * Pasa con los proyectos que dejaron corridas viejas, anteriores al ancla. Se les completa el
+   * `perfexId` para que las pasadas de etiquetas, hitos y adjuntos los encuentren.
+   */
+  sinAncla?: boolean
+}
+
+/** Qué hay que escribir en ops y qué ya está. */
+export interface PlanDeProyectos {
+  /** Proyectos que no existen: se crean enteros, con sus tareas. */
+  porCrear: Destino[]
+  /** Proyectos que ya existen y tienen tareas nuevas para agregar. */
+  porCompletar: Destino[]
+  /** Las tareas nuevas de cada destino, por nombre de destino. */
+  tareasNuevas: Map<string, PerfexTask[]>
+  /** Total de tareas a crear en esta corrida. */
+  total: number
+}
+
+/**
+ * Decide qué crear, mirando tarea por tarea y no proyecto por proyecto.
+ *
+ * Es la regla que hace repetible la migración: una tarea ya migrada no se vuelve a crear, y una
+ * tarea nueva se crea aunque su proyecto sea de una corrida anterior. Saltear el proyecto entero
+ * —lo que hacía la versión vieja— dejaba fuera para siempre toda tarea cargada en el board después
+ * de la primera corrida.
+ *
+ * @param tareasExistentes ids de tarea de Perfex que ya están en el workspace.
+ */
+export function planificarProyectos (destinos: Destino[], tareasExistentes: Set<number>): PlanDeProyectos {
+  const tareasNuevas = new Map<string, PerfexTask[]>()
+  for (const destino of destinos) {
+    tareasNuevas.set(
+      destino.title,
+      destino.tasks.filter((t) => !tareasExistentes.has(t.id))
+    )
+  }
+
+  const nuevasDe = (d: Destino): PerfexTask[] => tareasNuevas.get(d.title) ?? []
+  return {
+    porCrear: destinos.filter((d) => d.existente === undefined),
+    porCompletar: destinos.filter((d) => d.existente !== undefined && nuevasDe(d).length > 0),
+    tareasNuevas,
+    total: destinos.reduce((acc, d) => acc + nuevasDe(d).length, 0)
+  }
 }
 
 /**
@@ -206,14 +283,7 @@ export async function importProjects (
       priority: getPriorityName(task.priority),
       assignee,
       subdocs: [],
-      comments: (commentsByTask.get(task.id) ?? []).map((comment): ImportComment => {
-        const author = comment.staffid != null ? staffById.get(comment.staffid) : undefined
-        const text = htmlToMarkdown(comment.content)
-        return {
-          text: author !== undefined ? `**${`${author.firstname} ${author.lastname}`.trim()}:** ${text}` : text,
-          date: toTimestamp(comment.dateadded) ?? undefined
-        }
-      })
+      comments: (commentsByTask.get(task.id) ?? []).map((comment) => buildComment(comment, staffById))
     }
   }
 
@@ -239,27 +309,23 @@ export async function importProjects (
   }
 
   const clientById = new Map(options.clients.map((c) => [c.id, c]))
-  const importProjectList: ImportProject[] = []
-  const pendientes: Pendiente[] = []
-  const spaceByTask = new Map<number, Ref<Project>>()
+
+  // Lo que ya está en ops manda: las campañas se reconocen por su id de Perfex y los dos proyectos
+  // que no salen de una campaña, por su nombre.
+  const campañasExistentes = await proyectosPorPerfexId(
+    client,
+    campaigns.map((c) => c.id)
+  )
+  const proyectosExistentes = await proyectosPorNombre(client)
+  const tareasExistentes = await tareasPorPerfexId(
+    client,
+    tasks.map((t) => t.id)
+  )
+
+  const destinos: Destino[] = []
 
   for (const campaign of campaigns) {
-    const key = String(campaign.id)
-    const yaCreado = options.migratedProjects[key]
-    const campaignTasks = tasksByCampaign.get(campaign.id) ?? []
-
-    if (yaCreado !== undefined) {
-      for (const task of campaignTasks) spaceByTask.set(task.id, yaCreado)
-      continue
-    }
-
     const title = campaign.name?.trim() !== '' ? campaign.name : `Campaña ${campaign.id}`
-    const project = base(title, campaignTasks.map(buildIssue), htmlToMarkdown(campaign.description))
-    importProjectList.push(project)
-
-    const projectId = project.id as Ref<Project>
-    for (const task of campaignTasks) spaceByTask.set(task.id, projectId)
-
     const update: Record<string, any> = {
       perfexId: campaign.id,
       estadoBoard: getProjectStatusName(campaign.status)
@@ -273,59 +339,79 @@ export async function importProjects (
     // Una campaña terminada o cancelada ya no es trabajo en curso: se archiva.
     if (CLOSED_PROJECT_STATUSES.has(campaign.status)) update.archived = true
 
-    pendientes.push({ key, projectId, update })
+    const anclado = campañasExistentes.get(campaign.id)
+    const porNombre = proyectosExistentes.get(normalizarNombre(title))
+    destinos.push({
+      title,
+      description: htmlToMarkdown(campaign.description),
+      tasks: tasksByCampaign.get(campaign.id) ?? [],
+      update,
+      existente: anclado ?? porNombre,
+      sinAncla: anclado === undefined && porNombre !== undefined
+    })
   }
 
   for (const [clientId, clientTasks] of tasksByClient) {
-    const key = `cliente-${clientId}`
-    const yaCreado = options.migratedProjects[key]
-    if (yaCreado !== undefined) {
-      for (const task of clientTasks) spaceByTask.set(task.id, yaCreado)
-      continue
-    }
-
     const company = clientById.get(clientId)?.company ?? `Cliente ${clientId}`
-    const project = base(
-      `${company} (sin campaña)`,
-      clientTasks.map(buildIssue),
-      'Tareas que en el board colgaban del cliente y no de una campaña.'
-    )
-    importProjectList.push(project)
-
-    const projectId = project.id as Ref<Project>
-    for (const task of clientTasks) spaceByTask.set(task.id, projectId)
-
+    const title = `${company} (sin campaña)`
     const update: Record<string, any> = {}
     const organizacion = options.organizationsByClientId[clientId]
     if (organizacion !== undefined) update.cliente = organizacion
-    pendientes.push({ key, projectId, update })
+
+    destinos.push({
+      title,
+      description: 'Tareas que en el board colgaban del cliente y no de una campaña.',
+      tasks: clientTasks,
+      update,
+      existente: proyectosExistentes.get(normalizarNombre(title))
+    })
   }
 
   if (leadTasks.length > 0) {
-    const yaCreado = options.migratedProjects.orphan
-    if (yaCreado !== undefined) {
-      for (const task of leadTasks) spaceByTask.set(task.id, yaCreado)
-    } else {
-      const project = base(
-        ORPHAN_PROJECT_NAME,
-        leadTasks.map(buildIssue),
-        'Tareas de Perfex que no pertenecían a ningún cliente.'
-      )
-      project.identifier = ORPHAN_PROJECT_IDENTIFIER
-      importProjectList.push(project)
-
-      const projectId = project.id as Ref<Project>
-      for (const task of leadTasks) spaceByTask.set(task.id, projectId)
-      pendientes.push({ key: 'orphan', projectId, update: {} })
-    }
+    destinos.push({
+      title: ORPHAN_PROJECT_NAME,
+      description: 'Tareas de Perfex que no pertenecían a ningún cliente.',
+      identifier: ORPHAN_PROJECT_IDENTIFIER,
+      tasks: leadTasks,
+      update: {},
+      existente: proyectosExistentes.get(normalizarNombre(ORPHAN_PROJECT_NAME))
+    })
   }
 
-  const issueCount = importProjectList.reduce((acc, p) => acc + p.docs.length, 0)
+  const plan = planificarProyectos(destinos, new Set(tareasExistentes.keys()))
+  const { porCrear, porCompletar } = plan
+  const nuevas = (destino: Destino): PerfexTask[] => plan.tareasNuevas.get(destino.title) ?? []
+
   logger.log(
-    `Proyectos (uno por campaña): ${importProjectList.length}, con ${issueCount} tareas` +
-      (options.dryRun ? ' (simulado)' : '')
+    `Proyectos: ${porCrear.length} a crear, ${destinos.length - porCrear.length} ya existían ` +
+      `(${porCompletar.length} con tareas nuevas). Tareas a migrar: ${plan.total} de ` +
+      `${tasks.length}${options.dryRun ? ' (simulado)' : ''}`
   )
   if (options.dryRun) return
+
+  const spaceByTask = new Map<number, Ref<Project>>()
+  const pendientes: Array<{ projectId: Ref<Project>, update: Record<string, any> }> = []
+
+  // --- Proyectos nuevos, con sus tareas y comentarios, vía el importador -----------------------
+  const importProjectList: ImportProject[] = porCrear.map((destino) => {
+    const projectId = generateId<Project>()
+    const project: ImportProject = {
+      id: projectId,
+      class: tracker.class.Project,
+      title: destino.title,
+      identifier: destino.identifier ?? buildProjectIdentifier(destino.title),
+      // Los proyectos nacen privados y sin miembros: quién ve qué lo reparte después el comando
+      // `permisos` a partir del CSV del board, que es el único lugar donde figura el focal.
+      private: true,
+      autoJoin: false,
+      members: [],
+      description: destino.description,
+      docs: nuevas(destino).map(buildIssue)
+    }
+    for (const task of nuevas(destino)) spaceByTask.set(task.id, projectId)
+    pendientes.push({ projectId, update: destino.update })
+    return project
+  })
 
   const workspaceData: ImportWorkspace = {
     projectTypes: [
@@ -337,16 +423,39 @@ export async function importProjects (
     spaces: importProjectList.map((p) => ({ ...p, projectType: { name: PROJECT_TYPE_NAME } }))
   }
 
-  await new WorkspaceImporter(client, logger, uploader, workspaceData).performImport()
+  const importer = new WorkspaceImporter(client, logger, uploader, workspaceData)
+  if (importProjectList.length > 0) await importer.performImport()
 
-  // Cliente, id de Perfex, estado y fechas: el importador no escribe ninguno de los cuatro.
-  for (const { key, projectId, update } of pendientes) {
-    options.migratedProjects[key] = projectId
-    if (Object.keys(update).length > 0) {
-      await client.updateDoc(tracker.class.Project, core.space.Space, projectId, update)
+  // Cliente, id de Perfex, estado y fechas: el importador no escribe ninguno de los cuatro. Los
+  // proyectos viejos que se reconocieron por nombre entran acá también, para que les quede el ancla.
+  for (const destino of destinos) {
+    if (destino.sinAncla === true && destino.existente !== undefined) {
+      pendientes.push({ projectId: destino.existente, update: destino.update })
     }
   }
-  options.onProgress()
+  let anclados = 0
+  for (const { projectId, update } of pendientes) {
+    if (Object.keys(update).length > 0) {
+      await client.updateDoc(tracker.class.Project, core.space.Space, projectId, update)
+      anclados++
+    }
+  }
+  const reparados = destinos.filter((d) => d.sinAncla === true).length
+  if (reparados > 0) logger.log(`Proyectos viejos a los que se les completó el id de Perfex: ${reparados}`)
+  if (anclados > 0) logger.log(`Proyectos completados con cliente, estado y fechas: ${anclados}`)
+
+  // --- Tareas nuevas de proyectos que ya existían ----------------------------------------------
+  await crearTareasSueltas(
+    client,
+    importer,
+    logger,
+    porCompletar.map((d) => ({ title: d.title, projectId: d.existente as Ref<Project>, tasks: nuevas(d) })),
+    buildIssue,
+    spaceByTask
+  )
+
+  // --- Comentarios nuevos de tareas que ya existían ---------------------------------------------
+  await crearComentariosFaltantes(client, importer, logger, tasks, tareasExistentes, commentsByTask, staffById)
 
   // Fechas y atributos propios del fork: tampoco los escribe el importador.
   //
@@ -358,10 +467,11 @@ export async function importProjects (
   for (const [perfexId, issueId] of issueIdByTask) {
     const task = taskById.get(perfexId)
     if (task === undefined) continue
-    options.migratedTasks[perfexId] = issueId
+    const space = spaceByTask.get(perfexId)
+    if (space === undefined) continue
 
     // El id de Perfex viaja con la tarea para que las migraciones posteriores la encuentren sin
-    // depender del archivo de estado, que sólo existe en la máquina desde donde se corre.
+    // depender de nada local. Sin él, la tarea queda huérfana para etiquetas, hitos y adjuntos.
     const update: Record<string, any> = { perfexId }
     const startDate = toTimestamp(task.startdate)
     const dueDate = toTimestamp(task.duedate)
@@ -369,8 +479,6 @@ export async function importProjects (
     if (dueDate !== null) update.dueDate = dueDate
     if (task.companyArea.length > 0) update.companyArea = task.companyArea
     if (task.driveLink !== undefined && task.driveLink !== '') update.driveLink = task.driveLink
-    const space = spaceByTask.get(perfexId)
-    if (space === undefined) continue
     pending.push({ issueId, space, update })
   }
 
@@ -385,32 +493,101 @@ export async function importProjects (
     updated += batch.length
     // Señal de vida en corridas largas, para poder seguirlas por el archivo de log.
     logger.log(`  ... ${updated} de ${pending.length} tareas completadas`)
-    options.onProgress()
   }
   logger.log(`Tareas completadas con fechas y campos de Perfex: ${updated}`)
-
-  options.onProgress()
 }
 
-/** Lo que necesita la carga de hitos, todo salido del estado de la migración. */
+/**
+ * Crea las tareas nuevas de los proyectos que ya existían en ops.
+ *
+ * El importador sólo sabe crear un proyecto entero de una vez, así que estas tareas se dan de alta
+ * de a una contra el proyecto que ya está.
+ */
+async function crearTareasSueltas (
+  client: TxOperations,
+  importer: WorkspaceImporter,
+  logger: Logger,
+  destinos: Array<{ title: string, projectId: Ref<Project>, tasks: PerfexTask[] }>,
+  buildIssue: (task: PerfexTask) => ImportIssue,
+  spaceByTask: Map<number, Ref<Project>>
+): Promise<void> {
+  if (destinos.length === 0) return
+
+  const proyectos = await client.findAll(tracker.class.Project, {
+    _id: { $in: destinos.map((d) => d.projectId) }
+  })
+  const porId = new Map(proyectos.map((p) => [p._id, p]))
+
+  let creadas = 0
+  for (const { title, projectId, tasks } of destinos) {
+    const proyecto = porId.get(projectId)
+    if (proyecto === undefined) {
+      logger.error(`No se encontró el proyecto "${title}" para agregarle tareas nuevas`)
+      continue
+    }
+
+    for (const task of tasks) {
+      const issue = buildIssue(task)
+      await importer.createIssueWithSubissues(issue, tracker.ids.NoParent, proyecto, projectId, [])
+      spaceByTask.set(task.id, projectId)
+      creadas++
+      if (creadas % UPDATE_BATCH === 0) logger.log(`  ... ${creadas} tareas nuevas creadas`)
+    }
+  }
+  logger.log(`Tareas nuevas en proyectos ya existentes: ${creadas}`)
+}
+
+/**
+ * Crea los comentarios que se cargaron en el board después de que la tarea ya estaba migrada.
+ *
+ * El comentario migrado no guarda el id de Perfex, pero sí la fecha del original: tarea más fecha
+ * alcanza para saber cuál falta.
+ */
+async function crearComentariosFaltantes (
+  client: TxOperations,
+  importer: WorkspaceImporter,
+  logger: Logger,
+  tasks: PerfexTask[],
+  tareasExistentes: Map<number, { id: Ref<Issue>, space: Ref<Project> }>,
+  commentsByTask: Map<number, PerfexComment[]>,
+  staffById: Map<number, PerfexStaff>
+): Promise<void> {
+  const conComentarios = tasks.filter((t) => tareasExistentes.has(t.id) && (commentsByTask.get(t.id)?.length ?? 0) > 0)
+  if (conComentarios.length === 0) return
+
+  const yaPuestos = await comentariosPorTareaYFecha(
+    client,
+    conComentarios.map((t) => tareasExistentes.get(t.id)?.id as Ref<Issue>)
+  )
+
+  let creados = 0
+  for (const task of conComentarios) {
+    const tarea = tareasExistentes.get(task.id)
+    if (tarea === undefined) continue
+
+    for (const comment of commentsByTask.get(task.id) ?? []) {
+      const fecha = toTimestamp(comment.dateadded) ?? undefined
+      if (yaPuestos.has(claveDeComentario(tarea.id, fecha))) continue
+
+      await importer.createComment(tarea.id, buildComment(comment, staffById), tarea.space)
+      creados++
+    }
+  }
+  logger.log(`Comentarios nuevos en tareas ya migradas: ${creados}`)
+}
+
+/** Lo que necesita la carga de hitos. */
 export interface MilestoneImportOptions {
-  /** Proyectos de Huly ya creados, por id de proyecto de Perfex. */
-  migratedProjects: Record<string, Ref<Project>>
-  /** Tareas de Huly ya creadas, por id de tarea de Perfex. */
-  migratedTasks: Record<string, Ref<Issue>>
-  /** Hitos ya creados, por id de hito de Perfex. Se completa durante la corrida. */
-  migratedMilestones: Record<string, Ref<Milestone>>
   dryRun: boolean
-  /** Se llama cuando hay avance que conviene persistir. */
-  onProgress: () => void
 }
 
 /**
  * Crea en Huly los hitos de Perfex y le pone su hito a cada tarea.
  *
- * Corre después de los proyectos y las tareas, y se apoya sólo en el estado de la migración, así
- * que se puede volver a correr sola sobre un workspace ya migrado. Un hito cuyo proyecto no está
- * en este ambiente se saltea, igual que una tarea cuyo hito quedó afuera.
+ * Corre después de los proyectos y las tareas, y encuentra todo por consulta al workspace: el
+ * proyecto por su `perfexId`, la tarea por el suyo y el hito por su nombre dentro del proyecto. Un
+ * hito cuyo proyecto no está en este ambiente se saltea, igual que una tarea cuyo hito quedó
+ * afuera. Volver a correrla no duplica nada.
  */
 export async function importMilestones (
   client: TxOperations,
@@ -429,15 +606,27 @@ export async function importMilestones (
     tasksByMilestone.set(task.milestone, list)
   }
 
-  // Sólo los hitos cuyo proyecto vive en este ambiente y que todavía no se crearon.
-  const pendientes = milestones.filter(
-    (m) =>
-      options.migratedProjects[String(m.project_id)] !== undefined &&
-      options.migratedMilestones[String(m.id)] === undefined
-  )
+  if (options.dryRun) {
+    logger.log(`Hitos en el board: ${milestones.length} (simulado)`)
+    return
+  }
 
-  logger.log(`Hitos a crear: ${pendientes.length} de ${milestones.length}` + (options.dryRun ? ' (simulado)' : ''))
-  if (options.dryRun) return
+  // Sólo los hitos cuyo proyecto vive en este ambiente.
+  const proyectos = await proyectosPorPerfexId(
+    client,
+    milestones.map((m) => m.project_id)
+  )
+  const delAmbiente = milestones.filter((m) => proyectos.has(m.project_id))
+  const hitosExistentes = await hitosPorProyectoYNombre(client, [...proyectos.values()])
+
+  const hitoDe = (milestone: PerfexMilestone): Ref<Milestone> | undefined => {
+    const space = proyectos.get(milestone.project_id)
+    if (space === undefined) return undefined
+    return hitosExistentes.get(claveDeHito(space, toHulyMilestone(milestone, []).label))
+  }
+
+  const pendientes = delAmbiente.filter((m) => hitoDe(m) === undefined)
+  logger.log(`Hitos a crear: ${pendientes.length} de ${delAmbiente.length} en este ambiente`)
 
   // El orden manual de Perfex se traduce a los rangos que usa Huly, proyecto por proyecto, para
   // que las columnas del tablero queden como estaban en el board.
@@ -450,7 +639,7 @@ export async function importMilestones (
 
   let creados = 0
   for (const [projectId, list] of porProyecto) {
-    const space = options.migratedProjects[String(projectId)]
+    const space = proyectos.get(projectId) as Ref<Project>
     list.sort((a, b) => (a.milestone_order !== b.milestone_order ? a.milestone_order - b.milestone_order : a.id - b.id))
     const ranks = genRanks(list.length)
 
@@ -474,27 +663,32 @@ export async function importMilestones (
         },
         milestoneId
       )
-      options.migratedMilestones[String(milestone.id)] = milestoneId
+      hitosExistentes.set(claveDeHito(space, datos.label), milestoneId)
       creados++
     }
-    options.onProgress()
   }
   logger.log(`Hitos creados: ${creados}`)
 
   // Y ahora la otra mitad: cada tarea apunta a su hito. Va por tandas, como el resto.
   const pendingTasks: Array<{ issueId: Ref<Issue>, space: Ref<Project>, milestone: Ref<Milestone> }> = []
-  for (const task of tasks) {
-    if (task.milestone === 0) continue
-    const issueId = options.migratedTasks[String(task.id)]
-    const milestone = options.migratedMilestones[String(task.milestone)]
-    if (issueId === undefined || milestone === undefined) continue
+  const conHito = tasks.filter((t) => t.milestone !== 0)
+  const tareas = await tareasPorPerfexId(
+    client,
+    conHito.map((t) => t.id)
+  )
+  const milestoneById = new Map(milestones.map((m) => [m.id, m]))
 
-    const perfexMilestone = milestones.find((m) => m.id === task.milestone)
-    if (perfexMilestone === undefined) continue
-    const space = options.migratedProjects[String(perfexMilestone.project_id)]
+  for (const task of conHito) {
+    const tarea = tareas.get(task.id)
+    const perfexMilestone = milestoneById.get(task.milestone)
+    if (tarea === undefined || perfexMilestone === undefined) continue
+
+    const space = proyectos.get(perfexMilestone.project_id)
     if (space === undefined) continue
+    const milestone = hitosExistentes.get(claveDeHito(space, toHulyMilestone(perfexMilestone, []).label))
+    if (milestone === undefined) continue
 
-    pendingTasks.push({ issueId, space, milestone })
+    pendingTasks.push({ issueId: tarea.id, space, milestone })
   }
 
   let updated = 0
@@ -507,9 +701,6 @@ export async function importMilestones (
     )
     updated += batch.length
     logger.log(`  ... ${updated} de ${pendingTasks.length} tareas con hito`)
-    options.onProgress()
   }
   logger.log(`Tareas asociadas a su hito: ${updated}`)
-
-  options.onProgress()
 }

@@ -111,11 +111,14 @@ rushx run import -e sin-clasificar -w sin-clasificar --incluir-inactivos
 ```
 
 Si preferís ir por partes, `--stages personas`, `--stages clientes`, `--stages proyectos`,
-`--stages hitos` o `--stages etiquetas` corren sólo esa parte. El orden importa: las tareas necesitan el staff ya creado
-para poder asignar responsables, y los hitos necesitan los proyectos y las tareas ya migrados.
+`--stages hitos`, `--stages etiquetas` o `--stages adjuntos` corren sólo esa parte. El orden
+importa: los hitos necesitan los proyectos y las tareas ya migrados. El staff y las empresas se
+resuelven siempre, corra o no su etapa, porque las tareas necesitan a quién asignarse y los
+proyectos, a qué cliente pertenecen.
 
 Para cargar los hitos sobre un workspace que ya se migró antes, alcanza con
-`--stages hitos`: se apoya sólo en el archivo de estado, así que no repite nada de lo anterior.
+`--stages hitos`: encuentra los proyectos y las tareas por su id de Perfex y reconoce los hitos que
+ya están por su nombre, así que no repite nada de lo anterior.
 
 ### Etiquetas
 
@@ -131,8 +134,8 @@ rushx run import -e mgc -w mgc --stages etiquetas              # carga
 rushx run import -e mgc -w mgc --stages etiquetas --min-usos 3 # deja fuera las de menos de 3 usos
 ```
 
-La etapa encuentra cada tarea y cada proyecto por el `perfexId` que les dejó la importación, no por
-el archivo de estado, y saltea lo que ya está puesto: repetirla no duplica nada.
+La etapa encuentra cada tarea y cada proyecto por el `perfexId` que les dejó la importación y
+saltea lo que ya está puesto: repetirla no duplica nada.
 
 Los workspaces tienen que existir de antes, y el usuario indicado tiene que ser miembro de cada
 uno.
@@ -245,9 +248,8 @@ Protecciones: si el cliente no está en el origen, o si ya existe uno con el mis
 destino, no se mueve nada. Con `--solo-copiar` el original queda en su lugar, para revisar el
 destino antes de borrar nada. Los contactos que además pertenezcan a otra empresa no se borran.
 
-El cliente movido **no** vuelve a aparecer en el ambiente viejo si se repite la migración: el
-archivo de estado recuerda que ya se había creado. Si querés que la próxima corrida lo mande solo
-al ambiente nuevo, corregí su grupo en Perfex.
+Si el cliente sigue teniendo el grupo viejo en Perfex, una corrida del ambiente viejo lo vuelve a
+crear ahí. Corregí su grupo en Perfex después de moverlo.
 
 ## Migrar sólo una parte de las tareas
 
@@ -286,8 +288,9 @@ node bundle.js import -e mgc -w mgc --incluir-inactivos --stages proyectos --has
 ```
 
 Las ventanas no se pisan: `--desde` incluye la fecha y `--hasta` la excluye, así que las tandas
-cubren todo sin repetir nada. Cada una se puede correr por separado, incluso en días distintos: el
-archivo de estado recuerda lo hecho y los proyectos ya creados se reutilizan.
+cubren todo sin repetir nada. Cada una se puede correr por separado, incluso en días distintos: la
+corrida pregunta a ops qué existe, reutiliza los proyectos ya creados y les agrega las tareas
+nuevas.
 
 Entre tanda y tanda el sistema queda usable: lo que ya se migró se ve y se trabaja normal.
 
@@ -303,8 +306,8 @@ tail -f migracion-mgc.log     # seguirla en vivo
 grep -E "Staff|Organizaciones|Proyectos|Tareas completadas" migracion-mgc.log   # revisar al final
 ```
 
-El log deja una marca cada 200 tareas, así se ve el avance sin adivinar. Si el proceso muere, el
-archivo de estado permite retomar donde quedó.
+El log deja una marca cada 200 tareas, así se ve el avance sin adivinar. Si el proceso muere,
+volver a lanzar el mismo comando retoma donde quedó: lo que ya está en ops no se vuelve a crear.
 
 La corrida termina siempre con una línea que dice cómo le fue, y sale con código distinto de cero
 si falló, así que se puede encadenar:
@@ -330,8 +333,9 @@ aviso no se puede entregar, queda anotado en el log y la migración se da por te
 
 ## Empezar de cero
 
-Si el workspace quedó con datos repetidos —por ejemplo por haber corrido la migración sin el
-archivo de estado— conviene vaciarlo y volver a importar, en vez de andar cazando duplicados:
+Si el workspace quedó con datos repetidos —por ejemplo por corridas viejas, anteriores a que la
+migración preguntara a ops qué existe— conviene vaciarlo y volver a importar, en vez de andar
+cazando duplicados:
 
 ```bash
 export HULY_TOKEN='<token del workspace>'
@@ -342,10 +346,7 @@ node bundle.js limpiar -w mgc -t "$HULY_TOKEN"
 # 2. Borrar de verdad
 node bundle.js limpiar -w mgc -t "$HULY_TOKEN" --si-borrar-todo
 
-# 3. Borrar el archivo de estado de ese ambiente
-rm -f perfex-clients-state-mgc.json
-
-# 4. Importar de nuevo
+# 3. Importar de nuevo
 node bundle.js import -e mgc -w mgc --incluir-inactivos
 ```
 
@@ -379,9 +380,32 @@ les cambiaría los estados.
 
 ## Repetir la corrida
 
-Lo migrado se anota en `perfex-clients-state-<ambiente>.json` (se cambia con `--state`), después de
-cada cliente. Volver a correr el comando salta lo que ya está hecho, así que es seguro reintentar
-tras un error o un corte. Si se borra ese archivo, la próxima corrida duplica todo.
+**Volver a correr el mismo comando es siempre seguro y no necesita ningún archivo.** Antes de
+escribir nada, la corrida le pregunta al workspace qué existe y crea sólo lo que falta. Cada
+documento se reconoce por un ancla estable:
+
+| Documento | Ancla |
+|---|---|
+| Persona del staff | dirección de correo |
+| Organización | nombre de la empresa |
+| Persona de contacto | dirección de correo |
+| Proyecto de campaña | id de la campaña en Perfex (`perfexId`) |
+| Proyecto de tareas sueltas | nombre del proyecto |
+| Tarea | id de la tarea en Perfex (`perfexId`) |
+| Comentario | tarea y fecha de alta |
+| Hito | proyecto y nombre |
+| Etiqueta y adjunto | ver sus secciones |
+
+Consecuencias prácticas:
+
+- Se puede correr desde cualquier máquina, y retomar tras un corte con el mismo comando.
+- El board sigue vivo hasta el cierre: **una corrida posterior trae lo que se cargó mientras
+  tanto** — tareas nuevas de campañas que ya estaban, comentarios nuevos de tareas ya migradas y
+  contactos nuevos de clientes ya migrados.
+- Los proyectos de corridas viejas que no tengan el id de Perfex se reconocen por nombre y se les
+  completa el ancla, para que las pasadas de etiquetas, hitos y adjuntos los encuentren.
+- Si en el board cambia el nombre de una empresa o de un proyecto de tareas sueltas, la corrida
+  siguiente lo toma como uno nuevo: esos dos no tienen id de Perfex que seguir.
 
 ## Opciones
 
@@ -399,7 +423,6 @@ tras un error o un corte. Si se borra ese archivo, la próxima corrida duplica t
 | `-s, --stages` | `personas`, `clientes`, `proyectos`, `hitos`, `etiquetas`, `adjuntos`, separadas por coma |
 | `--min-usos <n>` | Deja fuera las etiquetas con menos de n usos en el board |
 | `--dir-adjuntos <ruta>` | Carpeta con los archivos rescatados del board (o variable `DIR_ADJUNTOS`) |
-| `--state` | Archivo de estado propio |
 | `--dry-run` | Sólo informa qué haría |
 
 Del comando `invitacion`:
