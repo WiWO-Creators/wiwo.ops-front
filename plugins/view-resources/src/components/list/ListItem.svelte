@@ -67,7 +67,7 @@
     }
   }
 
-  $: mobile = $deviceInfo.isMobile
+  $: mobile = $deviceInfo.isCompact
   $: needCompact =
     model.filter((m) => m.displayProps?.optional || m.displayProps?.compression || m.displayProps?.suffix).length > 0
 

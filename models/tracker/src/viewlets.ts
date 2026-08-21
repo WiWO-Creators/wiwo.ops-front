@@ -201,7 +201,7 @@ export function issueConfig (
     {
       key: 'modifiedOn',
       presenter: tracker.component.ModificationDatePresenter,
-      displayProps: { key: key + 'modified', fixed: 'left', dividerBefore: true }
+      displayProps: { key: key + 'modified', fixed: 'left', dividerBefore: true, optional: true }
     },
     {
       key: 'assignee',

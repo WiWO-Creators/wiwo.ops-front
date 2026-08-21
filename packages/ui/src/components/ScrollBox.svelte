@@ -21,6 +21,9 @@
   export let bothScroll: boolean = false
   export let noShift: boolean = false
   export let autoscrollable: boolean = false
+  // Ancla el desplazamiento lateral a cada elemento con `scroll-snap-align`. Solo actua en pantalla
+  // angosta: en escritorio, con varias columnas a la vista, el anclaje molesta mas de lo que ayuda.
+  export let snap: boolean = false
 
   let div: HTMLElement
   let autoscroll: boolean = true
@@ -35,7 +38,15 @@
   }
 </script>
 
-<div class="scroll" bind:this={div} class:vertical class:bothScroll class:noShift on:scroll={setAutoscroll}>
+<div
+  class="scroll"
+  bind:this={div}
+  class:vertical
+  class:bothScroll
+  class:noShift
+  class:snap
+  on:scroll={setAutoscroll}
+>
   <div class="box" class:stretch>
     <slot />
   </div>
@@ -51,6 +62,12 @@
     margin-right: 0;
     margin-bottom: -0.75rem;
     scrollbar-width: thin;
+
+    &.snap {
+      @media (max-width: 480px) {
+        scroll-snap-type: x mandatory;
+      }
+    }
 
     .box {
       position: absolute;

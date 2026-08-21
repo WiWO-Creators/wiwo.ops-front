@@ -38,6 +38,7 @@
     Label,
     Loading,
     Spinner,
+    deviceOptionsStore as deviceInfo,
     lazyObserver,
     mouseAttractor,
     resizeObserver
@@ -340,6 +341,12 @@
 
   let isBuildingModel = true
   let model: AttributeModel[] | undefined
+  // En pantalla compacta la tabla se queda con lo indispensable: seis columnas de ancho fijo no
+  // entran en un telefono y la tabla termina desbordando de costado. Es el mismo criterio que ya
+  // usan las listas con `optional`.
+  let visibleModel: AttributeModel[] | undefined
+  $: visibleModel =
+    $deviceInfo.isCompact === true ? model?.filter((m) => m.displayProps?.optional !== true) : model
   let modelOptions: BuildModelOptions | undefined
 
   const updateModelOptions = reduceCalls(async function updateModelOptions (
@@ -395,7 +402,7 @@
   }
 </script>
 
-{#if !model || isBuildingModel}
+{#if !visibleModel || isBuildingModel}
   <Loading />
 {:else}
   <table
@@ -425,7 +432,7 @@
               {/if}
             </th>
           {/if}
-          {#each model.filter((m) => !m.displayProps?.grow) as attribute}
+          {#each visibleModel.filter((m) => !m.displayProps?.grow) as attribute}
             <th
               class:w-full={attribute.displayProps?.grow === true}
               class:sortable={attribute.sortingKey}
@@ -508,7 +515,7 @@
             {/if}
             {#await canEdit(object) then canEditObject}
               {#if row < rowLimit}
-                {#each model.filter((m) => !m.displayProps?.grow) as attribute, cell}
+                {#each visibleModel.filter((m) => !m.displayProps?.grow) as attribute, cell}
                   <td
                     class:align-left={attribute.displayProps?.align === 'left'}
                     class:align-center={attribute.displayProps?.align === 'center'}
@@ -561,7 +568,7 @@
       <tbody>
         {#each Array(getLoadingLength(loadingProps, options)) as i, row}
           <tr class="antiTable-body__row" class:fixed={row === selection}>
-            {#each model.filter((m) => !m.displayProps?.grow) as attribute, cell}
+            {#each visibleModel.filter((m) => !m.displayProps?.grow) as attribute, cell}
               {#if !cell}
                 {#if enableChecking}
                   <td>

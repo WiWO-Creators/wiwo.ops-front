@@ -418,7 +418,7 @@
 </script>
 
 <div class="kanban-container">
-  <ScrollBox>
+  <ScrollBox snap>
     <div class="kanban-content">
       {#each categories as state, si (typeof state === 'object' ? state.name : state)}
         {@const stateObjects = getGroupByValues(groupByDocs, state)}
@@ -534,5 +534,19 @@
     background-color: transparent;
     border: 1px solid transparent;
     border-radius: 0.25rem;
+  }
+
+  // En un telefono no entra una columna de 20rem y se ve media: cada columna ocupa casi todo el
+  // ancho y el desplazamiento lateral la deja siempre alineada al borde. El 15% que sobra es para
+  // que se vea que hay mas columnas al lado.
+  @media (max-width: 480px) {
+    .kanban-content {
+      padding: 0.75rem 0.5rem 0.5rem;
+    }
+    .panel-container {
+      width: 85vw;
+      min-width: 85vw;
+      scroll-snap-align: start;
+    }
   }
 </style>
