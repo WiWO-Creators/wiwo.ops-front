@@ -152,6 +152,8 @@ export interface ImportIssue extends ImportDoc {
   estimation?: number
   remainingTime?: number
   comments?: ImportComment[]
+  /** Atributos propios del destino que deben nacer junto con la tarea. */
+  additionalData?: Partial<AttachedData<Issue>>
 }
 
 export interface ImportComment {
@@ -608,7 +610,8 @@ export class WorkspaceImporter {
       reports: 0,
       childInfo: [],
       identifier,
-      kind: kind._id
+      kind: kind._id,
+      ...issue.additionalData
     }
 
     await this.client.addCollection(

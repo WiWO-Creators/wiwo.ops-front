@@ -25,6 +25,7 @@ import {
   type PerfexStaff
 } from '@hcengineering/perfex'
 import { importAttachments } from './adjuntos'
+import { importChecklists } from './checklists'
 import {
   miembrosDeOrganizaciones,
   normalizarNombre,
@@ -37,13 +38,14 @@ import { importMilestones, importProjects } from './proyectos'
 export { type Logger }
 
 /** Partes de la migración. Por defecto se corren todas, en este orden. */
-export type Stage = 'personas' | 'clientes' | 'proyectos' | 'hitos' | 'etiquetas' | 'adjuntos' | 'colaboradores'
+export type Stage = 'personas' | 'clientes' | 'proyectos' | 'hitos' | 'checklists' | 'etiquetas' | 'adjuntos' | 'colaboradores'
 
 export const ALL_STAGES: Stage[] = [
   'personas',
   'clientes',
   'proyectos',
   'hitos',
+  'checklists',
   'etiquetas',
   'adjuntos',
   'colaboradores'
@@ -111,6 +113,7 @@ export async function importClients (
 
   await runProjectsStage(client, perfex, logger, options, clients, peopleByStaffId, organizationsByClientId, uploader)
   await runMilestonesStage(client, perfex, logger, options)
+  await runChecklistsStage(client, uploader, perfex, logger, options, peopleByStaffId)
   await runTagsStage(client, perfex, logger, options)
   await runAttachmentsStage(client, perfex, logger, options, clients, uploader)
   await runColaboradoresStage(client, perfex, logger, options)
@@ -258,6 +261,26 @@ async function runMilestonesStage (
   if (!options.stages.includes('hitos')) return
 
   await importMilestones(client, perfex, logger, { dryRun: options.dryRun })
+}
+
+/** Corre la carga de checklists como subtareas, después de que los hitos ya existen. */
+async function runChecklistsStage (
+  client: TxOperations,
+  uploader: FileUploader | undefined,
+  perfex: PerfexReader,
+  logger: Logger,
+  options: ImportOptions,
+  peopleByStaffId: Record<string, Ref<Person>>
+): Promise<void> {
+  if (!options.stages.includes('checklists')) return
+  if (uploader === undefined && !options.dryRun) {
+    throw new Error('Falta el subidor de archivos para migrar checklists')
+  }
+
+  await importChecklists(client, uploader as FileUploader, perfex, logger, {
+    dryRun: options.dryRun,
+    peopleByStaffId
+  })
 }
 
 /**

@@ -30,6 +30,9 @@ que pasar ese flag.
   primero y los demás pasan a colaboradores de la tarea, junto con los seguidores del board
   (etapa `colaboradores`). Como el colaborador de Huly es una cuenta de usuario, el staff que
   todavía no entró al workspace queda afuera y se informa al final de la corrida.
+- Los checklists de tareas pasan a subtareas (etapa `checklists`), también en las tareas ya
+  completadas. Se conservan orden, estado, hito y responsable cuando existe; las plantillas de
+  checklist no se migran.
 - Los archivos adjuntos se migran con la etapa `adjuntos`, que necesita los archivos rescatados
   antes del corte: la base sólo guarda las rutas, los binarios están en el disco del servidor de
   Perfex. Los que en el board colgaban de un comentario quedan en el panel de adjuntos de la tarea.
@@ -112,8 +115,7 @@ rushx run import -e sin-clasificar -w sin-clasificar --incluir-inactivos
 ```
 
 Si preferís ir por partes, `--stages personas`, `--stages clientes`, `--stages proyectos`,
-`--stages hitos`, `--stages etiquetas`, `--stages adjuntos` o `--stages colaboradores` corren sólo
-esa parte. El orden
+`--stages hitos`, `--stages checklists`, `--stages etiquetas`, `--stages adjuntos` o `--stages colaboradores` corren sólo esa parte. El orden
 importa: los hitos necesitan los proyectos y las tareas ya migrados. El staff y las empresas se
 resuelven siempre, corra o no su etapa, porque las tareas necesitan a quién asignarse y los
 proyectos, a qué cliente pertenecen.
@@ -121,6 +123,21 @@ proyectos, a qué cliente pertenecen.
 Para cargar los hitos sobre un workspace que ya se migró antes, alcanza con
 `--stages hitos`: encuentra los proyectos y las tareas por su id de Perfex y reconoce los hitos que
 ya están por su nombre, así que no repite nada de lo anterior.
+
+### Checklists
+
+Cada ítem de checklist del board se convierte en una subtarea de su tarea padre. La etapa conserva
+el orden, el estado marcado y el responsable cuando está resuelto en ops; también copia el hito de
+la tarea padre. Las plantillas reutilizables no se migran.
+
+```bash
+rushx run import -e mgc -w mgc --stages checklists --dry-run
+rushx run import -e mgc -w mgc --stages checklists
+```
+
+La etapa reconoce cada subtarea por la tarea padre más el id del checklist de Perfex, así que se
+puede repetir sin duplicar. Si una tarea padre todavía no está en ese workspace, lo informa y la
+retoma en la siguiente corrida.
 
 ### Etiquetas
 
@@ -446,7 +463,7 @@ Consecuencias prácticas:
 | `--desde <AAAA-MM-DD>` | Sólo tareas creadas desde esa fecha |
 | `--ultimos-meses <n>` | Sólo tareas de los últimos n meses |
 | `--solo-abiertas` | Deja fuera las tareas ya completadas |
-| `-s, --stages` | `personas`, `clientes`, `proyectos`, `hitos`, `etiquetas`, `adjuntos`, `colaboradores`, separadas por coma |
+| `-s, --stages` | `personas`, `clientes`, `proyectos`, `hitos`, `checklists`, `etiquetas`, `adjuntos`, `colaboradores`, separadas por coma |
 | `--colaboradores-tareas-cerradas` | Migra también los colaboradores de las tareas ya completadas en el board |
 | `--min-usos <n>` | Deja fuera las etiquetas con menos de n usos en el board |
 | `--dir-adjuntos <ruta>` | Carpeta con los archivos rescatados del board (o variable `DIR_ADJUNTOS`) |

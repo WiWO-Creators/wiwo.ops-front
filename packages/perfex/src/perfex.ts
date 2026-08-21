@@ -114,6 +114,16 @@ export interface PerfexFollower {
   staffid: number
 }
 
+/** Ítem de checklist de una tarea del board: en ops, una subtarea. */
+export interface PerfexChecklistItem {
+  id: number
+  taskid: number
+  description: string
+  finished: number
+  list_order: number
+  assigned: number | null
+}
+
 export interface PerfexComment {
   id: number
   taskid: number
@@ -408,6 +418,13 @@ export class PerfexReader {
    */
   async getFollowers (): Promise<PerfexFollower[]> {
     return await this.query<PerfexFollower>('SELECT taskid, staffid FROM {p}task_followers ORDER BY id')
+  }
+
+  /** Ítems de checklist de tareas, ordenados como se muestran en el board. */
+  async getChecklistItems (): Promise<PerfexChecklistItem[]> {
+    return await this.query<PerfexChecklistItem>(
+      'SELECT id, taskid, description, finished, list_order, assigned FROM {p}task_checklist_items ORDER BY taskid, list_order, id'
+    )
   }
 
   async getComments (): Promise<PerfexComment[]> {
