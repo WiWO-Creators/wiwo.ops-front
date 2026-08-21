@@ -40,6 +40,8 @@
 
   let query: DocumentQuery<Issue> | undefined = undefined
   let modeSelectorProps: IModeSelector | undefined = undefined
+  let displayModeSelectorProps: IModeSelector<'general' | 'status'> | undefined = undefined
+  let displayMode: 'general' | 'status' = 'general'
 
   $: spaceQuery = currentSpace !== undefined ? { space: currentSpace } : {}
 
@@ -70,6 +72,15 @@
   $: backlog = { status: { $in: backlogStatuses }, ...spaceQuery }
 
   $: queries = { all, active, backlog }
+  $: displayMode = $resolvedLocationStore.query?.view === 'status' ? 'status' : 'general'
+  $: displayModeSelectorProps = {
+    config: [
+      ['general', tracker.string.General, {}],
+      ['status', tracker.string.ByStatus, {}]
+    ],
+    mode: displayMode,
+    onChange: (newMode) => dispatch('action', { view: newMode })
+  }
   $: mode = $resolvedLocationStore.query?.mode ?? undefined
   $: if (mode === undefined || (queries as any)[mode] === undefined) {
     ;[[mode]] = config
@@ -88,7 +99,7 @@
     .map((it) => it._id)
 
   $: finalQuery = {
-    ...query,
+    ...(displayMode === 'status' ? all : query),
     ...(allProjectsTypes
       ? {}
       : $selectedTaskTypeStore !== undefined
@@ -100,7 +111,16 @@
 </script>
 
 {#if query !== undefined && modeSelectorProps !== undefined}
-  <IssuesView query={finalQuery} space={currentSpace} {icon} {title} {modeSelectorProps}>
+  <IssuesView
+    query={finalQuery}
+    space={currentSpace}
+    {icon}
+    {title}
+    modeSelectorProps={displayMode === 'general' ? modeSelectorProps : undefined}
+    {displayModeSelectorProps}
+    statusBoard={displayMode === 'status'}
+    viewletQuery={displayMode === 'status' ? { attachTo: tracker.class.Issue, descriptor: tracker.viewlet.Kanban } : undefined}
+  >
     <svelte:fragment slot="type_selector" let:viewlet>
       {#if !allProjectsTypes}
         <TypeSelector {baseClass} project={currentSpace} allTypes={toVL(viewlet)?.descriptor === view.viewlet.List} />

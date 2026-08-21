@@ -81,6 +81,8 @@
     "Name": "Name",
     "Description": "Description",
     "Status": "Status",
+    "General": "General",
+    "ByStatus": "By status",
     "Number": "Number",
     "Assignee": "Assignee",
     "AssignTo": "Assign to...",
