@@ -42,11 +42,10 @@ function createGotoSpecialAction (
     query
   })
 }
-export function createActions (builder: Builder, issuesId: string, componentsId: string, myIssuesId: string): void {
+export function createActions (builder: Builder, issuesId: string, myIssuesId: string): void {
   createGotoSpecialAction(builder, issuesId, 'keyG->keyE', tracker.string.GotoIssues)
   createGotoSpecialAction(builder, issuesId, 'keyG->keyA', tracker.string.GotoActive, { mode: 'active' })
   createGotoSpecialAction(builder, issuesId, 'keyG->keyB', tracker.string.GotoBacklog, { mode: 'backlog' })
-  createGotoSpecialAction(builder, componentsId, 'keyG->keyC', tracker.string.GotoComponents)
   createNavigateAction(builder, 'keyG->keyM', tracker.string.GotoMyIssues, tracker.app.Tracker, {
     application: trackerId,
     mode: 'special',
@@ -471,30 +470,6 @@ export function createActions (builder: Builder, issuesId: string, componentsId:
       }
     },
     tracker.action.SetAssignee
-  )
-
-  createAction(
-    builder,
-    {
-      action: view.actionImpl.AttributeSelector,
-      actionPopup: tracker.component.ComponentEditor,
-      actionProps: {
-        attribute: 'component',
-        isAction: true
-      },
-      label: tracker.string.Component,
-      icon: tracker.icon.Component,
-      keyBinding: ['keyM->keyT'],
-      input: 'any',
-      category: tracker.category.Tracker,
-      target: tracker.class.Issue,
-      context: {
-        mode: ['context', 'browser'],
-        application: tracker.app.Tracker,
-        group: 'edit'
-      }
-    },
-    tracker.action.SetComponent
   )
 
   createAction(

@@ -24,20 +24,38 @@ import { type ViewOptionModel, type BuildModelKey, type ViewOptionsModel } from 
 import tracker from './plugin'
 
 export const issuesOptions = (kanban: boolean): ViewOptionsModel => ({
-  groupBy: [
-    'space',
-    'status',
-    'kind',
-    'assignee',
-    'priority',
-    'component',
-    'milestone',
-    'createdBy',
-    'modifiedBy',
-    'estimation',
-    'remainingTime',
-    'reportedTime'
-  ],
+  // El primer elemento es el agrupado por defecto de la vista
+  // (ViewletSettingButton.svelte). La lista abre por proyecto, como pidio la
+  // tarea 03; el tablero abre por estado, que es una columna por estado igual
+  // que el kanban de tareas del board. Agrupar el tablero por proyecto dejaba
+  // una sola columna dentro de un proyecto.
+  groupBy: kanban
+    ? [
+        'status',
+        'space',
+        'kind',
+        'assignee',
+        'priority',
+        'milestone',
+        'createdBy',
+        'modifiedBy',
+        'estimation',
+        'remainingTime',
+        'reportedTime'
+      ]
+    : [
+        'space',
+        'status',
+        'kind',
+        'assignee',
+        'priority',
+        'milestone',
+        'createdBy',
+        'modifiedBy',
+        'estimation',
+        'remainingTime',
+        'reportedTime'
+      ],
   orderBy: [
     ['modifiedOn', SortingOrder.Descending],
     ['status', SortingOrder.Ascending],
@@ -253,7 +271,7 @@ export function defineViewlets (builder: Builder): void {
           'modifiedBy'
         ]
       },
-      config: issueConfig()
+      config: issueConfig('', false, true, false)
     },
     tracker.viewlet.IssueList
   )
@@ -296,13 +314,13 @@ export function defineViewlets (builder: Builder): void {
           'modifiedBy'
         ]
       },
-      config: issueConfig('sub', true, true)
+      config: issueConfig('sub', true, true, false)
     },
     tracker.viewlet.SubIssues
   )
 
   const milestoneIssueOptions: ViewOptionsModel = {
-    groupBy: ['status', 'assignee', 'priority', 'component', 'createdBy', 'modifiedBy'],
+    groupBy: ['status', 'assignee', 'priority', 'createdBy', 'modifiedBy'],
     orderBy: [
       ['rank', SortingOrder.Ascending],
       ['status', SortingOrder.Ascending],
@@ -392,7 +410,7 @@ export function defineViewlets (builder: Builder): void {
       attachTo: tracker.class.IssueTemplate,
       descriptor: view.viewlet.List,
       viewOptions: {
-        groupBy: ['assignee', 'priority', 'component', 'milestone', 'createdBy', 'modifiedBy'],
+        groupBy: ['assignee', 'priority', 'milestone', 'createdBy', 'modifiedBy'],
         orderBy: [
           ['priority', SortingOrder.Ascending],
           ['modifiedOn', SortingOrder.Descending],
@@ -489,7 +507,6 @@ export function defineViewlets (builder: Builder): void {
       config: [
         'subIssues',
         'priority',
-        'component',
         'milestone',
         'dueDate',
         'labels',
@@ -760,7 +777,7 @@ export function defineViewlets (builder: Builder): void {
       configOptions: {
         strict: true
       },
-      config: ['subIssues', 'priority', 'component', 'dueDate', 'labels', 'estimation', 'attachments', 'comments']
+      config: ['subIssues', 'priority', 'dueDate', 'labels', 'estimation', 'attachments', 'comments']
     },
     tracker.viewlet.MilestoneBoardIssues
   )

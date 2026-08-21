@@ -102,9 +102,10 @@
   $: groupByKey = (viewOptions.groupBy[0] ?? noCategory) as IssuesGrouping
   $: orderBy = viewOptions.orderBy
 
-  // Los extras del tablero de hitos —fechas y tiempo en la cabecera y en la tarjeta, y el color
-  // de la tarjeta— sólo se pintan cuando las columnas son hitos, para no cambiar el tablero de
-  // Procesos.
+  // Los extras propios del tablero de hitos —fechas y tiempo en la cabecera y en la tarjeta, el
+  // color de la columna y la columna sin hito— sólo se pintan cuando las columnas son hitos. Los
+  // colores de la tarjeta (propia, vencida, terminada) valen en cualquier tablero, como en el
+  // board.
   $: isMilestoneBoard = groupByKey === IssuesGrouping.Milestone
 
   const myEmployeeId = getCurrentEmployee()
@@ -506,8 +507,8 @@
       {#key issueId}
         <div
           class="tracker-card"
-          class:mine={isMilestoneBoard && issue.assignee != null && issue.assignee === myEmployeeId}
-          class:overdue={isMilestoneBoard && isOverdue(issue)}
+          class:mine={issue.assignee != null && issue.assignee === myEmployeeId}
+          class:overdue={isOverdue(issue)}
           on:click={() => {
             void openDoc(client.getHierarchy(), issue)
           }}
@@ -531,7 +532,7 @@
           </div>
           <div
             class="card-content text-md caption-color lines-limit-2"
-            class:done={isMilestoneBoard && isCompleted(issue)}
+            class:done={isCompleted(issue)}
           >
             {object.title}
           </div>
