@@ -165,20 +165,19 @@
   // viewport, pero iOS no reduce el viewport, solo desplaza visualViewport. Se publica cuanto se
   // come el teclado para que el layout pueda apartarse.
   let keyboardInset: number = 0
-  const visualViewport = window.visualViewport ?? undefined
+  const viewport = window.visualViewport ?? undefined
   const updateKeyboardInset = (): void => {
-    if (visualViewport === undefined) return
-    keyboardInset = Math.max(0, window.innerHeight - visualViewport.height - visualViewport.offsetTop)
+    if (viewport === undefined) return
+    keyboardInset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
   }
   $: document.documentElement.style.setProperty('--keyboard-inset', `${keyboardInset}px`)
   onMount(() => {
-    if (visualViewport === undefined) return
-    visualViewport.addEventListener('resize', updateKeyboardInset)
-    visualViewport.addEventListener('scroll', updateKeyboardInset)
+    viewport?.addEventListener('resize', updateKeyboardInset)
+    viewport?.addEventListener('scroll', updateKeyboardInset)
     updateKeyboardInset()
     return () => {
-      visualViewport.removeEventListener('resize', updateKeyboardInset)
-      visualViewport.removeEventListener('scroll', updateKeyboardInset)
+      viewport?.removeEventListener('resize', updateKeyboardInset)
+      viewport?.removeEventListener('scroll', updateKeyboardInset)
     }
   })
 
