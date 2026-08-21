@@ -46,6 +46,16 @@
     "HomeCardDocument": "Notes, minutes and shared documents",
     "HomeCardChunter": "Team conversations, channel by channel",
     "HomeCardTime": "Your agenda and what you have to do today",
-    "HomeCardLove": "Audio and video rooms to work remotely"
+    "HomeCardLove": "Audio and video rooms to work remotely",
+    "HomeCardCalendar": "Team meetings and events",
+    "HomeCardRecruit": "Openings, candidates and interviews",
+    "HomeCardLead": "Sales opportunities and their follow-up",
+    "HomeCardHr": "People, departments and time off",
+    "HomeCardProcess": "Automated flows that run on their own",
+    "HomeCardDrive": "Shared files and folders",
+    "HomeCardTeam": "The team's week: who does what",
+    "HomeCardGithub": "Connected repositories and their tasks",
+    "HomeCardQuestions": "Internal questionnaires and surveys",
+    "HomeCardTestManagement": "Test cases and their execution"
   }
 }

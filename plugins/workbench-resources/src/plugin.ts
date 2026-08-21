@@ -56,7 +56,17 @@ export default mergeIds(workbenchId, workbench, {
     HomeCardDocument: '' as IntlString,
     HomeCardChunter: '' as IntlString,
     HomeCardTime: '' as IntlString,
-    HomeCardLove: '' as IntlString
+    HomeCardLove: '' as IntlString,
+    HomeCardCalendar: '' as IntlString,
+    HomeCardRecruit: '' as IntlString,
+    HomeCardLead: '' as IntlString,
+    HomeCardHr: '' as IntlString,
+    HomeCardProcess: '' as IntlString,
+    HomeCardDrive: '' as IntlString,
+    HomeCardTeam: '' as IntlString,
+    HomeCardGithub: '' as IntlString,
+    HomeCardQuestions: '' as IntlString,
+    HomeCardTestManagement: '' as IntlString
   },
   component: {
     SpacePanel: '' as AnyComponent,
