@@ -13,6 +13,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
+  import { AccountRole, getCurrentAccount } from '@hcengineering/core'
   import { Asset, getMetadata, IntlString } from '@hcengineering/platform'
   import { getClient } from '@hcengineering/presentation'
   import setting, { settingId } from '@hcengineering/setting'
@@ -30,6 +31,7 @@
     formatKey,
     getCurrentResolvedLocation,
     navigate,
+    showPopup,
     topSP
   } from '@hcengineering/ui'
   import view, { Action, ActionCategory } from '@hcengineering/view'
@@ -39,6 +41,8 @@
   import KeyboardIcon from './icons/Keyboard.svelte'
   import { WorkbenchEvents } from '@hcengineering/workbench'
   import { Analytics } from '@hcengineering/analytics'
+  import { startGuidedTour } from '../guidedTour'
+  import GuidedTourProgress from './GuidedTourProgress.svelte'
 
   let shortcuts = false
   let actions: Action[] = []
@@ -46,6 +50,7 @@
   let selection: number = 0
 
   const client = getClient()
+  const canViewGuidedTourProgress = getCurrentAccount().role === AccountRole.Owner
 
   function navigateToSettings () {
     closePopup()
@@ -90,6 +95,25 @@
   }
 
   const cards: HelpCard[] = [
+    {
+      icon: DocumentationIcon,
+      title: workbench.string.GuidedTour,
+      description: workbench.string.GuidedTourDescription,
+      onClick: () => {
+        closePopup()
+        startGuidedTour()
+      }
+    },
+    ...(canViewGuidedTourProgress
+      ? [
+          {
+            icon: DocumentationIcon,
+            title: workbench.string.GuidedTourProgress,
+            description: workbench.string.GuidedTourProgressDescription,
+            onClick: () => showPopup(GuidedTourProgress, {}, 'center')
+          }
+        ]
+      : []),
     {
       icon: DocumentationIcon,
       title: workbench.string.Documentation,

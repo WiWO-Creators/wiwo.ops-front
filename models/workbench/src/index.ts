@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-import { AccountRole, type AccountUuid, type Class, DOMAIN_MODEL, type Ref, type Space } from '@hcengineering/core'
+import { AccountRole, type AccountUuid, type Class, DOMAIN_MODEL, type Ref, type Space, type Timestamp } from '@hcengineering/core'
 import { type Builder, Mixin, Model, Prop, TypeRef, UX } from '@hcengineering/model'
 import preference, { TPreference } from '@hcengineering/model-preference'
 import { createAction } from '@hcengineering/model-view'
@@ -32,11 +32,16 @@ import type {
   WidgetType,
   WorkbenchTab
 } from '@hcengineering/workbench'
+import type { GuidedTourPreference } from '@hcengineering/workbench/src/types'
 import { type AnyComponent } from '@hcengineering/ui/src/types'
 import presentation from '@hcengineering/model-presentation'
 import { homeId } from '@hcengineering/workbench'
 
 import workbench from './plugin'
+
+const guidedTourPreferenceClass = (workbench.class as typeof workbench.class & {
+  GuidedTourPreference: Ref<Class<GuidedTourPreference>>
+}).GuidedTourPreference
 
 export { workbenchId } from '@hcengineering/workbench'
 export { workbenchOperation } from './migration'
@@ -106,6 +111,13 @@ export class TWorkbenchTab extends TPreference implements WorkbenchTab {
   isPinned!: boolean
 }
 
+@Model(guidedTourPreferenceClass, preference.class.Preference)
+export class TGuidedTourPreference extends TPreference implements GuidedTourPreference {
+  declare attachedTo: AccountUuid
+  currentStep!: number
+  completedOn?: Timestamp
+}
+
 export function createModel (builder: Builder): void {
   builder.createModel(
     TApplication,
@@ -114,7 +126,8 @@ export function createModel (builder: Builder): void {
     TApplicationNavModel,
     TWidget,
     TWidgetPreference,
-    TWorkbenchTab
+    TWorkbenchTab,
+    TGuidedTourPreference
   )
 
   // "Inicio": aplicación sin navigatorModel, así que Workbench la dibuja a ancho completo.

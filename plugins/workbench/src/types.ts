@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-import type { AccountRole, AccountUuid, Class, Doc, DocumentQuery, Obj, Ref, Space } from '@hcengineering/core'
+import type { AccountRole, AccountUuid, Class, Doc, DocumentQuery, Obj, Ref, Space, Timestamp } from '@hcengineering/core'
 import { DocNotifyContext, InboxNotification } from '@hcengineering/notification'
 import type { Asset, IntlString, Resource } from '@hcengineering/platform'
 import type { Preference } from '@hcengineering/preference'
@@ -109,6 +109,13 @@ export interface WorkbenchTab extends Preference {
   location: string
   isPinned: boolean
   name?: string
+}
+
+/** @public */
+export interface GuidedTourPreference extends Preference {
+  attachedTo: AccountUuid
+  currentStep: number
+  completedOn?: Timestamp
 }
 
 /** @public */

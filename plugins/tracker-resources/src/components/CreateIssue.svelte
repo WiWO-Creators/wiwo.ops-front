@@ -915,14 +915,16 @@
     {/key}
   </div>
   {#if _space}
-    <SubIssues
-      bind:this={subIssuesComponent}
-      projectId={_space}
-      project={currentProject}
-      milestone={object.milestone}
-      component={object.component}
-      bind:subIssues={object.subIssues}
-    />
+    <div data-tutorial="issue-subissues">
+      <SubIssues
+        bind:this={subIssuesComponent}
+        projectId={_space}
+        project={currentProject}
+        milestone={object.milestone}
+        component={object.component}
+        bind:subIssues={object.subIssues}
+      />
+    </div>
   {/if}
   <DocCreateExtComponent manager={docCreateManager} kind={'body'} space={currentProject} props={extraProps} />
   <svelte:fragment slot="pool">

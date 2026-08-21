@@ -121,6 +121,7 @@
   import Applications from './Applications.svelte'
   import Logo from './Logo.svelte'
   import NavFooter from './NavFooter.svelte'
+  import GuidedTour from './GuidedTour.svelte'
   import NavHeader from './NavHeader.svelte'
   import Navigator from './Navigator.svelte'
   import SelectWorkspaceMenu from './SelectWorkspaceMenu.svelte'
@@ -832,6 +833,8 @@
     }
   }
 </script>
+
+<GuidedTour />
 
 {#if $myEmployeeStore && deactivated && !isAdminUser()}
   <div class="flex-col-center justify-center h-full flex-grow">

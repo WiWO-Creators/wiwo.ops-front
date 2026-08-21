@@ -78,36 +78,38 @@
   $: updateActions(draftExists, projectExists, closed)
 </script>
 
-<HeaderButton
-  {loading}
-  {client}
-  {mainActionId}
-  {visibleActions}
-  actions={[
-    {
-      id: tracker.string.CreateProject,
-      label: tracker.string.CreateProject,
-      accountRole: AccountRole.User,
-      callback: newProject
-    },
-    {
-      id: tracker.string.ResumeDraft,
-      label: tracker.string.ResumeDraft,
-      draft: true,
-      keyBindingPromise: newIssueKeyBindingPromise,
-      callback: newIssue
-    },
-    {
-      id: tracker.string.NewIssue,
-      label: tracker.string.NewIssue,
-      keyBindingPromise: newIssueKeyBindingPromise,
-      callback: newIssue
-    },
-    {
-      id: tracker.string.Import,
-      label: tracker.string.Import,
-      accountRole: AccountRole.User,
-      callback: newIssue
-    }
-  ]}
-/>
+<div data-tutorial="tracker-new-item">
+  <HeaderButton
+    {loading}
+    {client}
+    {mainActionId}
+    {visibleActions}
+    actions={[
+      {
+        id: tracker.string.CreateProject,
+        label: tracker.string.CreateProject,
+        accountRole: AccountRole.User,
+        callback: newProject
+      },
+      {
+        id: tracker.string.ResumeDraft,
+        label: tracker.string.ResumeDraft,
+        draft: true,
+        keyBindingPromise: newIssueKeyBindingPromise,
+        callback: newIssue
+      },
+      {
+        id: tracker.string.NewIssue,
+        label: tracker.string.NewIssue,
+        keyBindingPromise: newIssueKeyBindingPromise,
+        callback: newIssue
+      },
+      {
+        id: tracker.string.Import,
+        label: tracker.string.Import,
+        accountRole: AccountRole.User,
+        callback: newIssue
+      }
+    ]}
+  />
+</div>

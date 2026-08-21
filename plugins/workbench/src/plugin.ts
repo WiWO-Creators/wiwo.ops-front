@@ -23,6 +23,7 @@ import { Action, ViewAction } from '@hcengineering/view'
 import type {
   Application,
   ApplicationNavModel,
+  GuidedTourPreference,
   HiddenApplication,
   SpaceView,
   Widget,
@@ -48,7 +49,8 @@ export const workbenchPlugin = plugin(workbenchId, {
     HiddenApplication: '' as Ref<Class<HiddenApplication>>,
     Widget: '' as Ref<Class<Widget>>,
     WidgetPreference: '' as Ref<Class<WidgetPreference>>,
-    WorkbenchTab: '' as Ref<Class<WorkbenchTab>>
+    WorkbenchTab: '' as Ref<Class<WorkbenchTab>>,
+    GuidedTourPreference: '' as Ref<Class<GuidedTourPreference>>
   },
   mixin: {
     SpaceView: '' as Ref<Mixin<SpaceView>>
