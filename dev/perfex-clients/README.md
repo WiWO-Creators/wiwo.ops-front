@@ -29,8 +29,9 @@ que pasar ese flag.
 - Una tarea de Perfex puede tener varios asignados; Huly admite un solo responsable. Queda el
   primero y los demás se listan al final de la descripción, porque los colaboradores de Huly son
   cuentas de usuario y el staff migrado todavía no las tiene.
-- Los archivos adjuntos no se migran: la base sólo guarda las rutas, los archivos están en el
-  disco del servidor de Perfex.
+- Los archivos adjuntos se migran con la etapa `adjuntos`, que necesita los archivos rescatados
+  antes del corte: la base sólo guarda las rutas, los binarios están en el disco del servidor de
+  Perfex. Los que en el board colgaban de un comentario quedan en el panel de adjuntos de la tarea.
 - Los comentarios quedan a nombre de quien corre la migración, con el autor original en el texto.
 - Perfex no guarda el estado de un hito: se deduce. Completado si todas sus tareas lo están,
   planificado si todavía no empezó, y en progreso en cualquier otro caso.
@@ -135,6 +136,46 @@ el archivo de estado, y saltea lo que ya está puesto: repetirla no duplica nada
 
 Los workspaces tienen que existir de antes, y el usuario indicado tiene que ser miembro de cada
 uno.
+
+### Adjuntos
+
+Los 251 archivos del board (`tblfiles`) viven en el disco del servidor de Perfex, no en la base. Se
+migran en dos pasos, y el primero es urgente: el día que el board se apague, lo que no esté copiado
+se pierde.
+
+**1. Rescate.** En el servidor del board, en la carpeta donde está `uploads/`:
+
+```bash
+tar czf /tmp/adjuntos-board.tgz uploads/tasks uploads/contracts uploads/clients
+```
+
+Bajarlo y desempacarlo en la máquina desde donde se corre la migración:
+
+```bash
+scp <usuario>@board.wiwo.me:/tmp/adjuntos-board.tgz .
+mkdir -p ~/adjuntos-board && tar xzf adjuntos-board.tgz -C ~/adjuntos-board
+```
+
+Queda `~/adjuntos-board/uploads/{tasks,contracts,clients}/<id>/<archivo>`, que es lo que espera la
+etapa. Conservar el `.tgz`: es el original.
+
+**2. Carga.**
+
+```bash
+# Verifica el rescate contra la base, archivo por archivo. No toca ops.
+rushx run import -e mgc -w mgc --stages adjuntos --dry-run --dir-adjuntos ~/adjuntos-board/uploads
+
+# Sube los que correspondan a documentos ya migrados en ese workspace.
+rushx run import -e mgc -w mgc --stages adjuntos --dir-adjuntos ~/adjuntos-board/uploads
+```
+
+Los archivos de tareas van al panel de adjuntos de la tarea, y los de contratos y clientes a la
+ficha de la empresa en Contactos. La etapa encuentra la tarea por su `perfexId` y la empresa por su
+nombre, saltea lo que ya está subido y lo que pertenece a otro ambiente, y avisa archivo por
+archivo lo que falta en el disco: repetirla no duplica nada.
+
+Sin `--dir-adjuntos` la etapa se saltea con un aviso, así que una corrida completa sigue
+funcionando igual que antes.
 
 ## Que el equipo vea y trabaje las tareas
 
@@ -355,7 +396,9 @@ tras un error o un corte. Si se borra ese archivo, la próxima corrida duplica t
 | `--desde <AAAA-MM-DD>` | Sólo tareas creadas desde esa fecha |
 | `--ultimos-meses <n>` | Sólo tareas de los últimos n meses |
 | `--solo-abiertas` | Deja fuera las tareas ya completadas |
-| `-s, --stages` | `personas`, `clientes`, `proyectos`, `hitos`, separadas por coma |
+| `-s, --stages` | `personas`, `clientes`, `proyectos`, `hitos`, `etiquetas`, `adjuntos`, separadas por coma |
+| `--min-usos <n>` | Deja fuera las etiquetas con menos de n usos en el board |
+| `--dir-adjuntos <ruta>` | Carpeta con los archivos rescatados del board (o variable `DIR_ADJUNTOS`) |
 | `--state` | Archivo de estado propio |
 | `--dry-run` | Sólo informa qué haría |
 

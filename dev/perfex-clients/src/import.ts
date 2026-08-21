@@ -25,14 +25,15 @@ import {
   type PerfexContact,
   type PerfexReader
 } from '@hcengineering/perfex'
+import { importAttachments } from './adjuntos'
 import { importMilestones, importProjects } from './proyectos'
 
 export { type Logger }
 
 /** Partes de la migración. Por defecto se corren todas, en este orden. */
-export type Stage = 'personas' | 'clientes' | 'proyectos' | 'hitos' | 'etiquetas'
+export type Stage = 'personas' | 'clientes' | 'proyectos' | 'hitos' | 'etiquetas' | 'adjuntos'
 
-export const ALL_STAGES: Stage[] = ['personas', 'clientes', 'proyectos', 'hitos', 'etiquetas']
+export const ALL_STAGES: Stage[] = ['personas', 'clientes', 'proyectos', 'hitos', 'etiquetas', 'adjuntos']
 
 export interface ImportOptions {
   /** Ambiente destino: define qué clientes entran en esta corrida. */
@@ -53,6 +54,8 @@ export interface ImportOptions {
   onlyOpenTasks: boolean
   /** Deja fuera las etiquetas con menos de estos usos en el board. */
   minTagUses: number
+  /** Carpeta con los archivos rescatados del board. Sin ella la etapa de adjuntos se saltea. */
+  attachmentsDir?: string
 }
 
 /** Mapeo de lo ya migrado, para que una segunda corrida no duplique documentos. */
@@ -148,6 +151,7 @@ export async function importClients (
     await runProjectsStage(client, perfex, logger, options, state, clients, uploader)
     await runMilestonesStage(client, perfex, logger, options, state)
     await runTagsStage(client, perfex, logger, options)
+    await runAttachmentsStage(client, perfex, logger, options, clients, uploader)
     return
   }
 
@@ -202,6 +206,7 @@ export async function importClients (
   await runProjectsStage(client, perfex, logger, options, state, clients, uploader)
   await runMilestonesStage(client, perfex, logger, options, state)
   await runTagsStage(client, perfex, logger, options)
+  await runAttachmentsStage(client, perfex, logger, options, clients, uploader)
 
   if (options.dryRun) {
     logger.log('Simulación: no se escribió nada en Huly')
@@ -245,6 +250,38 @@ async function runTagsStage (
 
   await importTags(client, perfex, logger, {
     minUsos: options.minTagUses,
+    dryRun: options.dryRun
+  })
+}
+
+/**
+ * Corre la carga de adjuntos, si está pedida.
+ *
+ * Necesita la carpeta con los archivos rescatados del board: sin ella no hay nada que subir, así
+ * que avisa y sigue en vez de cortar la corrida completa.
+ */
+async function runAttachmentsStage (
+  client: TxOperations,
+  perfex: PerfexReader,
+  logger: Logger,
+  options: ImportOptions,
+  clients: PerfexClient[],
+  uploader?: FileUploader
+): Promise<void> {
+  if (!options.stages.includes('adjuntos')) return
+
+  const dir = options.attachmentsDir
+  if (dir === undefined || dir === '') {
+    logger.log('Adjuntos: se saltea, falta la carpeta del rescate (--dir-adjuntos)')
+    return
+  }
+  if (uploader === undefined && !options.dryRun) {
+    throw new Error('Falta el subidor de archivos para migrar los adjuntos')
+  }
+
+  await importAttachments(client, uploader as FileUploader, perfex, logger, {
+    dir,
+    clients: clients.map((c) => ({ id: c.id, company: c.company })),
     dryRun: options.dryRun
   })
 }

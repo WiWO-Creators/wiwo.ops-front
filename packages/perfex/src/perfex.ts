@@ -116,6 +116,35 @@ export interface PerfexComment {
   dateadded: Date
 }
 
+/** Objetos del board que pueden tener archivos colgados y que se migran. */
+export type PerfexFileOwner = 'task' | 'contract' | 'customer'
+
+/**
+ * Archivo adjunto del board.
+ *
+ * `tblfiles` guarda la ruta y los metadatos, nunca el contenido: el binario vive en el disco del
+ * servidor, bajo `uploads/<carpeta>/<rel_id>/<file_name>`.
+ */
+export interface PerfexFile {
+  id: number
+  /** Id del objeto dueño: la tarea, el contrato o el cliente. */
+  rel_id: number
+  rel_type: PerfexFileOwner
+  file_name: string
+  /** MIME declarado por Perfex. Es `varchar(40)`, así que los de Office llegan cortados. */
+  filetype: string | null
+  /** Distinto de 0 si en el board el archivo colgaba de un comentario de la tarea. */
+  task_comment_id: number
+  dateadded: Date
+}
+
+/** Contrato del board, para saber a qué cliente pertenece cada PDF adjunto. */
+export interface PerfexContract {
+  id: number
+  client: number
+  subject: string | null
+}
+
 /** Campos personalizados de Perfex que se migran. */
 const CUSTOM_FIELD_DRIVE = 'Link de Drive'
 const CUSTOM_FIELD_AREA = 'Area de la compañía'
@@ -369,5 +398,24 @@ export class PerfexReader {
     return await this.query<PerfexComment>(
       'SELECT id, taskid, content, staffid, dateadded FROM {p}task_comments ORDER BY id'
     )
+  }
+
+  /**
+   * Archivos adjuntos de tareas, contratos y clientes.
+   *
+   * No se leen `external` ni `external_link`: en el board no hay ninguna fila que los use, así que
+   * todos los adjuntos son archivos en disco y no enlaces a Drive o Dropbox.
+   */
+  async getFiles (): Promise<PerfexFile[]> {
+    return await this.query<PerfexFile>(
+      `SELECT id, rel_id, rel_type, file_name, filetype, task_comment_id, dateadded
+       FROM {p}files
+       WHERE rel_type IN ('task', 'contract', 'customer') ORDER BY id`
+    )
+  }
+
+  /** Contratos vigentes del board, con el cliente al que pertenecen. */
+  async getContracts (): Promise<PerfexContract[]> {
+    return await this.query<PerfexContract>('SELECT id, client, subject FROM {p}contracts WHERE trash = 0 ORDER BY id')
   }
 }
