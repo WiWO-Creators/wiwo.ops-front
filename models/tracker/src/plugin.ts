@@ -42,7 +42,11 @@ export default mergeIds(trackerId, tracker, {
     AllProjects: '' as IntlString,
     MapRelatedIssues: '' as IntlString,
     Extensions: '' as IntlString,
-    AllowCreatingIssues: '' as IntlString
+    AllowCreatingIssues: '' as IntlString,
+    ControlCenter: '' as IntlString,
+    ActiveTimers: '' as IntlString,
+    TimerStartedOn: '' as IntlString,
+    NavigationPath: '' as IntlString
   },
   activity: {
     StatusIcon: '' as AnyComponent,

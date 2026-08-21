@@ -62,6 +62,8 @@ import { getEmbeddedLabel, type IntlString } from '@hcengineering/platform'
 import tags, { type TagElement } from '@hcengineering/tags'
 import time, { type ToDo } from '@hcengineering/time'
 import {
+  type ActiveTaskTimer,
+  type ControlCenterNavigation,
   type ProjectTargetPreference,
   type Component,
   type DependencyKind,
@@ -294,6 +296,9 @@ export class TIssue extends TTask implements Issue {
   @Prop(Collection(tracker.class.TimeSpendReport), tracker.string.TimeSpendReports)
     reports!: number
 
+  @Prop(Collection(tracker.class.ActiveTaskTimer), tracker.string.ActiveTimers)
+    activeTimers?: number
+
   declare childInfo: IssueChildInfo[]
 
   @Prop(ArrOf(TypeEnum(tracker.enum.CompanyArea)), tracker.string.CompanyArea)
@@ -397,6 +402,29 @@ export class TTimeSpendReport extends TAttachedDoc implements TimeSpendReport {
   @Index(IndexKind.Indexed)
   @Hidden()
     perfexTimerId?: number
+}
+
+/** Stores an in-progress timer without producing a report until it is stopped. */
+@Model(tracker.class.ActiveTaskTimer, core.class.AttachedDoc, DOMAIN_TRACKER)
+export class TActiveTaskTimer extends TAttachedDoc implements ActiveTaskTimer {
+  @Prop(TypeRef(tracker.class.Issue), tracker.string.Issue)
+  declare attachedTo: Ref<Issue>
+
+  declare collection: 'activeTimers'
+
+  @Prop(TypeRef(contact.mixin.Employee), contact.string.Employee)
+    employee!: Ref<Employee>
+
+  @Prop(TypeDate(), tracker.string.TimerStartedOn)
+    startedOn!: Timestamp
+}
+
+/** Stores the navigation events missing from document activity messages. */
+@Model(tracker.class.ControlCenterNavigation, core.class.Doc, DOMAIN_TRACKER)
+export class TControlCenterNavigation extends TDoc implements ControlCenterNavigation {
+  @Prop(TypeString(), tracker.string.NavigationPath)
+  @Index(IndexKind.Indexed)
+    path!: string
 }
 
 /**

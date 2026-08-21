@@ -264,6 +264,7 @@ export interface Issue extends Task {
   reportedTime: number
   // Collection of reportedTime entries, for proper time estimations per person.
   reports: CollectionSize<TimeSpendReport>
+  activeTimers?: CollectionSize<ActiveTaskTimer>
 
   childInfo: IssueChildInfo[]
 
@@ -385,6 +386,17 @@ export interface TimeSpendReport extends AttachedDoc {
   perfexTimerId?: number
 }
 
+/** A running timer owned by one employee and attached to its issue. */
+export interface ActiveTaskTimer extends AttachedDoc<Issue, 'activeTimers'> {
+  employee: Ref<Employee>
+  startedOn: Timestamp
+}
+
+/** A workspace navigation event shown in the admin control center. */
+export interface ControlCenterNavigation extends Doc {
+  path: string
+}
+
 /**
  * @public
  */
@@ -461,6 +473,8 @@ const pluginState = plugin(trackerId, {
     Milestone: '' as Ref<Class<Milestone>>,
     TypeMilestoneStatus: '' as Ref<Class<Type<MilestoneStatus>>>,
     TimeSpendReport: '' as Ref<Class<TimeSpendReport>>,
+    ActiveTaskTimer: '' as Ref<Class<ActiveTaskTimer>>,
+    ControlCenterNavigation: '' as Ref<Class<ControlCenterNavigation>>,
     TypeReportedTime: '' as Ref<Class<Type<number>>>,
     TypeEstimation: '' as Ref<Class<Type<number>>>,
     TypeRemainingTime: '' as Ref<Class<Type<number>>>,
@@ -499,7 +513,8 @@ const pluginState = plugin(trackerId, {
     CreateIssueTemplate: '' as AnyComponent,
     CreateProject: '' as AnyComponent,
     IssueStatusPresenter: '' as AnyComponent,
-    LabelsView: '' as AnyComponent
+    LabelsView: '' as AnyComponent,
+    ControlCenter: '' as AnyComponent
   },
   attribute: {
     IssueStatus: '' as Ref<Attribute<Status>>

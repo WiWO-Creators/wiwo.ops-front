@@ -30,7 +30,7 @@
   import notification, { DocNotifyContext, InboxNotification, notificationId } from '@hcengineering/notification'
   import { BrowserNotificatator, InboxNotificationsClientImpl } from '@hcengineering/notification-resources'
   import inbox, { inboxId } from '@hcengineering/inbox'
-  import { trackerId } from '@hcengineering/tracker'
+  import tracker, { trackerId } from '@hcengineering/tracker'
   import { broadcastEvent, getMetadata, getResource, IntlString, translate } from '@hcengineering/platform'
   import {
     ActionContext,
@@ -327,9 +327,27 @@
     checkOnHide()
   })
 
+  let lastNavigationPath: string | undefined
+
+  /** Persists one event per route change so maintainers can see workspace navigation. */
+  const recordNavigation = reduceCalls(async (loc: Location): Promise<void> => {
+    if (loc.path[1] !== workspaceId || loc.path[2] === undefined) return
+    if (loc.path[2] === trackerId && loc.path[3] === 'control-center') return
+
+    const path = locationToUrl(loc)
+    if (path === lastNavigationPath) return
+    lastNavigationPath = path
+    try {
+      await client.createDoc(tracker.class.ControlCenterNavigation, core.space.Workspace, { path })
+    } catch (err: any) {
+      Analytics.handleError(err)
+    }
+  })
+
   onDestroy(
     location.subscribe((loc) => {
       void doSyncLoc(loc)
+      void recordNavigation(loc)
     })
   )
 

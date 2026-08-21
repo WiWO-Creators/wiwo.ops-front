@@ -37,8 +37,10 @@ import { definePermissions } from './permissions'
 import { projectPermissions, roles } from './roles'
 import {
   DOMAIN_TRACKER,
+  TActiveTaskTimer,
   TClassicProjectTypeData,
   TComponent,
+  TControlCenterNavigation,
   TIssue,
   TIssueRelation,
   TIssueStatus,
@@ -386,6 +388,14 @@ function defineApplication (
             label: tracker.string.Labels,
             // createItemLabel: task.string.TaskCreateLabel,
             position: 'bottom'
+          },
+          {
+            id: 'control-center',
+            component: tracker.component.ControlCenter,
+            accessLevel: AccountRole.Maintainer,
+            icon: tracker.icon.TimeReport,
+            label: tracker.string.ControlCenter,
+            position: 'bottom'
           }
         ],
         spaces: [
@@ -447,6 +457,8 @@ export function createModel (builder: Builder): void {
     TMilestone,
     TTypeMilestoneStatus,
     TTimeSpendReport,
+    TActiveTaskTimer,
+    TControlCenterNavigation,
     TTypeReportedTime,
     TRelatedIssueTarget,
     TTypeEstimation,

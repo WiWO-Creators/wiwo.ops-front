@@ -79,6 +79,7 @@ import StatusFilterValuePresenter from './components/issues/StatusFilterValuePre
 import StatusPresenter from './components/issues/StatusPresenter.svelte'
 import TitlePresenter from './components/issues/TitlePresenter.svelte'
 import LabelsView from './components/LabelsView.svelte'
+import ControlCenter from './components/ControlCenter.svelte'
 import EditMilestone from './components/milestones/EditMilestone.svelte'
 import MilestoneDatePresenter from './components/milestones/MilestoneDatePresenter.svelte'
 import MyIssues from './components/myissues/MyIssues.svelte'
@@ -491,7 +492,8 @@ export default async (): Promise<Resources> => ({
     IssueExtra,
     IssuePrimaryActions,
     IssueStatusPresenter,
-    LabelsView
+    LabelsView,
+    ControlCenter
   },
   completion: {
     IssueQuery: async (client: Client, query: string, filter?: { in?: RelatedDocument[], nin?: RelatedDocument[] }) =>

@@ -27,6 +27,7 @@
   import tracker from '../../../plugin'
   import AssigneeEditor from '../AssigneeEditor.svelte'
   import StatusEditor from '../StatusEditor.svelte'
+  import TimerButton from './TimerButton.svelte'
 
   /**
    * Acciones primarias de una tarea, montadas en `tracker.extensions.EditIssueHeader`.
@@ -70,6 +71,7 @@
   <div class="buttons-group xsmall-gap">
     <StatusEditor {value} {size} kind={'regular'} iconSize={'small'} shouldShowLabel={showStatusLabel} isEditable />
     <AssigneeEditor object={value} {size} {kind} avatarSize={'card'} shouldShowName={false} />
+    <TimerButton issue={value} {readonly} />
     {#if showNewSubIssue}
       <Button
         id={'btnNewSubIssue'}
