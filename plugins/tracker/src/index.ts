@@ -274,6 +274,9 @@ export interface Issue extends Task {
   /** Enlace a la carpeta o archivo de Google Drive asociado a la tarea. */
   driveLink?: string
 
+  /** Id de la tarea en el board de Perfex: la llave de las migraciones que corren en el deploy. */
+  perfexId?: number
+
   template?: {
     // A template issue is based on
     template: Ref<IssueTemplate>

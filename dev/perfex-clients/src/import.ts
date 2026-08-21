@@ -15,18 +15,19 @@ import { generateId, type AccountUuid, type Class, type Data, type Ref, type TxO
 import { readFileSync, writeFileSync } from 'fs'
 
 import { type FileUploader } from '@hcengineering/importer'
-import { type TagElement } from '@hcengineering/tags'
 import { type Issue, type Milestone, type Project } from '@hcengineering/tracker'
 
 import { belongsToEnvironment, type Environment } from './environments'
-import { type PerfexClient, type PerfexContact, type PerfexReader } from './perfex'
-import { importTags } from './etiquetas'
+import {
+  importTags,
+  type Logger,
+  type PerfexClient,
+  type PerfexContact,
+  type PerfexReader
+} from '@hcengineering/perfex'
 import { importMilestones, importProjects } from './proyectos'
 
-export interface Logger {
-  log: (msg: string) => void
-  error: (msg: string) => void
-}
+export { type Logger }
 
 /** Partes de la migración. Por defecto se corren todas, en este orden. */
 export type Stage = 'personas' | 'clientes' | 'proyectos' | 'hitos' | 'etiquetas'
@@ -65,10 +66,6 @@ interface MigrationState {
   tareas: Record<string, Ref<Issue>>
   /** Hitos de Huly, por id de hito de Perfex. */
   hitos: Record<string, Ref<Milestone>>
-  /** Etiquetas de tareas, por id de etiqueta de Perfex. */
-  etiquetas: Record<string, Ref<TagElement>>
-  /** Etiquetas de proyectos, por id de etiqueta de Perfex. */
-  etiquetasProyecto: Record<string, Ref<TagElement>>
 }
 
 const EMPTY_STATE: MigrationState = {
@@ -77,9 +74,7 @@ const EMPTY_STATE: MigrationState = {
   staff: {},
   proyectos: {},
   tareas: {},
-  hitos: {},
-  etiquetas: {},
-  etiquetasProyecto: {}
+  hitos: {}
 }
 
 function loadState (path: string): MigrationState {
@@ -152,7 +147,7 @@ export async function importClients (
   if (!stages.has('clientes')) {
     await runProjectsStage(client, perfex, logger, options, state, clients, uploader)
     await runMilestonesStage(client, perfex, logger, options, state)
-    await runTagsStage(client, perfex, logger, options, state)
+    await runTagsStage(client, perfex, logger, options)
     return
   }
 
@@ -206,7 +201,7 @@ export async function importClients (
 
   await runProjectsStage(client, perfex, logger, options, state, clients, uploader)
   await runMilestonesStage(client, perfex, logger, options, state)
-  await runTagsStage(client, perfex, logger, options, state)
+  await runTagsStage(client, perfex, logger, options)
 
   if (options.dryRun) {
     logger.log('Simulación: no se escribió nada en Huly')
@@ -234,26 +229,23 @@ async function runMilestonesStage (
   })
 }
 
-/** Corre la parte de etiquetas, si está pedida. Necesita las tareas y los proyectos ya migrados. */
+/**
+ * Corre la parte de etiquetas, si está pedida.
+ *
+ * Encuentra las tareas y los proyectos por su `perfexId`, no por el archivo de estado: es la misma
+ * función que corre sola en el despliegue, desde la migración del modelo.
+ */
 async function runTagsStage (
   client: TxOperations,
   perfex: PerfexReader,
   logger: Logger,
-  options: ImportOptions,
-  state: MigrationState
+  options: ImportOptions
 ): Promise<void> {
   if (!options.stages.includes('etiquetas')) return
 
   await importTags(client, perfex, logger, {
-    migratedProjects: state.proyectos,
-    migratedTasks: state.tareas,
-    migratedTags: state.etiquetas,
-    migratedProjectTags: state.etiquetasProyecto,
     minUsos: options.minTagUses,
-    dryRun: options.dryRun,
-    onProgress: () => {
-      saveState(options.statePath, state)
-    }
+    dryRun: options.dryRun
   })
 }
 

@@ -27,7 +27,7 @@ import {
   type PerfexReader,
   type PerfexStaff,
   type PerfexTask
-} from './perfex'
+} from '@hcengineering/perfex'
 import { toHulyMilestone } from './hitos'
 import {
   buildProjectIdentifier,
@@ -360,15 +360,15 @@ export async function importProjects (
     if (task === undefined) continue
     options.migratedTasks[perfexId] = issueId
 
-    const update: Record<string, any> = {}
+    // El id de Perfex viaja con la tarea para que las migraciones posteriores la encuentren sin
+    // depender del archivo de estado, que sólo existe en la máquina desde donde se corre.
+    const update: Record<string, any> = { perfexId }
     const startDate = toTimestamp(task.startdate)
     const dueDate = toTimestamp(task.duedate)
     if (startDate !== null) update.startDate = startDate
     if (dueDate !== null) update.dueDate = dueDate
     if (task.companyArea.length > 0) update.companyArea = task.companyArea
     if (task.driveLink !== undefined && task.driveLink !== '') update.driveLink = task.driveLink
-    if (Object.keys(update).length === 0) continue
-
     const space = spaceByTask.get(perfexId)
     if (space === undefined) continue
     pending.push({ issueId, space, update })

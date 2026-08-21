@@ -299,6 +299,11 @@ export class TIssue extends TTask implements Issue {
 
   @Prop(Collection(time.class.ToDo), getEmbeddedLabel('Action Items'))
     todos?: CollectionSize<ToDo>
+
+  @Prop(TypeNumber(), tracker.string.Number)
+  @Index(IndexKind.Indexed)
+  @Hidden()
+    perfexId?: number
 }
 /**
  * @public

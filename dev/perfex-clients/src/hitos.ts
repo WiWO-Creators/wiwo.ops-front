@@ -3,7 +3,7 @@
 //
 import { MilestoneStatus } from '@hcengineering/tracker'
 
-import { type PerfexMilestone, type PerfexTask } from './perfex'
+import { type PerfexMilestone, type PerfexTask } from '@hcengineering/perfex'
 import { COMPLETED_TASK_STATUS } from './tareas'
 
 /**
