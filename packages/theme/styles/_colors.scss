@@ -449,8 +449,8 @@
 .theme-light {
   /** Auras de marca del fondo y superficies glass (ver Workbench.svelte y common.scss) **/
   --wiwo-aura:
-    radial-gradient(58rem 40rem at 6% 0%, rgba(59, 255, 0, .14), transparent 60%),
-    radial-gradient(52rem 38rem at 96% 2%, rgba(141, 124, 255, .16), transparent 62%),
+    radial-gradient(64rem 44rem at 2% 0%, rgba(59, 255, 0, .20), transparent 62%),
+    radial-gradient(52rem 38rem at 98% 2%, rgba(141, 124, 255, .17), transparent 62%),
     radial-gradient(46rem 34rem at 88% 96%, rgba(66, 66, 255, .10), transparent 60%);
   --wiwo-glass-BackgroundColor: rgba(255, 255, 255, .62);
   --wiwo-glass-BorderColor: rgba(41, 41, 41, .06);
