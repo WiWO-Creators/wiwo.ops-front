@@ -121,6 +121,20 @@ const CUSTOM_FIELD_DRIVE = 'Link de Drive'
 const CUSTOM_FIELD_AREA = 'Area de la compañía'
 
 /**
+ * Configuración de conexión al board, o `undefined` si el entorno no la trae.
+ *
+ * La usan las migraciones que corren en el despliegue: en un servidor sin credenciales de Perfex
+ * la migración se saltea en vez de fallar.
+ */
+export function tryGetPerfexConfig (): PerfexConfig | undefined {
+  try {
+    return getPerfexConfig()
+  } catch {
+    return undefined
+  }
+}
+
+/**
  * Lee la configuración de conexión desde el entorno.
  *
  * @throws Error si falta alguna variable obligatoria.

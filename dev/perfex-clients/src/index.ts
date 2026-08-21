@@ -35,7 +35,7 @@ import { limpiarTiposRepetidos } from './tipos'
 import { notifyResult } from './aviso'
 import { ALL_STAGES, importClients, type Logger, type Stage } from './import'
 import { moveClient } from './move'
-import { getPerfexConfig, PerfexReader } from './perfex'
+import { getPerfexConfig, PerfexReader } from '@hcengineering/perfex'
 
 function parseStages (value: string | undefined): Stage[] {
   if (value === undefined || value.trim() === '') return ALL_STAGES

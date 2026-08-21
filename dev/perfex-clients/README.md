@@ -109,12 +109,29 @@ rushx run import -e palta          -w palta          --incluir-inactivos
 rushx run import -e sin-clasificar -w sin-clasificar --incluir-inactivos
 ```
 
-Si preferís ir por partes, `--stages personas`, `--stages clientes`, `--stages proyectos` o
-`--stages hitos` corren sólo esa parte. El orden importa: las tareas necesitan el staff ya creado
+Si preferís ir por partes, `--stages personas`, `--stages clientes`, `--stages proyectos`,
+`--stages hitos` o `--stages etiquetas` corren sólo esa parte. El orden importa: las tareas necesitan el staff ya creado
 para poder asignar responsables, y los hitos necesitan los proyectos y las tareas ya migrados.
 
 Para cargar los hitos sobre un workspace que ya se migró antes, alcanza con
 `--stages hitos`: se apoya sólo en el archivo de estado, así que no repite nada de lo anterior.
+
+### Etiquetas
+
+Las etiquetas del board (`tbltags`) se crean como etiquetas de Huly y se les ponen a las tareas y a
+los proyectos migrados. **No hace falta correrlas a mano**: la misma carga corre sola en cada
+despliegue, desde la migración del modelo, si el servidor tiene las variables `PERFEX_DB_*` (ver
+`backend/wiwo.ops/example-huly.conf`). El comando queda para verlas antes de tiempo o para forzar
+una carga:
+
+```bash
+rushx run import -e mgc -w mgc --stages etiquetas --dry-run    # listado nombre,usos_tarea,usos_proyecto
+rushx run import -e mgc -w mgc --stages etiquetas              # carga
+rushx run import -e mgc -w mgc --stages etiquetas --min-usos 3 # deja fuera las de menos de 3 usos
+```
+
+La etapa encuentra cada tarea y cada proyecto por el `perfexId` que les dejó la importación, no por
+el archivo de estado, y saltea lo que ya está puesto: repetirla no duplica nada.
 
 Los workspaces tienen que existir de antes, y el usuario indicado tiene que ser miembro de cada
 uno.

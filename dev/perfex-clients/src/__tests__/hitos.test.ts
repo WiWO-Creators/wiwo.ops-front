@@ -1,7 +1,7 @@
 import { MilestoneStatus } from '@hcengineering/tracker'
 
 import { toHulyMilestone, toMilestoneStatus, toPaletteColor, toTimestamp } from '../hitos'
-import { type PerfexMilestone, type PerfexTask } from '../perfex'
+import { type PerfexMilestone, type PerfexTask } from '@hcengineering/perfex'
 
 const HOY = new Date('2026-08-20').getTime()
 

@@ -18,7 +18,7 @@ import core, {
 import tags, { type TagElement, type TagReference } from '@hcengineering/tags'
 import tracker, { type Issue, type Project } from '@hcengineering/tracker'
 
-import { type Logger } from './import'
+import { type Logger } from './logger'
 import { type PerfexReader, type PerfexTag, type PerfexTagAssignment } from './perfex'
 
 /** Documentos por tanda al escribir, igual que en el resto de la migración. */
@@ -49,19 +49,12 @@ export interface PlanDeEtiquetas {
 }
 
 export interface TagImportOptions {
-  /** Proyectos de Huly ya creados, por id de proyecto de Perfex. */
-  migratedProjects: Record<string, Ref<Project>>
-  /** Tareas de Huly ya creadas, por id de tarea de Perfex. */
-  migratedTasks: Record<string, Ref<Issue>>
-  /** Etiquetas de tareas ya creadas, por id de etiqueta de Perfex. Se completa durante la corrida. */
-  migratedTags: Record<string, Ref<TagElement>>
-  /** Etiquetas de proyectos ya creadas, por id de etiqueta de Perfex. */
-  migratedProjectTags: Record<string, Ref<TagElement>>
   /** Deja fuera las etiquetas con menos de estos usos en el board. */
   minUsos: number
+  /** Si es true no escribe nada: sólo informa qué haría y saca el listado de etiquetas. */
   dryRun: boolean
   /** Se llama cuando hay avance que conviene persistir. */
-  onProgress: () => void
+  onProgress?: () => void
 }
 
 /** Nombre comparable: sin espacios sobrantes y en minúsculas, para fundir duplicados de tipeo. */
@@ -143,9 +136,10 @@ export function planificarEtiquetas (
 /**
  * Crea en Huly las etiquetas del board y se las pone a las tareas y a los proyectos migrados.
  *
- * Corre después de los proyectos y las tareas, y se apoya sólo en el estado de la migración, así
- * que se puede volver a correr sola sobre un workspace ya migrado: las etiquetas ya creadas y las
- * asignaciones que ya existen se saltean.
+ * Encuentra cada documento por su `perfexId`, así que no necesita el archivo de estado de la
+ * migración: corre igual desde el comando y desde la migración del modelo que se ejecuta en el
+ * despliegue. Volver a correrla no duplica nada: reusa las etiquetas que ya existen y saltea las
+ * asignaciones ya puestas. Lo que todavía no esté migrado se ignora en silencio.
  */
 export async function importTags (
   client: TxOperations,
@@ -153,6 +147,7 @@ export async function importTags (
   logger: Logger,
   options: TagImportOptions
 ): Promise<void> {
+  const avisarAvance = options.onProgress ?? ((): void => {})
   const plan = planificarEtiquetas(await perfex.getTags(), await perfex.getTagAssignments(), options.minUsos)
 
   const asignacionesTarea = plan.elementos.reduce((acc, e) => acc + e.tareas.length, 0)
@@ -172,23 +167,21 @@ export async function importTags (
     return
   }
 
-  // 1. Un TagElement por nombre y por clase destino. El de tareas y el de proyectos son distintos
-  //    porque el picker de Huly busca por targetClass exacto.
-  let creados = 0
-  for (const elemento of plan.elementos) {
-    if (elemento.tareas.length > 0) {
-      const creado = await asegurarElemento(client, elemento, tracker.class.Issue, options.migratedTags)
-      if (creado) creados++
-    }
-    if (elemento.proyectos.length > 0) {
-      const creado = await asegurarElemento(client, elemento, tracker.class.Project, options.migratedProjectTags)
-      if (creado) creados++
-    }
-    options.onProgress()
-  }
-  logger.log(`Etiquetas creadas: ${creados}`)
+  // 1. Los documentos migrados, buscados por el id que traen del board.
+  const tareas = await tareasPorPerfexId(client, plan)
+  const proyectos = await proyectosPorPerfexId(client, plan)
+  logger.log(`Tareas encontradas en este workspace: ${tareas.size}, proyectos: ${proyectos.size}`)
+  if (tareas.size === 0 && proyectos.size === 0) return
 
-  // 2. Las asignaciones, con el espacio de cada documento resuelto contra Huly.
+  // 2. Un TagElement por nombre y por clase destino: el picker de Huly busca por targetClass
+  //    exacto, así que la etiqueta de tareas y la de proyectos son dos documentos distintos.
+  const usadasEnTareas = plan.elementos.filter((e) => e.tareas.some((id) => tareas.has(id)))
+  const usadasEnProyectos = plan.elementos.filter((e) => e.proyectos.some((id) => proyectos.has(id)))
+  const elementosDeTarea = await asegurarElementos(client, usadasEnTareas, tracker.class.Issue, logger)
+  const elementosDeProyecto = await asegurarElementos(client, usadasEnProyectos, tracker.class.Project, logger)
+  avisarAvance()
+
+  // 3. Las asignaciones, cada una en el espacio del documento que etiqueta.
   const pendientes: Array<{
     space: Ref<Space>
     attachedTo: Ref<Doc>
@@ -196,29 +189,27 @@ export async function importTags (
     data: AttachedData<TagReference>
   }> = []
 
-  const espacioPorTarea = await resolverEspacios(client, plan, options)
-
   for (const elemento of plan.elementos) {
-    const tagTarea = elementoDe(elemento, options.migratedTags)
+    const clave = normalizarNombre(elemento.nombre)
+
+    const tagTarea = elementosDeTarea.get(clave)
     if (tagTarea !== undefined) {
-      for (const tareaPerfex of elemento.tareas) {
-        const issueId = options.migratedTasks[String(tareaPerfex)]
-        if (issueId === undefined) continue
-        const space = espacioPorTarea.get(issueId)
-        if (space === undefined) continue
+      for (const idPerfex of elemento.tareas) {
+        const tarea = tareas.get(idPerfex)
+        if (tarea === undefined) continue
         pendientes.push({
-          space,
-          attachedTo: issueId,
+          space: tarea.space,
+          attachedTo: tarea.id,
           attachedToClass: tracker.class.Issue,
           data: { title: elemento.nombre, color: elemento.color, tag: tagTarea }
         })
       }
     }
 
-    const tagProyecto = elementoDe(elemento, options.migratedProjectTags)
+    const tagProyecto = elementosDeProyecto.get(clave)
     if (tagProyecto !== undefined) {
-      for (const proyectoPerfex of elemento.proyectos) {
-        const projectId = options.migratedProjects[String(proyectoPerfex)]
+      for (const idPerfex of elemento.proyectos) {
+        const projectId = proyectos.get(idPerfex)
         if (projectId === undefined) continue
         pendientes.push({
           // Un proyecto es un espacio: su propio documento vive en el espacio de espacios.
@@ -231,7 +222,7 @@ export async function importTags (
     }
   }
 
-  // 3. Las que ya estén puestas se saltean, para que una segunda corrida no duplique nada.
+  // 4. Las que ya estén puestas se saltean, para que una segunda corrida no duplique nada.
   const yaPuestas = await asignacionesExistentes(
     client,
     pendientes.map((p) => p.attachedTo)
@@ -250,82 +241,99 @@ export async function importTags (
     )
     escritas += batch.length
     logger.log(`  ... ${escritas} de ${faltantes.length} etiquetas puestas`)
-    options.onProgress()
+    avisarAvance()
   }
   logger.log(`Etiquetas puestas: ${escritas}`)
 
-  options.onProgress()
-}
-
-/** El TagElement ya creado para esta etiqueta, si alguno de sus ids de Perfex está en el estado. */
-function elementoDe (elemento: EtiquetaPlanificada, mapa: Record<string, Ref<TagElement>>): Ref<TagElement> | undefined {
-  for (const id of elemento.perfexIds) {
-    const ref = mapa[String(id)]
-    if (ref !== undefined) return ref
-  }
-  return undefined
+  avisarAvance()
 }
 
 /**
- * Crea el TagElement de una etiqueta si todavía no existe y lo anota en el estado.
+ * Crea los TagElement que falten para estas etiquetas y devuelve el de cada una.
  *
- * @returns true si lo creó, false si ya estaba.
+ * Las que ya existen en el workspace se reusan, comparando por nombre normalizado: es lo que hace
+ * que la migración se pueda repetir en cada despliegue sin llenar el selector de duplicados.
+ *
+ * @returns el `TagElement` de cada etiqueta, por nombre normalizado.
  */
-async function asegurarElemento (
+async function asegurarElementos (
   client: TxOperations,
-  elemento: EtiquetaPlanificada,
+  elementos: EtiquetaPlanificada[],
   targetClass: Ref<Class<Doc>>,
-  mapa: Record<string, Ref<TagElement>>
-): Promise<boolean> {
-  const existente = elementoDe(elemento, mapa)
-  if (existente !== undefined) {
-    // Los duplicados de tipeo apuntan todos al mismo TagElement.
-    for (const id of elemento.perfexIds) mapa[String(id)] = existente
-    return false
+  logger: Logger
+): Promise<Map<string, Ref<TagElement>>> {
+  const porNombre = new Map<string, Ref<TagElement>>()
+  if (elementos.length === 0) return porNombre
+
+  const existentes = await client.findAll(tags.class.TagElement, { targetClass })
+  for (const existente of existentes) {
+    porNombre.set(normalizarNombre(existente.title), existente._id)
   }
 
-  const tagId = generateId<TagElement>()
-  await client.createDoc(
-    tags.class.TagElement,
-    core.space.Workspace,
-    {
-      title: elemento.nombre,
-      description: '',
-      targetClass,
-      color: elemento.color,
-      category: tags.category.NoCategory
-    },
-    tagId
-  )
-  for (const id of elemento.perfexIds) mapa[String(id)] = tagId
-  return true
+  let creados = 0
+  for (const elemento of elementos) {
+    const clave = normalizarNombre(elemento.nombre)
+    if (porNombre.has(clave)) continue
+
+    const tagId = generateId<TagElement>()
+    await client.createDoc(
+      tags.class.TagElement,
+      core.space.Workspace,
+      {
+        title: elemento.nombre,
+        description: '',
+        targetClass,
+        color: elemento.color,
+        category: tags.category.NoCategory
+      },
+      tagId
+    )
+    porNombre.set(clave, tagId)
+    creados++
+  }
+  logger.log(`Etiquetas creadas para ${targetClass}: ${creados} de ${elementos.length}`)
+  return porNombre
 }
 
-/** Espacio de cada tarea migrada: el estado sólo guarda su id, no en qué proyecto quedó. */
-async function resolverEspacios (
+/** Tareas migradas de este workspace, con su espacio, por id de tarea de Perfex. */
+async function tareasPorPerfexId (
   client: TxOperations,
-  plan: PlanDeEtiquetas,
-  options: TagImportOptions
-): Promise<Map<Ref<Issue>, Ref<Project>>> {
-  const ids = new Set<Ref<Issue>>()
-  for (const elemento of plan.elementos) {
-    for (const tareaPerfex of elemento.tareas) {
-      const issueId = options.migratedTasks[String(tareaPerfex)]
-      if (issueId !== undefined) ids.add(issueId)
-    }
-  }
+  plan: PlanDeEtiquetas
+): Promise<Map<number, { id: Ref<Issue>, space: Ref<Project> }>> {
+  const ids = [...new Set(plan.elementos.flatMap((e) => e.tareas))]
+  const encontradas = new Map<number, { id: Ref<Issue>, space: Ref<Project> }>()
 
-  const espacios = new Map<Ref<Issue>, Ref<Project>>()
-  const lista = [...ids]
-  for (let i = 0; i < lista.length; i += QUERY_BATCH) {
+  for (let i = 0; i < ids.length; i += QUERY_BATCH) {
     const issues = await client.findAll(
       tracker.class.Issue,
-      { _id: { $in: lista.slice(i, i + QUERY_BATCH) } },
-      { projection: { _id: 1, space: 1 } }
+      { perfexId: { $in: ids.slice(i, i + QUERY_BATCH) } },
+      { projection: { _id: 1, space: 1, perfexId: 1 } }
     )
-    for (const issue of issues) espacios.set(issue._id, issue.space)
+    for (const issue of issues) {
+      if (issue.perfexId === undefined) continue
+      encontradas.set(issue.perfexId, { id: issue._id, space: issue.space })
+    }
   }
-  return espacios
+  return encontradas
+}
+
+/** Proyectos migrados de este workspace, por id de proyecto de Perfex. */
+async function proyectosPorPerfexId (client: TxOperations, plan: PlanDeEtiquetas): Promise<Map<number, Ref<Project>>> {
+  const ids = [...new Set(plan.elementos.flatMap((e) => e.proyectos))]
+  const encontrados = new Map<number, Ref<Project>>()
+
+  for (let i = 0; i < ids.length; i += QUERY_BATCH) {
+    const proyectos = await client.findAll(
+      tracker.class.Project,
+      { perfexId: { $in: ids.slice(i, i + QUERY_BATCH) } },
+      { projection: { _id: 1, perfexId: 1 } }
+    )
+    for (const proyecto of proyectos) {
+      if (proyecto.perfexId === undefined) continue
+      encontrados.set(proyecto.perfexId, proyecto._id)
+    }
+  }
+  return encontrados
 }
 
 /** Claves `documento:etiqueta` de las asignaciones que ya existen en Huly. */

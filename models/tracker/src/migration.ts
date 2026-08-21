@@ -35,6 +35,7 @@ import {
   tryUpgrade
 } from '@hcengineering/model'
 import { DOMAIN_ACTIVITY } from '@hcengineering/model-activity'
+import { importTags, PerfexReader, tryGetPerfexConfig, type Logger as PerfexLogger } from '@hcengineering/perfex'
 import { DOMAIN_SPACE } from '@hcengineering/model-core'
 import { DOMAIN_TASK, migrateDefaultStatusesBase } from '@hcengineering/model-task'
 import tags from '@hcengineering/tags'
@@ -461,6 +462,50 @@ async function limpiarTiposRepetidos (client: MigrationClient, logger: ModelLogg
   logger.log('removed repeated project types', { count: borrar.length })
 }
 
+/** Usos mínimos para migrar una etiqueta del board; se ajusta sin tocar el código. */
+function usosMinimosDeEtiqueta (): number {
+  const valor = Number(process.env.PERFEX_TAG_MIN_USES ?? 1)
+  return Number.isFinite(valor) && valor > 0 ? valor : 1
+}
+
+/**
+ * Trae al workspace las etiquetas del board de Perfex.
+ *
+ * Corre en cada actualización de workspace, o sea en cada despliegue, y sólo si el entorno del
+ * servidor trae las credenciales de lectura del board: sin ellas no hace nada. Encuentra cada
+ * tarea y cada proyecto por su `perfexId`, así que se apoya sólo en lo que ya está migrado en este
+ * workspace y no duplica etiquetas ni asignaciones al repetirse.
+ *
+ * Un board caído no puede dejar el workspace sin actualizar: cualquier error queda en el registro
+ * y la actualización sigue.
+ */
+async function migrarEtiquetasDePerfex (client: MigrationUpgradeClient): Promise<void> {
+  const config = tryGetPerfexConfig()
+  if (config === undefined) return
+
+  const logger: PerfexLogger = {
+    log: (msg) => {
+      console.log('etiquetas de Perfex:', msg)
+    },
+    error: (msg) => {
+      console.error('etiquetas de Perfex:', msg)
+    }
+  }
+
+  let perfex: PerfexReader | undefined
+  try {
+    perfex = await PerfexReader.connect(config)
+    await importTags(new TxOperations(client, core.account.System), perfex, logger, {
+      minUsos: usosMinimosDeEtiqueta(),
+      dryRun: false
+    })
+  } catch (err: any) {
+    console.error('etiquetas de Perfex: la migración no pudo correr', err)
+  } finally {
+    await perfex?.close()
+  }
+}
+
 export const trackerOperation: MigrateOperation = {
   async preMigrate (client: MigrationClient, logger: ModelLogger, mode): Promise<void> {
     await tryMigrate(mode, client, trackerId, [
@@ -523,5 +568,11 @@ export const trackerOperation: MigrateOperation = {
         }
       }
     ])
+
+    // Fuera de tryUpgrade a propósito: el board sigue vivo hasta el corte, así que las etiquetas
+    // se vuelven a traer en cada despliegue en vez de una sola vez.
+    if (mode === 'upgrade') {
+      await migrarEtiquetasDePerfex(await client())
+    }
   }
 }

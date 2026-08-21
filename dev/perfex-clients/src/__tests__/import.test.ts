@@ -1,7 +1,7 @@
 import { belongsToEnvironment, getEnvironment, resolveEnvironment } from '../environments'
 import { buildContactName } from '../import'
 import { parseSince } from '../index'
-import { extractUrl, type PerfexContact } from '../perfex'
+import { extractUrl, type PerfexContact } from '@hcengineering/perfex'
 
 describe('reparto en ambientes', () => {
   const mgc = getEnvironment('mgc')
