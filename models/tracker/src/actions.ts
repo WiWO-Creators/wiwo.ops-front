@@ -552,6 +552,32 @@ export function createActions (builder: Builder, issuesId: string, componentsId:
     {
       action: view.actionImpl.ShowPopup,
       actionProps: {
+        component: tags.component.ObjectsTagsEditorPopup,
+        element: 'top',
+        fillProps: {
+          _objects: 'value'
+        }
+      },
+      label: tracker.string.Labels,
+      icon: tags.icon.Tags,
+      keyBinding: ['keyL'],
+      input: 'any',
+      category: tracker.category.Tracker,
+      target: tracker.class.Project,
+      context: {
+        mode: ['context', 'browser'],
+        application: tracker.app.Tracker,
+        group: 'edit'
+      }
+    },
+    tracker.action.SetProjectLabels
+  )
+
+  createAction(
+    builder,
+    {
+      action: view.actionImpl.ShowPopup,
+      actionProps: {
         component: tracker.component.SetDueDateActionPopup,
         props: { withTime: false },
         element: 'top',

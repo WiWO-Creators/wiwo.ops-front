@@ -21,31 +21,53 @@
 -->
 <script lang="ts">
   import core, { CategoryType, DocumentQuery, Ref, SortingOrder, WithLookup } from '@hcengineering/core'
-  import { createQuery } from '@hcengineering/presentation'
+  import { createQuery, getClient } from '@hcengineering/presentation'
+  import { makeRank } from '@hcengineering/task'
   import { Milestone, Project } from '@hcengineering/tracker'
   import { Loading } from '@hcengineering/ui'
   import view, { Viewlet, ViewletPreference, ViewOptions } from '@hcengineering/view'
 
   import tracker from '../../plugin'
+  import { excludeCompletedQuery } from '../../utils'
   import KanbanView from '../issues/KanbanView.svelte'
 
   export let query: DocumentQuery<Milestone> = {}
   export let space: Ref<Project> | undefined = undefined
   export let viewOptions: ViewOptions
 
+  const client = getClient()
+
   const milestonesQuery = createQuery()
   let milestones: Array<Ref<Milestone>> | undefined
 
-  // Ordenados por fecha de vencimiento: las columnas van de la mas temprana a la mas tardia, que
-  // es como se lee un tablero de hitos. `rank` existe para reordenarlos a mano, pero un hito
-  // creado desde la interfaz todavia no lo trae y quedaria en un lugar impredecible.
+  // Ordenados por `rank`, que es el orden manual: el equivalente de `milestone_order` del board
+  // (Projects_model::get_milestones ordena por ese campo). La migracion lo respeta y arrastrar una
+  // columna lo reescribe.
   $: milestonesQuery.query(
     tracker.class.Milestone,
     space !== undefined ? { ...query, space } : query,
     (res) => {
       milestones = res.map((it) => it._id)
     },
-    { sort: { targetDate: SortingOrder.Ascending } }
+    { sort: { rank: SortingOrder.Ascending } }
+  )
+
+  // 3 — La columna de las tareas sin hito solo existe si hay alguna, igual que el `continue` de
+  // milestones_kan_ban.php. Se consulta aparte porque las tareas las carga el tablero por dentro;
+  // `limit: 1` alcanza para saber si hay o no. `milestone: null` tambien matchea las tareas que
+  // nunca tuvieron el campo escrito: el motor lo traduce a `IS NULL`.
+  const sinHitoQuery = createQuery()
+  let haySinHito = false
+  $: sinHitoQuery.query(
+    tracker.class.Issue,
+    excludeCompletedQuery(viewOptions.excludeCompleted === true, {
+      ...(space !== undefined ? { space } : {}),
+      milestone: null
+    }),
+    (res) => {
+      haySinHito = res.length > 0
+    },
+    { limit: 1 }
   )
 
   const viewletQuery = createQuery()
@@ -105,11 +127,48 @@
 
   $: boardViewOptions = issueViewlet !== undefined ? buildBoardOptions(issueViewlet, viewOptions) : undefined
 
-  // Una columna por hito, haya o no tareas, con la de "Sin hito" a la izquierda. La categoria de
-  // esa columna es `undefined` y no `null`: groupBy normaliza el valor con `?? undefined`
-  // (view-resources/src/utils.ts:1035), asi que las tareas sin hito caen en esa bolsa.
+  // Una columna por hito, haya o no tareas, con la de "Sin hito" a la izquierda cuando corresponde.
+  // La categoria de esa columna es `undefined` y no `null`: groupBy normaliza el valor con
+  // `?? undefined` (view-resources/src/utils.ts:1035), asi que las tareas sin hito caen en esa bolsa.
   $: forcedCategories =
-    milestones === undefined ? undefined : ([undefined, ...milestones] as CategoryType[])
+    milestones === undefined
+      ? undefined
+      : ((haySinHito ? [undefined, ...milestones] : [...milestones]) as CategoryType[])
+
+  // La columna de las tareas sin hito queda fija a la izquierda: en el board, `after_milestones_kanban`
+  // cancela cualquier arrastre que deje una columna antes de la de "Sin categoria".
+  $: fixedCategories = haySinHito ? [0] : []
+
+  /**
+   * Reescribe el orden manual del hito movido.
+   *
+   * Sólo se toca el hito arrastrado: `makeRank` genera un valor entre sus dos nuevos vecinos, así
+   * que los demás no cambian. `from` y `to` son posiciones dentro de `forcedCategories`, que puede
+   * llevar la columna sin hito adelante, por eso se trabaja sobre una copia ya sin ella.
+   */
+  async function reordenarHitos (from: number, to: number): Promise<void> {
+    if (milestones === undefined || space === undefined) return
+    const offset = haySinHito ? 1 : 0
+    const desde = from - offset
+    const hasta = to - offset
+    if (desde < 0 || hasta < 0 || desde === hasta) return
+
+    const orden = [...milestones]
+    const [movido] = orden.splice(desde, 1)
+    if (movido === undefined) return
+    orden.splice(hasta, 0, movido)
+
+    const docs = await client.findAll(tracker.class.Milestone, { _id: { $in: orden } })
+    const porId = new Map(docs.map((it) => [it._id, it]))
+    const anterior = hasta > 0 ? porId.get(orden[hasta - 1])?.rank : undefined
+    const siguiente = hasta < orden.length - 1 ? porId.get(orden[hasta + 1])?.rank : undefined
+
+    const doc = porId.get(movido)
+    if (doc === undefined) return
+    await client.updateDoc(tracker.class.Milestone, doc.space, doc._id, {
+      rank: makeRank(anterior, siguiente)
+    })
+  }
 </script>
 
 {#if issueViewlet === undefined || issueQuery === undefined || boardViewOptions === undefined}
@@ -123,5 +182,9 @@
     viewOptions={boardViewOptions}
     viewOptionsConfig={issueViewlet.viewOptions?.other}
     {forcedCategories}
+    {fixedCategories}
+    onCategoryReorder={(from, to) => {
+      void reordenarHitos(from, to)
+    }}
   />
 {/if}

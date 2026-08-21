@@ -163,6 +163,9 @@ export class TProject extends TTaskProject implements Project {
 
   @Prop(TypeDate(), tracker.string.FechaDeadline)
     deadline?: Timestamp
+
+  @Prop(Collection(tags.class.TagReference), tracker.string.Labels)
+    labels?: number
 }
 /**
  * @public

@@ -17,6 +17,7 @@ import activity, { type DocUpdateMessage } from '@hcengineering/activity'
 import core, {
   DOMAIN_MODEL_TX,
   DOMAIN_STATUS,
+  type Rank,
   type Ref,
   type Status,
   type TxCreateDoc,
@@ -37,10 +38,11 @@ import { DOMAIN_ACTIVITY } from '@hcengineering/model-activity'
 import { DOMAIN_SPACE } from '@hcengineering/model-core'
 import { DOMAIN_TASK, migrateDefaultStatusesBase } from '@hcengineering/model-task'
 import tags from '@hcengineering/tags'
-import task, { type ProjectType } from '@hcengineering/task'
+import task, { makeRank, type ProjectType } from '@hcengineering/task'
 import tracker, {
   type Issue,
   type IssueStatus,
+  type Milestone,
   type Project,
   TimeReportDayType,
   planificarLimpiezaDeTipos,
@@ -180,6 +182,50 @@ export async function migrateAddStartDate (client: MigrationClient): Promise<voi
     { _class: tracker.class.Milestone, startDate: { $exists: false } },
     { startDate: null }
   )
+}
+
+/**
+ * Le da orden manual a los hitos que todavia no lo tienen.
+ *
+ * El tablero de hitos ordena las columnas por `rank`, igual que `milestone_order` en el board. Los
+ * hitos que la migracion de Perfex creo ya lo traen; los creados a mano en ops antes de que
+ * existiera el campo, no, y sin rank su columna cae en un lugar impredecible. Se los ordena por
+ * fecha de vencimiento dentro de cada espacio, que es el orden con el que se venian leyendo.
+ */
+export async function migrateMilestoneRank (client: MigrationClient): Promise<void> {
+  const sinRank = await client.find<Milestone>(DOMAIN_TRACKER, {
+    _class: tracker.class.Milestone,
+    rank: { $exists: false }
+  })
+  if (sinRank.length === 0) return
+
+  const porEspacio = new Map<Ref<Project>, Milestone[]>()
+  for (const hito of sinRank) {
+    const lista = porEspacio.get(hito.space) ?? []
+    lista.push(hito)
+    porEspacio.set(hito.space, lista)
+  }
+
+  for (const [space, hitos] of porEspacio) {
+    // Los que ya tienen rank se quedan donde estan: los nuevos van despues del ultimo.
+    const conRank = await client.find<Milestone>(DOMAIN_TRACKER, {
+      _class: tracker.class.Milestone,
+      space,
+      rank: { $exists: true }
+    })
+    let ultimo = conRank
+      .map((it) => it.rank)
+      .filter((it): it is Rank => it !== undefined)
+      .sort()
+      .pop()
+
+    hitos.sort((a, b) => a.targetDate - b.targetDate)
+    for (const hito of hitos) {
+      const rank = makeRank(ultimo, undefined)
+      await client.update(DOMAIN_TRACKER, { _id: hito._id }, { rank })
+      ultimo = rank
+    }
+  }
 }
 
 async function migrateDefaultStatuses (client: MigrationClient, logger: ModelLogger): Promise<void> {
@@ -459,6 +505,11 @@ export const trackerOperation: MigrateOperation = {
         state: 'limpiar-tipos-de-proyecto-repetidos',
         mode: 'upgrade',
         func: (client) => limpiarTiposRepetidos(client, client.logger)
+      },
+      {
+        state: 'hitos-orden-manual',
+        mode: 'upgrade',
+        func: migrateMilestoneRank
       }
     ])
   },

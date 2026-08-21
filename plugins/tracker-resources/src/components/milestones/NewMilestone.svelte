@@ -13,9 +13,10 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { Data, Ref } from '@hcengineering/core'
+  import { Data, Ref, SortingOrder } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
   import { Card, getClient, SpaceSelector } from '@hcengineering/presentation'
+  import { makeRank } from '@hcengineering/task'
   import { Milestone, MilestoneStatus, Project } from '@hcengineering/tracker'
   import ui, { DatePresenter, EditBox } from '@hcengineering/ui'
   import { StyledTextArea } from '@hcengineering/text-editor-resources'
@@ -38,8 +39,18 @@
     targetDate: Date.now() + 14 * 24 * 60 * 60 * 1000
   }
 
+  /**
+   * El hito nuevo va al final del tablero, como en el board.
+   *
+   * Sin `rank` quedaria fuera del orden manual y su columna caeria en un lugar impredecible: la
+   * consulta del tablero ordena por ese campo.
+   */
   async function onSave () {
-    await client.createDoc(tracker.class.Milestone, space, object)
+    const ultimo = await client.findOne(tracker.class.Milestone, { space }, { sort: { rank: SortingOrder.Descending } })
+    await client.createDoc(tracker.class.Milestone, space, {
+      ...object,
+      rank: makeRank(ultimo?.rank, undefined)
+    })
   }
 </script>
 

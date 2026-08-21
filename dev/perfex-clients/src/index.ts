@@ -112,6 +112,7 @@ export function perfexClientsTool (): void {
     .option('--ultimos-meses <n>', 'sólo tareas de los últimos n meses')
     .option('--hasta <fecha>', 'sólo tareas creadas antes de esta fecha, para migrar por tandas')
     .option('--solo-abiertas', 'deja fuera las tareas ya completadas en Perfex', false)
+    .option('--min-usos <n>', 'deja fuera las etiquetas con menos de n usos en el board', '1')
     .option('--dry-run', 'no escribe nada en Huly: sólo informa qué haría', false)
     .option('--avisar-a <url>', 'url a la que avisar cuando termine (o variable AVISAR_URL)')
     .action(async (cmd) => {
@@ -125,7 +126,8 @@ export function perfexClientsTool (): void {
         includeInactive: cmd.incluirInactivos === true,
         tasksSince: parseSince(cmd.desde, cmd.ultimosMeses),
         tasksUntil: parseSince(cmd.hasta, undefined),
-        onlyOpenTasks: cmd.soloAbiertas === true
+        onlyOpenTasks: cmd.soloAbiertas === true,
+        minTagUses: Number(cmd.minUsos ?? 1)
       }
 
       const avisarA = cmd.avisarA ?? process.env.AVISAR_URL
