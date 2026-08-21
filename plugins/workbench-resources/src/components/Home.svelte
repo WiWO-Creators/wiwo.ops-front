@@ -107,40 +107,55 @@
   }
 </script>
 
-<Scroller padding={'var(--spacing-6) var(--spacing-4)'}>
-  <div class="home">
-    <h1 class="greeting">
-      <Label label={workbench.string.HomeGreeting} />{#if firstName !== ''},
-        <span class="accent">{firstName}</span>
-      {/if}
-    </h1>
-    <p class="font-regular-14 subtitle"><Label label={workbench.string.HomeSubtitle} /></p>
-    <div class="rule" />
+<div class="home-aura">
+  <Scroller padding={'var(--spacing-6) var(--spacing-4)'}>
+    <div class="home">
+      <h1 class="greeting">
+        <Label label={workbench.string.HomeGreeting} />{#if firstName !== ''},
+          <span class="accent">{firstName}</span>
+        {/if}
+      </h1>
+      <p class="font-regular-14 subtitle"><Label label={workbench.string.HomeSubtitle} /></p>
+      <div class="rule" />
 
-    {#if modules.length === 0}
-      <p class="font-regular-14 subtitle"><Label label={workbench.string.HomeEmpty} /></p>
-    {:else}
-      <div class="grid">
-        {#each modules as app (app._id)}
-          {@const accent = cardAccent(app.alias, $themeStore.dark)}
-          <NavLink app={app.alias} restoreLastLocation>
-            <article class="card" data-id={`home-card-${app.alias}`} style:--card-accent={accent}>
-              <div class="badge">
-                <Icon icon={app.icon} size={'medium'} fill={accent} />
-              </div>
-              <h2 class="heading-medium-16"><Label label={app.label} /></h2>
-              {#if descriptions[app.alias] !== undefined}
-                <p class="font-regular-14 subtitle"><Label label={descriptions[app.alias]} /></p>
-              {/if}
-            </article>
-          </NavLink>
-        {/each}
-      </div>
-    {/if}
-  </div>
-</Scroller>
+      {#if modules.length === 0}
+        <p class="font-regular-14 subtitle"><Label label={workbench.string.HomeEmpty} /></p>
+      {:else}
+        <div class="grid">
+          {#each modules as app (app._id)}
+            {@const accent = cardAccent(app.alias, $themeStore.dark)}
+            <NavLink app={app.alias} restoreLastLocation>
+              <article class="card" data-id={`home-card-${app.alias}`} style:--card-accent={accent}>
+                <div class="badge">
+                  <Icon icon={app.icon} size={'medium'} fill={accent} />
+                </div>
+                <h2 class="heading-medium-16"><Label label={app.label} /></h2>
+                {#if descriptions[app.alias] !== undefined}
+                  <p class="font-regular-14 subtitle"><Label label={descriptions[app.alias]} /></p>
+                {/if}
+              </article>
+            </NavLink>
+          {/each}
+        </div>
+      {/if}
+    </div>
+  </Scroller>
+</div>
 
 <style lang="scss">
+  // Las auras del .workbench-container quedan tapadas por el panel de contenido,
+  // asi que Inicio pinta las suyas. `fixed` para que no viajen con el scroll.
+  .home-aura {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+    background-image: var(--wiwo-aura);
+    background-attachment: fixed;
+  }
   .home {
     margin: 0 auto;
     max-width: 64rem;
@@ -210,12 +225,11 @@
       transform var(--wiwo-motion-fast) var(--wiwo-ease-expressive);
 
     // La tarjeta no se tiñe: sólo se marca el borde con el color de su ícono y
-    // suelta un halo del mismo color, como en WiwoLab.
+    // suelta un halo suave. El borde va al 55% del acento y sin anillo extra:
+    // a color pleno y con anillo de 3px el contorno se leía fosforescente.
     &:hover {
-      border-color: var(--card-accent);
-      box-shadow:
-        0 10px 30px -12px color-mix(in srgb, var(--card-accent) 55%, transparent),
-        0 0 0 3px color-mix(in srgb, var(--card-accent) 12%, transparent);
+      border-color: color-mix(in srgb, var(--card-accent) 55%, transparent);
+      box-shadow: 0 8px 24px -14px color-mix(in srgb, var(--card-accent) 45%, transparent);
       transform: translateY(-2px);
     }
 

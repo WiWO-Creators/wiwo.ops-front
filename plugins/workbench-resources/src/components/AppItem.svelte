@@ -59,6 +59,9 @@
     border-radius: 0.25rem;
     cursor: pointer;
     outline: none;
+    transition:
+      background-color var(--wiwo-motion-fast) var(--wiwo-ease-expressive),
+      border-color var(--wiwo-motion-fast) var(--wiwo-ease-expressive);
 
     &.loading {
       pointer-events: none;
@@ -88,8 +91,14 @@
       color: var(--theme-navpanel-icons-color);
     }
 
-    &:hover .icon-container {
-      color: var(--theme-caption-color);
+    // El azul translucido tambien al pasar el mouse, mas tenue que el seleccionado.
+    &:hover:not(.selected):not(.primary):not(.positive):not(.negative):not(.warning):not(.accented) {
+      background-color: color-mix(in srgb, var(--wiwo-selected-BackgroundColor) 60%, transparent);
+      border-color: color-mix(in srgb, var(--wiwo-selected-BorderColor) 45%, transparent);
+
+      .icon-container {
+        color: var(--wiwo-selected-IconColor);
+      }
     }
     &:focus {
       box-shadow: 0 0 0 2px var(--primary-button-outline);
