@@ -28,13 +28,14 @@
   --wiwo-purple-300: #A99BFF;
   --wiwo-ink: #292929;
   --wiwo-beige: #F8FAD7;
-  // Rampa del beige para superficies del tema claro: el beige puro es
-  // demasiado saturado para paneles grandes, estos son mezclas con blanco
-  // (50/100) y con la tinta #292929 (300, para bordes y divisores).
-  --wiwo-beige-50: #FDFEF5;
-  --wiwo-beige-100: #FBFCE7;
-  --wiwo-beige-300: #EDEFCC;
-  --wiwo-almost-white: #FFFDF2;
+  // Rampa de superficies del tema claro. El beige de marca quedo fuera de los
+  // paneles grandes: teñia toda la app. Son blancos con un sesgo violeta minimo
+  // (hue 230, saturacion muy baja), el mismo que usa WiwoLab, mas un 300 para
+  // bordes y divisores.
+  --wiwo-surface-0: #FFFFFF;
+  --wiwo-surface-50: #FBFBFE;
+  --wiwo-surface-100: #F5F6FB;
+  --wiwo-surface-300: #E6E8F1;
   --wiwo-ok: #1C7A38;
   --wiwo-warning: #D88719;
   --wiwo-danger: #C3463D;
@@ -42,6 +43,10 @@
 
   --wiwo-gradient-primary: linear-gradient(103deg, #3BFF00, #4242FF);
   --wiwo-gradient-soft: linear-gradient(135deg, rgba(59, 255, 0, .12), rgba(66, 66, 255, .10));
+  // Version en bucle del degrade de marca, para animarlo desplazando el
+  // background-position: arranca y termina en azul, asi ninguna posicion deja
+  // el texto entero en verde claro (ilegible sobre blanco).
+  --wiwo-gradient-flow: linear-gradient(103deg, #4242FF, #3BFF00, #8D7CFF, #4242FF);
 
   /** Neo motion **/
 

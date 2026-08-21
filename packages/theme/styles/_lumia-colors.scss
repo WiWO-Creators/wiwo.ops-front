@@ -19,9 +19,9 @@
   --global-ui-active-OverlayColor: rgba(41, 41, 41, .2);
 
   --button-accent-LabelColor: #fff;
-  --button-disabled-LabelColor: #8B8D85;
+  --button-disabled-LabelColor: #888A94;
   --button-accent-IconColor: #fff;
-  --button-disabled-IconColor: #8B8D85;
+  --button-disabled-IconColor: #888A94;
   --button-primary-BackgroundColor: var(--wiwo-blue);
   --button-primary-BorderColor: rgba(255, 255, 255, .1);
   --button-primary-hover-BackgroundColor: var(--wiwo-blue-300);
@@ -35,7 +35,7 @@
 
   --selector-active-BackgroundColor: var(--wiwo-blue);
   --selector-IconColor: #ffffff;
-  --selector-disabled-IconColor: #8B8D85;
+  --selector-disabled-IconColor: #888A94;
 
   --tag-on-accent-PorpoiseText: #FFFFFF;
   --tag-accent-SunshineBackground: #FFBD2E;
@@ -53,34 +53,34 @@
   --global-ui-active-BackgroundColor: rgba(248, 250, 215, .15);
   --global-ui-highlight-BackgroundColor: rgba(248, 250, 215, .05);
   --global-ui-hover-highlight-BackgroundColor: rgba(248, 250, 215, .15);
-  --global-surface-01-BackgroundColor: #20211F;
+  --global-surface-01-BackgroundColor: #1E1F23;
   --global-surface-01-BorderColor: #3B3C38;
   --global-surface-01-hover-BackgroundColor: #292929;
   --global-surface-02-BackgroundColor: #292929;
   --global-surface-02-BorderColor: #3B3C38;
-  --global-surface-03-hover-BackgroundColor: #323330;
+  --global-surface-03-hover-BackgroundColor: #303137;
   --global-subtle-ui-BorderColor: rgba(248, 250, 215, .05);
   --global-subtle-BackgroundColor: #22228C;
-  --global-popover-BackgroundColor: #323330;
+  --global-popover-BackgroundColor: #303137;
   --global-popover-hover-BackgroundColor: #41423E;
   --global-popover-BorderColor: rgba(248, 250, 215, .08);
   --global-primary-LinkColor: var(--wiwo-purple-300);
   --global-primary-IconColor: #E2E4CA;
   --global-primary-TextColor: #F8FAD7;
   --global-secondary-TextColor: #C2C4AD;
-  --global-tertiary-TextColor: #8B8D85;
+  --global-tertiary-TextColor: #888A94;
   --global-disabled-TextColor: #6C6E64;
   --global-accent-TextColor: var(--wiwo-purple-300);
   --global-error-TextColor: #E86B62;
   --global-focus-BorderColor: var(--wiwo-purple);
-  --global-focus-inset-BorderColor: #20211F;
+  --global-focus-inset-BorderColor: #1E1F23;
   --global-popover-ShadowColor: rgba(0, 0, 0, .45);
   --global-modal-ShadowColor: rgba(0, 0, 0, .5);
   --global-accent-SkyText: #C7C7FF;
   --global-accent-BackgroundColor: var(--wiwo-blue);
   --global-on-nuance-TextColor: var(--wiwo-blue-700);
 
-  --global-no-priority-PriorityColor: #8B8D85;
+  --global-no-priority-PriorityColor: #888A94;
   --global-low-PriorityColor: var(--wiwo-purple);
   --global-medium-PriorityColor: var(--wiwo-warning);
   --global-high-PriorityColor: #E86B62;
@@ -95,7 +95,7 @@
 
   --icon-disabled-IconColor: #4A4B45;
 
-  --border-talk-indication-secondary: #2F302D;
+  --border-talk-indication-secondary: #2D2E34;
 
   /** Buttons **/
   --button-subtle-LabelColor: #fff;
@@ -116,11 +116,11 @@
   --input-BorderColor: rgba(248, 250, 215, .1);
   --input-TextColor: #F8FAD7;
   --input-LabelColor: #F8FAD7;
-  --input-filled-LabelColor: #8B8D85;
-  --input-PlaceholderColor: #8B8D85;
+  --input-filled-LabelColor: #888A94;
+  --input-PlaceholderColor: #888A94;
   --input-hover-PlaceholderColor: #F8FAD7;
   --input-focus-PlaceholderColor: #6C6E64;
-  --input-HelperColor: #8B8D85;
+  --input-HelperColor: #888A94;
   --input-error-BorderColor: #E86B62;
   --input-search-IconColor: #F8FAD7;
 
@@ -137,9 +137,9 @@
   --love-active-call-transform: scaleY(0.25) scaleX(0.4);
   --love-active-call-filter: blur(17px);
 
-  --global-offline-color: #8B8D85;
+  --global-offline-color: #888A94;
 
-  --avatar-counter-BackgroundColor: #20211F
+  --avatar-counter-BackgroundColor: #1E1F23
 }
 
 /* Light Theme */
@@ -150,39 +150,39 @@
   --global-ui-active-BackgroundColor: rgba(66, 66, 255, .12);
   --global-ui-highlight-BackgroundColor: rgba(66, 66, 255, .07);
   --global-ui-hover-highlight-BackgroundColor: rgba(66, 66, 255, .12);
-  --global-surface-01-BackgroundColor: var(--wiwo-beige-50);
-  --global-surface-01-BorderColor: var(--wiwo-beige-300);
-  --global-surface-01-hover-BackgroundColor: var(--wiwo-beige-100);
-  --global-surface-02-BackgroundColor: var(--wiwo-almost-white);
-  --global-surface-02-BorderColor: var(--wiwo-beige-300);
-  --global-surface-03-hover-BackgroundColor: var(--wiwo-beige-100);
+  --global-surface-01-BackgroundColor: var(--wiwo-surface-0);
+  --global-surface-01-BorderColor: var(--wiwo-surface-300);
+  --global-surface-01-hover-BackgroundColor: var(--wiwo-surface-100);
+  --global-surface-02-BackgroundColor: var(--wiwo-surface-50);
+  --global-surface-02-BorderColor: var(--wiwo-surface-300);
+  --global-surface-03-hover-BackgroundColor: var(--wiwo-surface-100);
   --global-subtle-ui-BorderColor: rgba(41, 41, 41, .05);
   --global-subtle-BackgroundColor: #C9C9FF;
   --global-popover-BackgroundColor: var(--wiwo-ink);
-  --global-popover-hover-BackgroundColor: #33352F;
+  --global-popover-hover-BackgroundColor: #313239;
   --global-popover-BorderColor: rgba(248, 250, 215, .12);
   --global-primary-LinkColor: var(--wiwo-blue);
   --global-primary-IconColor: var(--wiwo-ink);
   --global-primary-TextColor: var(--wiwo-ink);
-  --global-secondary-TextColor: #4F504A;
-  --global-tertiary-TextColor: #66685F;
-  --global-disabled-TextColor: #A9ABA3;
+  --global-secondary-TextColor: #4D4E57;
+  --global-tertiary-TextColor: #63656F;
+  --global-disabled-TextColor: #A6A8B2;
   --global-accent-TextColor: var(--wiwo-blue);
   --global-error-TextColor: var(--wiwo-error);
   --global-focus-BorderColor: var(--wiwo-blue);
-  --global-focus-inset-BorderColor: var(--wiwo-almost-white);
+  --global-focus-inset-BorderColor: var(--wiwo-surface-0);
   --global-popover-ShadowColor: rgba(41, 41, 41, .12);
   --global-modal-ShadowColor: rgba(41, 41, 41, .16);
   --global-accent-SkyText: #C7C7FF;
   --global-accent-BackgroundColor: var(--wiwo-blue);
   --global-on-nuance-TextColor: var(--wiwo-blue-700);
 
-  --global-no-priority-PriorityColor: #8B8D85;
+  --global-no-priority-PriorityColor: #888A94;
   --global-low-PriorityColor: var(--wiwo-blue);
   --global-medium-PriorityColor: var(--wiwo-warning);
   --global-high-PriorityColor: var(--wiwo-danger);
   --global-urgent-PriorityColor: var(--wiwo-danger);
-  --global-disabled-PriorityColor: #A9ABA3;
+  --global-disabled-PriorityColor: #A6A8B2;
 
   --tag-on-subtle-PorpoiseText: var(--wiwo-ink);
   --tag-subtle-PorpoiseBackground: #E7E7EA;
@@ -190,7 +190,7 @@
   --tag-accent-SunshineText: #8E5E00;
   --tag-nuance-SkyBackground: #EDEDFF;
 
-  --icon-disabled-IconColor: #B8BAB2;
+  --icon-disabled-IconColor: #B5B7C1;
 
   --border-talk-indication-secondary: #F1F1F1;
 
@@ -213,11 +213,11 @@
   --input-BorderColor: rgba(41, 41, 41, .08);
   --input-TextColor: var(--wiwo-ink);
   --input-LabelColor: var(--wiwo-ink);
-  --input-filled-LabelColor: #66685F;
-  --input-PlaceholderColor: #66685F;
+  --input-filled-LabelColor: #63656F;
+  --input-PlaceholderColor: #63656F;
   --input-hover-PlaceholderColor: var(--wiwo-ink);
-  --input-focus-PlaceholderColor: #8B8D85;
-  --input-HelperColor: #66685F;
+  --input-focus-PlaceholderColor: #888A94;
+  --input-HelperColor: #63656F;
   --input-error-BorderColor: var(--wiwo-error);
   --input-search-IconColor: var(--wiwo-ink);
 
@@ -234,7 +234,7 @@
   --love-active-call-filter: blur(10px);
   --love-active-call-transform: scaleY(0.3) scaleX(0.42);
 
-  --global-offline-color: #8B8D85;
+  --global-offline-color: #888A94;
 
   --avatar-counter-BackgroundColor: #F1F1F5;
 }

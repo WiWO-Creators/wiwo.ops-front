@@ -1141,6 +1141,10 @@
     width: 100%;
     height: 100%;
     background-color: var(--theme-panel-color);
+    // Auras de marca al estilo WiwoLab. `fixed` para que no viajen con el scroll
+    // de los paneles internos.
+    background-image: var(--wiwo-aura);
+    background-attachment: fixed;
     touch-action: none;
 
     &.apps-horizontal {

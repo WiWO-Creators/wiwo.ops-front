@@ -98,10 +98,13 @@
       }
     }
 
+    // Seleccionado al estilo WiwoLab: azul translucido y borde marcado, no un
+    // gris lleno. El borde transparente de arriba evita el salto de layout.
     &.selected {
-      background-color: var(--theme-button-pressed);
+      background-color: var(--wiwo-selected-BackgroundColor);
+      border-color: var(--wiwo-selected-BorderColor);
       .icon-container {
-        color: var(--theme-caption-color);
+        color: var(--wiwo-selected-IconColor);
       }
     }
     &.navigator {
