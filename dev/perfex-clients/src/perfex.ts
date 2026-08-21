@@ -95,6 +95,19 @@ export interface PerfexMilestone {
   milestone_order: number
 }
 
+/** Etiqueta del board: sólo un nombre, sin color ni categoría. */
+export interface PerfexTag {
+  id: number
+  name: string
+}
+
+/** Asignación de una etiqueta a una tarea o a un proyecto del board. */
+export interface PerfexTagAssignment {
+  tag_id: number
+  rel_id: number
+  rel_type: string
+}
+
 export interface PerfexComment {
   id: number
   taskid: number
@@ -322,6 +335,19 @@ export class PerfexReader {
     return await this.query<PerfexMilestone>(
       `SELECT id, name, description, start_date, due_date, project_id, color, milestone_order
        FROM {p}milestones ORDER BY project_id, milestone_order, id`
+    )
+  }
+
+  async getTags (): Promise<PerfexTag[]> {
+    return await this.query<PerfexTag>('SELECT id, name FROM {p}tags ORDER BY id')
+  }
+
+  /** Asignaciones de etiquetas a tareas y proyectos; el resto de los `rel_type` no se migra. */
+  async getTagAssignments (): Promise<PerfexTagAssignment[]> {
+    return await this.query<PerfexTagAssignment>(
+      `SELECT tag_id, rel_id, rel_type
+       FROM {p}taggables
+       WHERE rel_type IN ('task', 'project') ORDER BY tag_id, rel_id`
     )
   }
 

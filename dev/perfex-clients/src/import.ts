@@ -15,10 +15,12 @@ import { generateId, type AccountUuid, type Class, type Data, type Ref, type TxO
 import { readFileSync, writeFileSync } from 'fs'
 
 import { type FileUploader } from '@hcengineering/importer'
+import { type TagElement } from '@hcengineering/tags'
 import { type Issue, type Milestone, type Project } from '@hcengineering/tracker'
 
 import { belongsToEnvironment, type Environment } from './environments'
 import { type PerfexClient, type PerfexContact, type PerfexReader } from './perfex'
+import { importTags } from './etiquetas'
 import { importMilestones, importProjects } from './proyectos'
 
 export interface Logger {
@@ -27,9 +29,9 @@ export interface Logger {
 }
 
 /** Partes de la migración. Por defecto se corren todas, en este orden. */
-export type Stage = 'personas' | 'clientes' | 'proyectos' | 'hitos'
+export type Stage = 'personas' | 'clientes' | 'proyectos' | 'hitos' | 'etiquetas'
 
-export const ALL_STAGES: Stage[] = ['personas', 'clientes', 'proyectos', 'hitos']
+export const ALL_STAGES: Stage[] = ['personas', 'clientes', 'proyectos', 'hitos', 'etiquetas']
 
 export interface ImportOptions {
   /** Ambiente destino: define qué clientes entran en esta corrida. */
@@ -48,6 +50,8 @@ export interface ImportOptions {
   tasksUntil?: number
   /** Si es true deja fuera las tareas ya completadas en Perfex. */
   onlyOpenTasks: boolean
+  /** Deja fuera las etiquetas con menos de estos usos en el board. */
+  minTagUses: number
 }
 
 /** Mapeo de lo ya migrado, para que una segunda corrida no duplique documentos. */
@@ -61,6 +65,10 @@ interface MigrationState {
   tareas: Record<string, Ref<Issue>>
   /** Hitos de Huly, por id de hito de Perfex. */
   hitos: Record<string, Ref<Milestone>>
+  /** Etiquetas de tareas, por id de etiqueta de Perfex. */
+  etiquetas: Record<string, Ref<TagElement>>
+  /** Etiquetas de proyectos, por id de etiqueta de Perfex. */
+  etiquetasProyecto: Record<string, Ref<TagElement>>
 }
 
 const EMPTY_STATE: MigrationState = {
@@ -69,7 +77,9 @@ const EMPTY_STATE: MigrationState = {
   staff: {},
   proyectos: {},
   tareas: {},
-  hitos: {}
+  hitos: {},
+  etiquetas: {},
+  etiquetasProyecto: {}
 }
 
 function loadState (path: string): MigrationState {
@@ -142,6 +152,7 @@ export async function importClients (
   if (!stages.has('clientes')) {
     await runProjectsStage(client, perfex, logger, options, state, clients, uploader)
     await runMilestonesStage(client, perfex, logger, options, state)
+    await runTagsStage(client, perfex, logger, options, state)
     return
   }
 
@@ -187,7 +198,7 @@ export async function importClients (
     const sample = clients.find((c) => c.contacts.length > 0 || c.driveLink !== undefined)
     if (sample !== undefined) {
       logger.log(
-        `Ejemplo: "${sample.company}" | grupos: ${sample.groups.join(' / ') || '-'} ` +
+        `Ejemplo: "${sample.company}" | grupos: ${sample.groups.length > 0 ? sample.groups.join(' / ') : '-'} ` +
           `| contactos: ${sample.contacts.length} | drive: ${sample.driveLink ?? '-'}`
       )
     }
@@ -195,6 +206,7 @@ export async function importClients (
 
   await runProjectsStage(client, perfex, logger, options, state, clients, uploader)
   await runMilestonesStage(client, perfex, logger, options, state)
+  await runTagsStage(client, perfex, logger, options, state)
 
   if (options.dryRun) {
     logger.log('Simulación: no se escribió nada en Huly')
@@ -215,6 +227,29 @@ async function runMilestonesStage (
     migratedProjects: state.proyectos,
     migratedTasks: state.tareas,
     migratedMilestones: state.hitos,
+    dryRun: options.dryRun,
+    onProgress: () => {
+      saveState(options.statePath, state)
+    }
+  })
+}
+
+/** Corre la parte de etiquetas, si está pedida. Necesita las tareas y los proyectos ya migrados. */
+async function runTagsStage (
+  client: TxOperations,
+  perfex: PerfexReader,
+  logger: Logger,
+  options: ImportOptions,
+  state: MigrationState
+): Promise<void> {
+  if (!options.stages.includes('etiquetas')) return
+
+  await importTags(client, perfex, logger, {
+    migratedProjects: state.proyectos,
+    migratedTasks: state.tareas,
+    migratedTags: state.etiquetas,
+    migratedProjectTags: state.etiquetasProyecto,
+    minUsos: options.minTagUses,
     dryRun: options.dryRun,
     onProgress: () => {
       saveState(options.statePath, state)
@@ -317,9 +352,7 @@ async function createContact (
  */
 export async function getWorkspaceMembers (client: TxOperations): Promise<AccountUuid[]> {
   const employees = await client.findAll(contact.mixin.Employee, { active: true })
-  return employees
-    .map((e) => e.personUuid)
-    .filter((uuid): uuid is AccountUuid => uuid !== undefined)
+  return employees.map((e) => e.personUuid).filter((uuid): uuid is AccountUuid => uuid !== undefined)
 }
 
 /** Agrega un canal de contacto (teléfono, web, email), si el valor no está vacío. */

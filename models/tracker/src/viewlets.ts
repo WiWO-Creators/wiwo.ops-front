@@ -627,6 +627,7 @@ export function defineViewlets (builder: Builder): void {
           }
         },
         'members',
+        'labels',
         {
           key: 'defaultAssignee',
           props: { kind: 'list' }
