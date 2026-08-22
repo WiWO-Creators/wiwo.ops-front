@@ -155,15 +155,14 @@
     )
   }
 
-  /** Opens a project view and its real view selector without changing the selected view. */
+  /** Opens a project or global view and its real selector without changing the selected view. */
   async function openBoard (): Promise<void> {
     closeTutorialPopup()
     const project = await client.findOne(tracker.class.Project, { members: account.uuid })
-    if (project === undefined) throw new Error('Crea o abre un proyecto para mostrar el tablero y vuelve a intentarlo.')
     const currentLocation = getCurrentLocation()
     navigate({
       ...currentLocation,
-      path: [...currentLocation.path.slice(0, 2), trackerId, project._id, 'issues'],
+      path: [...currentLocation.path.slice(0, 2), trackerId, ...(project !== undefined ? [project._id, 'issues'] : ['issues'])],
       fragment: undefined,
       query: undefined
     })
