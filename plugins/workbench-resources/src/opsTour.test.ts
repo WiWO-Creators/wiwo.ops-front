@@ -8,6 +8,7 @@ test('crea una demostración para cada funcionalidad de Ops', () => {
   expect(steps.filter((step) => step.appAlias !== undefined)).toHaveLength(2)
   expect(steps.some((step) => step.action === 'openNewMenu')).toBe(true)
   expect(steps.some((step) => step.moduleLabel === 'label-drive')).toBe(true)
+  expect(steps.filter((step) => step.surface === 'popup')).toHaveLength(6)
 })
 
 test('no considera navegación global como funcionalidad de Ops', () => {
