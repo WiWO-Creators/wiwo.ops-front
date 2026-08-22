@@ -1,27 +1,34 @@
 <script lang="ts">
   import core, { getCurrentAccount, type Class, type Ref } from '@hcengineering/core'
   import { createQuery, getClient } from '@hcengineering/presentation'
-  import { location } from '@hcengineering/ui'
+  import tracker, { trackerId } from '@hcengineering/tracker'
+  import { getCurrentLocation, location, navigate, showPopup, type PopupResult } from '@hcengineering/ui'
   import workbench from '@hcengineering/workbench'
   import type { GuidedTourPreference } from '@hcengineering/workbench/src/types'
   import { onDestroy, tick } from 'svelte'
   import { guidedTourStarts } from '../guidedTour'
-  import { getGuidedTourStep } from '../guidedTourState'
+  import { getGuidedTourPhase, getGuidedTourStep, type GuidedTourPhase } from '../guidedTourState'
+
+  type TourAction = 'openTracker' | 'openNewMenu' | 'openIssueForm' | 'openBoard'
 
   interface TourStep {
     title: string
     description: string
     selector: string
-    advanceOnTargetClick?: boolean
+    action?: TourAction
   }
 
   const steps: TourStep[] = [
-    { title: 'Abre Seguimiento', description: 'Haz clic en Seguimiento en la barra lateral. Ahí se organizan los proyectos y procesos.', selector: '[data-id="app-sidebar-tracker"]', advanceOnTargetClick: true },
-    { title: 'Crea o abre un proyecto', description: 'Usa este botón para crear un proyecto si aún no existe uno, o abre el proyecto donde trabajarás.', selector: '[data-tutorial="tracker-new-item"]' },
-    { title: 'Crea un proceso', description: 'Desde el mismo botón, elige Nuevo proceso. Escribe un título y completa lo necesario.', selector: '[data-tutorial="tracker-new-item"]', advanceOnTargetClick: true },
-    { title: 'Asigna responsable', description: 'En la ficha del proceso, selecciona a la persona responsable. Agrega colaboradores si deben participar.', selector: '#assignee-editor' },
-    { title: 'Divide el trabajo', description: 'Agrega subtareas para separar el proceso en acciones concretas antes de guardarlo.', selector: '[data-tutorial="issue-subissues"]' },
-    { title: 'Mira el tablero', description: 'Abre este selector y elige Tablero para ordenar los procesos por estado y moverlos al avanzar.', selector: '[data-tutorial="viewlet-selector"]' }
+    { title: 'Abre Seguimiento', description: 'Seguimiento reúne proyectos y procesos. La guía abre esta sección para ti.', selector: '[data-id="app-sidebar-tracker"]', action: 'openTracker' },
+    { title: 'Crea o abre un proyecto', description: 'Este botón reúne las acciones para empezar. Elige Crear proyecto cuando necesites un espacio nuevo.', selector: '[data-tutorial="tracker-new-item"]' },
+    { title: 'Revisa las opciones', description: 'El menú muestra crear proyecto, crear proceso e importar. La guía lo abre sin ejecutar ninguna acción.', selector: '[data-tutorial="tracker-new-item"]', action: 'openNewMenu' },
+    { title: 'Crea un proceso', description: 'Así se ve el formulario. Es una simulación: no crea ni guarda un proceso.', selector: '#issue-name', action: 'openIssueForm' },
+    { title: 'Elige el proyecto', description: 'Todo proceso pertenece a un proyecto. Selecciónalo aquí antes de guardarlo.', selector: '[data-tutorial="issue-project"]' },
+    { title: 'Define el trabajo', description: 'Escribe un título claro y agrega el contexto necesario en la descripción.', selector: '#issue-description' },
+    { title: 'Ordena la prioridad', description: 'Estado y prioridad indican qué hacer primero y en qué etapa está el proceso.', selector: '#status-editor' },
+    { title: 'Asigna responsable', description: 'Indica quién es responsable. Puedes sumar etiquetas, componente, hito y fechas en esta misma ficha.', selector: '#assignee-editor' },
+    { title: 'Divide el trabajo', description: 'Agrega subtareas para convertir el proceso en acciones concretas antes de guardarlo.', selector: '[data-tutorial="issue-subissues"]' },
+    { title: 'Mira el tablero', description: 'El selector de vista permite cambiar a Tablero para seguir el avance por estado.', selector: '[data-tutorial="viewlet-selector"]', action: 'openBoard' }
   ]
 
   const account = getCurrentAccount()
@@ -31,6 +38,7 @@
     GuidedTourPreference: Ref<Class<GuidedTourPreference>>
   }).GuidedTourPreference
   let active = false
+  let phase: GuidedTourPhase = 'activation'
   let stepIndex = 0
   let preferenceId: Ref<GuidedTourPreference> | undefined
   let createPreferencePromise: Promise<Ref<GuidedTourPreference>> | undefined
@@ -39,14 +47,16 @@
   let saveError: string | undefined
   let target: HTMLElement | undefined
   let nextButton: HTMLButtonElement | undefined
-  let retryTimer: ReturnType<typeof setTimeout> | undefined
+  let tutorialPopup: PopupResult | undefined
   let spotlight = { top: 0, left: 0, width: 0, height: 0 }
 
   const unsubscribeTour = guidedTourStarts.subscribe((started) => {
-    if (started !== 0) openTour(0)
+    if (started === 0) return
+    if (phase === 'activation') openActivation()
+    else openTour(0)
   })
   const unsubscribeLocation = location.subscribe(() => {
-    if (active) void updateTarget()
+    if (active && phase === 'tour') void updateTarget()
   })
 
   preferenceQuery.query(guidedTourPreferenceClass, { space: core.space.Workspace, attachedTo: account.uuid }, (records) => {
@@ -54,19 +64,31 @@
     preferenceId = preference?._id
     if (hasCheckedInitialState) return
     hasCheckedInitialState = true
-    if (preference?.completedOn !== undefined) return
+    phase = getGuidedTourPhase(preference?.activatedOn, preference?.completedOn)
+    if (phase === 'completed') return
     void ensurePreference(preference?.currentStep ?? 0).catch(() => {
       saveError = 'No pudimos crear el registro del tutorial. Revisa tu conexión e inténtalo otra vez.'
     })
-    openTour(getGuidedTourStep(preference?.currentStep, steps.length))
+    if (phase === 'activation') openActivation()
+    else openTour(getGuidedTourStep(preference?.currentStep, steps.length))
   }, { limit: 1 })
 
-  /** Opens the mandatory tour from a persisted or explicit step. */
+  /** Opens the mandatory activation screen before the real tour. */
+  function openActivation (): void {
+    closeTutorialPopup()
+    clearTarget()
+    phase = 'activation'
+    active = true
+    saveError = undefined
+  }
+
+  /** Opens the real tour from a persisted or explicit step. */
   function openTour (step: number): void {
+    phase = 'tour'
     active = true
     stepIndex = getGuidedTourStep(step, steps.length)
     saveError = undefined
-    void updateTarget()
+    void showStep(stepIndex)
   }
 
   /** Removes visual emphasis from the previous element. */
@@ -75,24 +97,110 @@
     target = undefined
   }
 
-  /** Finds and frames the element for the active tour step. */
-  async function updateTarget (retry = true): Promise<void> {
+  /** Closes only the popup created by the tutorial. */
+  function closeTutorialPopup (): void {
+    tutorialPopup?.close()
+    tutorialPopup = undefined
+  }
+
+  /** Waits for a rendered target after a navigation or popup transition. */
+  async function findTarget (selector: string): Promise<HTMLElement | undefined> {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const element = document.querySelector<HTMLElement>(selector)
+      if (element !== null) return element
+      await new Promise<void>((resolve) => setTimeout(resolve, 100))
+    }
+  }
+
+  /** Finds and frames the rendered element for the current step. */
+  async function updateTarget (index = stepIndex): Promise<boolean> {
     clearTarget()
     await tick()
-    const nextTarget = document.querySelector<HTMLElement>(steps[stepIndex].selector)
-    if (nextTarget === undefined || nextTarget === null) {
-      if (retry) {
-        clearTimeout(retryTimer)
-        retryTimer = setTimeout(() => void updateTarget(false), 300)
-      }
-      return
+    const nextTarget = await findTarget(steps[index].selector)
+    if (nextTarget === undefined) {
+      saveError = 'No pudimos mostrar esta parte de la guía. Pulsa Reintentar para volver a intentarlo.'
+      return false
     }
     target = nextTarget
+    target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
     const rect = target.getBoundingClientRect()
     spotlight = { top: Math.max(rect.top - 6, 0), left: Math.max(rect.left - 6, 0), width: rect.width + 12, height: rect.height + 12 }
     target.classList.add('guided-tour-target')
     await tick()
     nextButton?.focus()
+    return true
+  }
+
+  /** Navigates to Seguimiento without depending on a click target. */
+  function openTracker (): void {
+    const currentLocation = getCurrentLocation()
+    navigate({ ...currentLocation, path: [...currentLocation.path.slice(0, 2), trackerId], fragment: undefined, query: undefined })
+  }
+
+  /** Opens the real action menu while leaving every action unselected. */
+  async function openNewMenu (): Promise<void> {
+    const header = await findTarget('[data-tutorial="tracker-new-item"]')
+    const button = header?.querySelectorAll<HTMLButtonElement>('button').item(-1)
+    if (button === undefined || button === null) throw new Error('No encontramos el menú de creación.')
+    button.click()
+  }
+
+  /** Opens a non-persistent process form for the tutorial. */
+  function openIssueForm (): void {
+    closeTutorialPopup()
+    tutorialPopup = showPopup(
+      tracker.component.CreateIssue,
+      { shouldSaveDraft: false, initialTitle: 'Ejemplo: revisar propuesta' },
+      'top'
+    )
+  }
+
+  /** Opens a project view and its real view selector without changing the selected view. */
+  async function openBoard (): Promise<void> {
+    closeTutorialPopup()
+    const project = await client.findOne(tracker.class.Project, { members: account.uuid })
+    if (project === undefined) throw new Error('Crea o abre un proyecto para mostrar el tablero y vuelve a intentarlo.')
+    const currentLocation = getCurrentLocation()
+    navigate({
+      ...currentLocation,
+      path: [...currentLocation.path.slice(0, 2), trackerId, project._id, 'issues'],
+      fragment: undefined,
+      query: undefined
+    })
+    const selector = await findTarget('[data-tutorial="viewlet-selector"]')
+    const button = selector?.querySelector<HTMLButtonElement>('button')
+    if (button === undefined || button === null) throw new Error('No encontramos el selector de vista.')
+    button.click()
+  }
+
+  /** Performs the interface transition required before rendering a step. */
+  async function runStepAction (step: TourStep): Promise<void> {
+    switch (step.action) {
+      case 'openTracker':
+        closeTutorialPopup()
+        openTracker()
+        return
+      case 'openNewMenu':
+        await openNewMenu()
+        return
+      case 'openIssueForm':
+        openIssueForm()
+        return
+      case 'openBoard':
+        await openBoard()
+    }
+  }
+
+  /** Renders a step only after its required interface state is available. */
+  async function showStep (index: number): Promise<boolean> {
+    saveError = undefined
+    try {
+      await runStepAction(steps[index])
+      return await updateTarget(index)
+    } catch (error) {
+      saveError = error instanceof Error ? error.message : 'No pudimos mostrar esta parte de la guía. Pulsa Reintentar para volver a intentarlo.'
+      return false
+    }
   }
 
   /** Creates the central status record once for the current account. */
@@ -123,68 +231,102 @@
     }
   }
 
-  /** Advances to the next instruction or records final completion. */
-  async function next (): Promise<void> {
+  /** Records activation before allowing the real tutorial to start. */
+  async function startTour (): Promise<void> {
     if (saving) return
     saving = true
-    const completed = stepIndex === steps.length - 1
-    const saved = await saveProgress(completed ? stepIndex : stepIndex + 1, completed)
-    saving = false
-    if (!saved) return
-    if (completed) {
-      clearTimeout(retryTimer)
-      clearTarget()
-      active = false
-    } else {
-      stepIndex += 1
-      void updateTarget()
+    try {
+      const id = await ensurePreference(0)
+      await client.updateDoc(guidedTourPreferenceClass, core.space.Workspace, id, { activatedOn: Date.now(), currentStep: 0 })
+      openTour(0)
+    } catch {
+      saveError = 'No pudimos activar el tutorial. Revisa tu conexión e inténtalo otra vez.'
+    } finally {
+      saving = false
     }
   }
 
-  /** Returns to the preceding instruction when one exists. */
-  function previous (): void {
-    if (stepIndex === 0) return
-    stepIndex -= 1
-    void updateTarget()
+  /** Advances after the next real interface state is visible and progress is saved. */
+  async function next (): Promise<void> {
+    if (saving) return
+    if (stepIndex === steps.length - 1) {
+      saving = true
+      const saved = await saveProgress(stepIndex, true)
+      saving = false
+      if (!saved) return
+      closeTutorialPopup()
+      clearTarget()
+      active = false
+      phase = 'completed'
+      return
+    }
+    const nextStep = stepIndex + 1
+    saving = true
+    const shown = await showStep(nextStep)
+    if (shown) {
+      const saved = await saveProgress(nextStep)
+      if (saved) stepIndex = nextStep
+    }
+    saving = false
   }
 
-  /** Advances steps explicitly completed by clicking their highlighted target. */
-  function handleTargetClick (event: MouseEvent): void {
-    if (!active || !steps[stepIndex].advanceOnTargetClick || target === undefined) return
-    if (event.target instanceof Node && target.contains(event.target)) void next()
+  /** Moves back through the same visible interface states. */
+  async function previous (): Promise<void> {
+    if (saving || stepIndex === 0) return
+    saving = true
+    const previousStep = stepIndex - 1
+    const shown = await showStep(previousStep)
+    if (shown) {
+      const saved = await saveProgress(previousStep)
+      if (saved) stepIndex = previousStep
+    }
+    saving = false
+  }
+
+  /** Retries the active transition without advancing progress. */
+  function retry (): void {
+    if (!saving) void showStep(stepIndex)
   }
 
   /** Repositions the frame after viewport changes. */
   function handleResize (): void {
-    if (active) void updateTarget()
+    if (active && phase === 'tour') void updateTarget()
   }
 
-  window.addEventListener('click', handleTargetClick, true)
   window.addEventListener('resize', handleResize)
 
   onDestroy(() => {
-    clearTimeout(retryTimer)
+    closeTutorialPopup()
     clearTarget()
     unsubscribeTour()
     unsubscribeLocation()
-    window.removeEventListener('click', handleTargetClick, true)
     window.removeEventListener('resize', handleResize)
   })
 </script>
 
 {#if active}
-  <div class="guided-tour-spotlight" style:top={`${spotlight.top}px`} style:left={`${spotlight.left}px`} style:width={`${spotlight.width}px`} style:height={`${spotlight.height}px`} />
+  {#if phase === 'tour'}
+    <div class="guided-tour-spotlight" style:top={`${spotlight.top}px`} style:left={`${spotlight.left}px`} style:width={`${spotlight.width}px`} style:height={`${spotlight.height}px`} />
+  {/if}
   <section class="guided-tour-card" role="dialog" aria-modal="true" aria-labelledby="guided-tour-title">
-    <span class="guided-tour-step">Paso {stepIndex + 1} de {steps.length}</span>
-    <h2 id="guided-tour-title">{steps[stepIndex].title}</h2>
-    <p>{steps[stepIndex].description}</p>
-    {#if !target}<p class="guided-tour-hint">Completa el paso anterior o navega hasta esa pantalla; la guía lo resaltará al aparecer.</p>{/if}
+    {#if phase === 'activation'}
+      <span class="guided-tour-step">Tutorial obligatorio</span>
+      <h2 id="guided-tour-title">Conoce Seguimiento</h2>
+      <p>Verás el flujo completo para organizar procesos sin crear datos de ejemplo.</p>
+    {:else}
+      <span class="guided-tour-step">Paso {stepIndex + 1} de {steps.length}</span>
+      <h2 id="guided-tour-title">{steps[stepIndex].title}</h2>
+      <p>{steps[stepIndex].description}</p>
+    {/if}
     {#if saveError}<p class="guided-tour-error" role="alert">{saveError}</p>{/if}
     <div class="guided-tour-actions">
+      {#if phase === 'tour' && saveError}
+        <button type="button" on:click={retry}>Reintentar</button>
+      {/if}
       <div class="guided-tour-navigation">
-        {#if stepIndex > 0}<button type="button" on:click={previous}>Anterior</button>{/if}
-        <button type="button" class="guided-tour-next" bind:this={nextButton} disabled={saving} on:click={next}>
-          {saving ? 'Guardando…' : stepIndex === steps.length - 1 ? 'Finalizar' : 'Siguiente'}
+        {#if phase === 'tour' && stepIndex > 0}<button type="button" disabled={saving} on:click={previous}>Anterior</button>{/if}
+        <button type="button" class="guided-tour-next" bind:this={nextButton} disabled={saving} on:click={phase === 'activation' ? startTour : next}>
+          {saving ? 'Guardando…' : phase === 'activation' ? 'Comenzar' : stepIndex === steps.length - 1 ? 'Finalizar' : 'Siguiente'}
         </button>
       </div>
     </div>
@@ -195,13 +337,13 @@
   :global(.guided-tour-target) { position: relative; z-index: 1001 !important; border-radius: 0.5rem; }
   .guided-tour-spotlight { position: fixed; z-index: 1000; pointer-events: none; border: 2px solid var(--button-primary-BackgroundColor); border-radius: 0.625rem; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.58); transition: all 0.18s var(--timing-main); }
   .guided-tour-card { position: fixed; z-index: 1002; right: 1.5rem; bottom: 1.5rem; width: min(24rem, calc(100vw - 2rem)); padding: 1.25rem; color: var(--theme-content-color); background: var(--theme-popup-color); border: 1px solid var(--theme-button-border); border-radius: 0.75rem; box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.35); }
-  .guided-tour-step, .guided-tour-hint, .guided-tour-error { color: var(--theme-dark-color); font-size: 0.8125rem; }
+  .guided-tour-step, .guided-tour-error { color: var(--theme-dark-color); font-size: 0.8125rem; }
   h2 { margin: 0.5rem 0; font-size: 1.125rem; }
   p { margin: 0; line-height: 1.45; }
-  .guided-tour-hint, .guided-tour-error { margin-top: 0.75rem; }
-  .guided-tour-error { color: var(--button-negative-BackgroundColor); }
+  .guided-tour-error { margin-top: 0.75rem; color: var(--button-negative-BackgroundColor); }
   .guided-tour-actions, .guided-tour-navigation { display: flex; align-items: center; gap: 0.5rem; }
-  .guided-tour-actions { justify-content: flex-end; margin-top: 1.25rem; }
+  .guided-tour-actions { justify-content: space-between; margin-top: 1.25rem; }
+  .guided-tour-navigation { margin-left: auto; }
   button { min-height: 2rem; padding: 0.375rem 0.75rem; color: var(--theme-content-color); background: transparent; border: 1px solid var(--theme-button-border); border-radius: 0.375rem; cursor: pointer; }
   .guided-tour-next { color: var(--primary-button-color); background: var(--button-primary-BackgroundColor); border-color: var(--button-primary-BackgroundColor); }
   button:focus-visible { outline: 2px solid var(--primary-button-outline); outline-offset: 2px; }

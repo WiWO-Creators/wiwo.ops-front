@@ -109,6 +109,7 @@
   export let shouldSaveDraft: boolean = true
   export let parentIssue: Issue | undefined
   export let originalIssue: Issue | undefined
+  export let initialTitle: string | undefined = undefined
 
   const mDraftController = new MultipleDraftController(tracker.ids.IssueDraft)
   const id: Ref<Issue> = generateId()
@@ -182,7 +183,7 @@
   function getDefaultObject (id: Ref<Issue> | undefined = undefined, ignoreOriginal = false): IssueDraft {
     const base: IssueDraft = {
       _id: id ?? generateId(),
-      title: '',
+      title: initialTitle ?? '',
       description: EmptyMarkup,
       kind: '' as Ref<TaskType>,
       priority: priority ?? IssuePriority.NoPriority,
@@ -799,24 +800,26 @@
   on:changeContent
 >
   <svelte:fragment slot="header">
-    <SpaceSelector
-      _class={tracker.class.Project}
-      query={{
-        archived: false,
-        members: getCurrentAccount().uuid
-      }}
-      label={tracker.string.Project}
-      bind:space={_space}
-      on:object={(evt) => {
-        currentProject = evt.detail ?? undefined
-      }}
-      kind={'regular'}
-      size={'small'}
-      component={ProjectPresenter}
-      defaultIcon={tracker.icon.Home}
-      clearInvalidValue={true}
-      {findDefaultSpace}
-    />
+    <div data-tutorial="issue-project">
+      <SpaceSelector
+        _class={tracker.class.Project}
+        query={{
+          archived: false,
+          members: getCurrentAccount().uuid
+        }}
+        label={tracker.string.Project}
+        bind:space={_space}
+        on:object={(evt) => {
+          currentProject = evt.detail ?? undefined
+        }}
+        kind={'regular'}
+        size={'small'}
+        component={ProjectPresenter}
+        defaultIcon={tracker.icon.Home}
+        clearInvalidValue={true}
+        {findDefaultSpace}
+      />
+    </div>
     <ObjectBox
       _class={tracker.class.IssueTemplate}
       value={templateId}
