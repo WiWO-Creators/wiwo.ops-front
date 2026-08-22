@@ -1776,7 +1776,7 @@ abstract class PostgresAdapterBase implements DbAdapter {
 
   @withContext('insert')
   async insert (ctx: MeasureContext, domain: string, docs: Doc[]): Promise<TxResult> {
-    await this.upload(ctx, domain as Domain, docs, false)
+    await this.upload(ctx, domain as Domain, docs, true)
     return {}
   }
 }
