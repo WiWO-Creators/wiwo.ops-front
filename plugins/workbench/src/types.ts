@@ -117,6 +117,7 @@ export interface GuidedTourPreference extends Preference {
   currentStep: number
   activatedOn?: Timestamp
   completedOn?: Timestamp
+  skippedOn?: Timestamp
 }
 
 /** @public */

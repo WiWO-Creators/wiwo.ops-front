@@ -42,6 +42,7 @@ export default mergeIds(workbenchId, workbench, {
     GuidedTourProgress: '' as IntlString,
     GuidedTourProgressDescription: '' as IntlString,
     GuidedTourCompleted: '' as IntlString,
+    GuidedTourSkipped: '' as IntlString,
     GuidedTourPending: '' as IntlString,
     GuidedTourNone: '' as IntlString,
     AccessWorkspaceSettings: '' as IntlString,

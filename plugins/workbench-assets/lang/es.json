@@ -23,6 +23,7 @@
     "GuidedTourProgress": "Progreso de funcionalidades de Ops",
     "GuidedTourProgressDescription": "Estado del onboarding de funcionalidades de Ops de los usuarios activos",
     "GuidedTourCompleted": "completaron",
+    "GuidedTourSkipped": "saltaron",
     "GuidedTourPending": "pendientes",
     "GuidedTourNone": "Sin usuarios",
     "AccessWorkspaceSettings": "Acceder a la configuración de tu espacio de trabajo",

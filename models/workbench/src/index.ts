@@ -117,6 +117,7 @@ export class TGuidedTourPreference extends TPreference implements GuidedTourPref
   currentStep!: number
   activatedOn?: Timestamp
   completedOn?: Timestamp
+  skippedOn?: Timestamp
 }
 
 export function createModel (builder: Builder): void {
