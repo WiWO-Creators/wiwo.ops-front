@@ -158,7 +158,7 @@
         saveError,
         failedStep
       },
-      'movable',
+      'top',
       undefined,
       handleTourPanelUpdate,
       { category: 'guided-tour', overlay: false }
