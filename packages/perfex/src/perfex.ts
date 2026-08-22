@@ -231,14 +231,25 @@ export function extractUrl (value: string): string {
   return value.replace(/<[^>]*>/g, '').trim()
 }
 
+export interface PerfexQueryEvent {
+  phase: 'start' | 'finish' | 'error'
+  tables: string[]
+  rows?: number
+  error?: string
+}
+
+export type PerfexQueryListener = (event: PerfexQueryEvent) => void
+
 /** Lee los clientes de Perfex con sus contactos, grupos y carpeta de Drive. */
 export class PerfexReader {
   private constructor (
     private readonly connection: Connection,
-    private readonly prefix: string
+    private readonly prefix: string,
+    private readonly onQuery?: PerfexQueryListener
   ) {}
 
-  static async connect (config: PerfexConfig): Promise<PerfexReader> {
+  /** Abre la conexión de lectura y registra opcionalmente cada consulta. */
+  static async connect (config: PerfexConfig, onQuery?: PerfexQueryListener): Promise<PerfexReader> {
     const connection = await createConnection({
       host: config.host,
       port: config.port,
@@ -246,16 +257,25 @@ export class PerfexReader {
       password: config.password,
       database: config.database
     })
-    return new PerfexReader(connection, config.prefix)
+    return new PerfexReader(connection, config.prefix, onQuery)
   }
 
   async close (): Promise<void> {
     await this.connection.end()
   }
 
+  /** Ejecuta SQL prefijado y emite inicio, término o error sin exponer el SQL. */
   private async query<T>(sql: string): Promise<T[]> {
-    const [rows] = await this.connection.query<RowDataPacket[]>(sql.replaceAll('{p}', this.prefix))
-    return rows as T[]
+    const tables = [...sql.matchAll(/(?:FROM|JOIN)\s+\{p\}([a-z_]+)/gi)].map((match) => `${this.prefix}${match[1]}`)
+    this.onQuery?.({ phase: 'start', tables })
+    try {
+      const [rows] = await this.connection.query<RowDataPacket[]>(sql.replaceAll('{p}', this.prefix))
+      this.onQuery?.({ phase: 'finish', tables, rows: rows.length })
+      return rows as T[]
+    } catch (err: unknown) {
+      this.onQuery?.({ phase: 'error', tables, error: err instanceof Error ? err.message : String(err) })
+      throw err
+    }
   }
 
   async getClients (): Promise<PerfexClient[]> {

@@ -111,21 +111,28 @@ export async function importClients (
   ensurePerson?: (email: string, firstName: string, lastName: string) => Promise<Ref<Person>>
 ): Promise<void> {
   const stages = new Set(options.stages)
-
-  const all = await perfex.getClients()
+  const needsClients = stages.has('clientes') || stages.has('proyectos') || stages.has('adjuntos')
+  const all = needsClients ? await perfex.getClients() : []
   const clients = all
     .filter((c) => belongsToEnvironment(c.groups, options.environment))
     .filter((c) => options.includeInactive || c.active)
 
-  const contactCount = clients.reduce((acc, c) => acc + c.contacts.length, 0)
-  logger.log(
-    `Ambiente ${options.environment.label}: ${clients.length} de ${all.length} clientes ` +
-      `y ${contactCount} contactos`
-  )
+  if (needsClients) {
+    const contactCount = clients.reduce((acc, c) => acc + c.contacts.length, 0)
+    logger.log(
+      `Ambiente ${options.environment.label}: ${clients.length} de ${all.length} clientes ` +
+        `y ${contactCount} contactos`
+    )
+  }
 
-  const staff = await perfex.getStaff()
+  const needsPeople =
+    stages.has('personas') || stages.has('proyectos') || stages.has('checklists') || stages.has('tiempo')
+  const staff = needsPeople ? await perfex.getStaff() : []
   const peopleByStaffId = await runStaffStage(logger, options, stages, staff, ensurePerson)
-  const organizationsByClientId = await runClientsStage(client, logger, options, stages, clients)
+  const needsOrganizations = stages.has('clientes') || stages.has('proyectos')
+  const organizationsByClientId = needsOrganizations
+    ? await runClientsStage(client, logger, options, stages, clients)
+    : {}
 
   await runProjectsStage(client, perfex, logger, options, clients, peopleByStaffId, organizationsByClientId, uploader)
   await runMilestonesStage(client, perfex, logger, options)
@@ -155,6 +162,9 @@ async function runStaffStage (
   ensurePerson?: (email: string, firstName: string, lastName: string) => Promise<Ref<Person>>
 ): Promise<Record<string, Ref<Person>>> {
   const peopleByStaffId: Record<string, Ref<Person>> = {}
+  const needsPeople =
+    stages.has('personas') || stages.has('proyectos') || stages.has('checklists') || stages.has('tiempo')
+  if (!needsPeople) return peopleByStaffId
   if (options.dryRun || ensurePerson === undefined) {
     if (stages.has('personas')) {
       logger.log(`Staff: ${staff.filter((p) => p.email.trim() !== '').length} personas (simulado)`)
