@@ -90,13 +90,13 @@
   }
 </script>
 
-<div class="flex-row-stretch">
+<div class="flex-row-stretch" data-tutorial="telework-room-detail">
   <div class="row flex-grow">
     <div class="name">
       <EditBox disabled={true} placeholder={love.string.Room} bind:value={roomName} focusIndex={1} />
     </div>
     {#if showConnectionButton(object, connecting, $lkSessionConnected, $infos, $myOffice, $currentRoom)}
-      <ModernButton label={connectLabel} size="large" kind={'primary'} on:click={connect} loading={connecting} />
+      <span data-tutorial="telework-enter-room"><ModernButton label={connectLabel} size="large" kind={'primary'} on:click={connect} loading={connecting} /></span>
     {/if}
   </div>
 </div>

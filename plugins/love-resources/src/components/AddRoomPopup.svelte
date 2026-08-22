@@ -94,7 +94,7 @@
   }
 </script>
 
-<div class="antiPopup p-4 flex-gap-2">
+<div class="antiPopup p-4 flex-gap-2" data-tutorial="telework-room-types">
   {#each items as item}
     <div>
       <Button label={item.label} on:click={() => createRoom(item.id)} />

@@ -149,6 +149,7 @@
 <!-- svelte-ignore a11y-mouse-events-have-key-events -->
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <div
+  data-tutorial="telework-room"
   class="floorGrid-room"
   class:hovered
   class:disabled

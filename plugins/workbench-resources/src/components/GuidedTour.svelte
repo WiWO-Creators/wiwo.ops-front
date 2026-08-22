@@ -1,14 +1,16 @@
 <script lang="ts">
-  import core, { getCurrentAccount, type Class, type ModulePermissionGroup, type Ref } from '@hcengineering/core'
+  import calendar from '@hcengineering/calendar'
+  import core, { AccountRole, getCurrentAccount, hasAccountRole, type Class, type ModulePermissionGroup, type Ref } from '@hcengineering/core'
+  import { loveId } from '@hcengineering/love'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import tracker, { trackerId } from '@hcengineering/tracker'
-  import { getCurrentLocation, location, navigate, showPopup, type PopupResult } from '@hcengineering/ui'
+  import { getCurrentLocation, location, navigate, showPopup, type PopupAlignment, type PopupResult } from '@hcengineering/ui'
   import workbench, { type Application } from '@hcengineering/workbench'
   import type { GuidedTourPreference } from '@hcengineering/workbench/src/types'
   import { onDestroy, tick } from 'svelte'
   import { guidedTourStarts } from '../guidedTour'
   import { getGuidedTourPhase, getGuidedTourStep, type GuidedTourPhase } from '../guidedTourState'
-  import { getOpsTourSteps, isOpsApplication, type TourCardAction, type TourStep } from '../opsTour'
+  import { getOpsTourSteps, isGuidedTourApplication, type TourCardAction, type TourStep } from '../opsTour'
   import { filterVisibleApplications, getDisabledApplications } from '../utils'
   import GuidedTourCard from './GuidedTourCard.svelte'
   import GuidedTourShield from './GuidedTourShield.svelte'
@@ -76,8 +78,9 @@
 
   $: steps = getOpsTourSteps(
     filterVisibleApplications(allApps, hiddenApps, disabledApps)
-      .filter(isOpsApplication)
-      .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))
+      .filter(isGuidedTourApplication)
+      .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity)),
+    hasAccountRole(account, AccountRole.Maintainer)
   )
   $: startWhenReady()
 
@@ -143,6 +146,13 @@
     tutorialPopup = undefined
   }
 
+  /** Anchors the tour panel beside its current target so modal fields remain visible. */
+  function getTourPanelAlignment (): PopupAlignment {
+    const panelTarget = target
+    if (phase !== 'tour' || panelTarget === undefined) return 'top'
+    return { getBoundingClientRect: () => panelTarget.getBoundingClientRect() }
+  }
+
   /** Opens the tour controls through the standard popup stack. */
   function openTourPanel (): void {
     if (!active) return
@@ -158,7 +168,7 @@
         saveError,
         failedStep
       },
-      'top',
+      getTourPanelAlignment(),
       undefined,
       handleTourPanelUpdate,
       { category: 'guided-tour', overlay: false }
@@ -167,7 +177,7 @@
 
   /** Blocks all interactions with a demonstration modal without covering the tour controls. */
   function openInteractionShield (): void {
-    if (tutorialShield !== undefined) return
+    tutorialShield?.close()
     tutorialShield = showPopup(
       GuidedTourShield,
       {},
@@ -252,6 +262,33 @@
     )
   }
 
+  /** Opens the real event form with sample content and without saving an event. */
+  function openCalendarEventForm (): void {
+    tutorialPopup = showPopup(calendar.component.CreateEvent, { title: 'Ejemplo: reunión de equipo' }, 'top')
+  }
+
+  /** Opens the first visible Teletrabajo room without joining its meeting. */
+  async function openTeleworkRoom (): Promise<void> {
+    const room = await findTarget('[data-tutorial="telework-room"]')
+    if (room === undefined) throw new Error('No encontramos una sala disponible para mostrar su flujo.')
+    room.click()
+  }
+
+  /** Opens the maintenance layout only for accounts allowed to edit Teletrabajo. */
+  async function openTeleworkConfigure (): Promise<void> {
+    openApplication(loveId)
+    const editButton = (await findTarget('[data-tutorial="telework-edit-office"]'))?.querySelector<HTMLButtonElement>('button')
+    if (editButton === undefined || editButton === null) throw new Error('No encontramos los controles de administración de Teletrabajo.')
+    editButton.click()
+  }
+
+  /** Opens the room-type menu without selecting an option. */
+  async function openTeleworkAddRoom (): Promise<void> {
+    const addButton = (await findTarget('[data-tutorial="telework-add-room"]'))?.querySelector<HTMLButtonElement>('button')
+    if (addButton === undefined || addButton === null) throw new Error('No encontramos la acción para añadir una sala.')
+    addButton.click()
+  }
+
   /** Opens a project or global view and its real selector without changing the selected view. */
   async function openBoard (): Promise<void> {
     const project = await client.findOne(tracker.class.Project, { members: account.uuid })
@@ -282,6 +319,18 @@
         return
       case 'openBoard':
         await openBoard()
+        return
+      case 'openCalendarEventForm':
+        openCalendarEventForm()
+        return
+      case 'openTeleworkRoom':
+        await openTeleworkRoom()
+        return
+      case 'openTeleworkConfigure':
+        await openTeleworkConfigure()
+        return
+      case 'openTeleworkAddRoom':
+        await openTeleworkAddRoom()
     }
   }
 
@@ -299,7 +348,7 @@
     if (step.surface !== 'popup') closeDemonstration()
     try {
       await runStepAction(step)
-      if (step.surface === 'popup') openInteractionShield()
+      openInteractionShield()
       const shown = await updateTarget(index)
       failedStep = shown ? undefined : index
       return shown
@@ -457,6 +506,6 @@
 {/if}
 
 <style lang="scss">
-  :global(.guided-tour-target) { position: relative; z-index: 1001 !important; border-radius: 0.5rem; }
+  :global(.guided-tour-target) { position: relative; z-index: 1001 !important; pointer-events: none; border-radius: 0.5rem; }
   .guided-tour-spotlight { position: fixed; z-index: 1000; pointer-events: none; border: 2px solid var(--button-primary-BackgroundColor); border-radius: 0.625rem; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.58); transition: all 0.18s var(--timing-main); }
 </style>
