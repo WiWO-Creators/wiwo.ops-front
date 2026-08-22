@@ -415,6 +415,15 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
   app.post('/api/v1/ensure-person/:workspaceId', (req, res) => {
     void withSession(req, res, 'ensurePerson', async (ctx, session, rateLimit, token) => {
       const { socialType, socialValue, firstName, lastName } = (await retrieveJson(req)) ?? {}
+      const [contactsSpace] = await session.findAllRaw(
+        ctx,
+        core.class.SystemSpace,
+        { _id: contact.space.Contacts },
+        { limit: 1 }
+      )
+      if (contactsSpace === undefined) {
+        throw new Error('Workspace integrity error: contact:space:Contacts is missing or is not a SystemSpace')
+      }
       const accountClient = getAccountClient(token)
 
       const { uuid, socialId } = await accountClient.ensurePerson(socialType, socialValue, firstName, lastName)
@@ -422,8 +431,11 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
         session.getUser() === systemAccountUuid ? core.account.System : pickPrimarySocialId(session.getSocialIds())._id
       const txFactory: TxFactory = new TxFactory(primaryPersonId)
 
-      const [person] = await session.findAllRaw(ctx, contact.class.Person, { personUuid: uuid }, { limit: 1 })
-      let personRef: Ref<Person> = person?._id
+      let people = await session.findAllRaw(ctx, contact.class.Person, { personUuid: uuid }, { limit: 2 })
+      if (people.length > 1) {
+        throw new Error(`Workspace integrity error: duplicated local persons for personUuid ${uuid}`)
+      }
+      let personRef: Ref<Person> | undefined = people[0]?._id
 
       if (personRef === undefined) {
         const createPersonTx = txFactory.createTxCreateDoc(contact.class.Person, contact.space.Contacts, {
@@ -446,7 +458,11 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
         )
 
         await session.txRaw(ctx, createUniquePersonTx)
-        personRef = createPersonTx.objectId
+        people = await session.findAllRaw(ctx, contact.class.Person, { personUuid: uuid }, { limit: 2 })
+        if (people.length !== 1) {
+          throw new Error(`Workspace integrity error: expected one local person for personUuid ${uuid}, found ${people.length}`)
+        }
+        personRef = people[0]._id
       }
 
       const [socialIdentity] = await session.findAllRaw(

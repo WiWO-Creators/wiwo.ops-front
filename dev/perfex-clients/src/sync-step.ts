@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { getEnvironment } from './environments'
 import { importClients, type Logger } from './import'
 import { withHulyClient } from './index'
+import { assertMigrationIntegrity } from './migration-integrity'
 import { asignarOwners } from './owners'
 import { aplicarPermisos } from './permisos'
 import {
@@ -74,6 +75,9 @@ export async function runSyncStep (options: SyncStepOptions): Promise<void> {
       },
       async (client, uploader, ensurePerson) => {
         assertRunning()
+        logger.log('Validando integridad de contactos y personas')
+        await assertMigrationIntegrity(client)
+        logger.log('Integridad del workspace correcta')
         const duplicateMap = readDuplicateMap(config.mapaDuplicados)
 
         if (options.stage === 'preflight') {
