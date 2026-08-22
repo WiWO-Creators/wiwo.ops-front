@@ -80,6 +80,7 @@ interface ActiveStep {
   child: ChildProcess
   stopRequested: boolean
   spawnError?: string
+  lastError?: string
 }
 
 interface WorkerMessage {
@@ -101,6 +102,23 @@ export function redactLog (value: string): string {
   return value
     .replace(/(Bearer\s+)[A-Za-z0-9._~-]+/gi, '$1[REDACTED]')
     .replace(/((?:token|password|secret|passwd|pwd)["'\s:=]+)[^\s,"'}]+/gi, '$1[REDACTED]')
+}
+
+/** Conserva la causa emitida por el worker y produce un resumen legible para la tarjeta. */
+export function resolveWorkerFailure (
+  lastError: string | undefined,
+  spawnError: string | undefined,
+  code: number | null,
+  signal: NodeJS.Signals | null
+): { error: string, summary: string } {
+  const fallback = `El worker se cerró inesperadamente con código ${code ?? 'desconocido'}${signal === null ? '' : ` (${signal})`}`
+  const error = redactLog(spawnError ?? lastError ?? fallback)
+  const firstLine = error.split(/\r?\n/).find((line) => line.trim() !== '')?.trim() ?? fallback
+  const readable = firstLine.replace(/^[A-Za-z]*Error:\s*/, '')
+  return {
+    error,
+    summary: readable.length <= 240 ? readable : `${readable.slice(0, 237)}...`
+  }
 }
 
 /** Indica si el rol puede operar herramientas reservadas a mantenedores. */
@@ -335,7 +353,7 @@ export class MigrationControlService {
       createInterface({ input: child.stderr }).on('line', (line) => { this.captureLine(run, step, line, 'error') })
     }
     child.on('error', (err) => {
-      active.spawnError = err.message
+      active.spawnError = err.stack ?? err.message
       this.appendEvent(run, step, { level: 'error', message: err.stack ?? err.message })
     })
     child.on('close', (code, signal) => {
@@ -352,8 +370,9 @@ export class MigrationControlService {
         run.status = run.steps.every(({ status }) => status === 'succeeded') ? 'succeeded' : 'waiting_confirmation'
       } else {
         step.status = 'failed'
-        step.error = active.spawnError ?? `El worker terminó con código ${code ?? 'desconocido'}${signal === null ? '' : ` (${signal})`}`
-        step.lastMessage = step.error
+        const failure = resolveWorkerFailure(active.lastError, active.spawnError, code, signal)
+        step.error = failure.error
+        step.lastMessage = failure.summary
         run.status = 'failed'
       }
       this.appendEvent(run, step, {
@@ -386,6 +405,13 @@ export class MigrationControlService {
       event = { level: fallbackLevel, message: line }
     }
     step.lastMessage = redactLog(event.message)
+    if (
+      event.level === 'error' &&
+      this.active?.runId === run.id &&
+      this.active.stepId === step.id
+    ) {
+      this.active.lastError = step.lastMessage
+    }
     this.appendEvent(run, step, event)
     this.saveRun(run)
   }

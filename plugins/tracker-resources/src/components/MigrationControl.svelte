@@ -52,6 +52,12 @@
     message: string
   }
 
+  interface StepFailure {
+    summary: string
+    advice: string
+    detail: string
+  }
+
   const API = '/_perfex/api'
   const POLL_MS = 1_000
   const token = getMetadata(presentation.metadata.Token) ?? ''
@@ -248,6 +254,70 @@
     return err instanceof Error ? err.message : String(err)
   }
 
+  /** Recupera la causa real, incluso para corridas antiguas que guardaron solo el código de salida. */
+  function stepFailure(step: RunStep): StepFailure | undefined {
+    if (step.status !== 'failed') return undefined
+    let detail = step.error ?? step.lastMessage ?? ''
+    if (/^El worker (?:terminó|se cerró)/i.test(detail)) {
+      for (let index = events.length - 1; index >= 0; index--) {
+        const event = events[index]
+        if (
+          event.level === 'error' &&
+          event.environment === step.environment &&
+          event.stage === step.stage &&
+          !/^El worker (?:terminó|se cerró)/i.test(event.message)
+        ) {
+          detail = event.message
+          break
+        }
+      }
+    }
+    if (detail === '') return undefined
+    const firstLine =
+      detail
+        .split(/\r?\n/)
+        .find((line) => line.trim() !== '')
+        ?.trim() ?? detail
+    return {
+      summary: firstLine.replace(/^[A-Za-z]*Error:\s*/, ''),
+      advice: errorAdvice(detail),
+      detail
+    }
+  }
+
+  /** Traduce fallos frecuentes de configuración o conectividad a una acción concreta. */
+  function errorAdvice(detail: string): string {
+    const missingVariable = /Falta la variable ([A-Z0-9_]+)/i.exec(detail)?.[1]
+    if (missingVariable !== undefined) {
+      return `Configura ${missingVariable} en huly.conf y recrea el servicio perfex-migration.`
+    }
+    if (/Access denied for user|ER_ACCESS_DENIED_ERROR/i.test(detail)) {
+      return 'Revisa PERFEX_DB_USER, PERFEX_DB_PASSWORD y los permisos de solo lectura en MySQL.'
+    }
+    if (/Unknown database/i.test(detail)) {
+      return 'Revisa PERFEX_DB_NAME en huly.conf.'
+    }
+    if (/ECONNREFUSED|connect ETIMEDOUT|Connection timed out/i.test(detail)) {
+      return 'Verifica host, puerto, red Docker y que el servicio de destino esté disponible.'
+    }
+    if (/ENOTFOUND|getaddrinfo/i.test(detail)) {
+      return 'El hostname no se pudo resolver. Revisa PERFEX_DB_HOST y la red/DNS del contenedor.'
+    }
+    if (/\b401\b|Unauthorized|token.*inválido|invalid token/i.test(detail)) {
+      return 'Revisa el HULY_TOKEN del workspace indicado y vuelve a crear el servicio.'
+    }
+    if (/Duplicados sin canónico/i.test(detail)) {
+      return 'Completa los identificadores faltantes en duplicados.json antes de reintentar.'
+    }
+    if (/ENOENT|no such file or directory/i.test(detail)) {
+      return 'Verifica las rutas y montajes de sync.json, permisos.csv, duplicados.json o adjuntos.'
+    }
+    if (/Workspace no configurado/i.test(detail)) {
+      return 'Revisa el nombre y la entrada del workspace en sync.json.'
+    }
+    return 'Abre el detalle técnico y revisa las líneas anteriores del Registrador de vuelo para ubicar la última operación.'
+  }
+
   function authHeaders(): Record<string, string> {
     return { Authorization: `Bearer ${token}` }
   }
@@ -352,6 +422,7 @@
             {#each selectedRun.steps.filter((step) => step.environment === workspace.env) as step (step.id)}
               {@const descriptor = stageDescriptor(step.stage)}
               {@const currentProgress = progress(step.lastMessage)}
+              {@const failure = stepFailure(step)}
               <article class="step {step.status}">
                 <div class="step-marker" aria-hidden="true"></div>
                 <div class="step-body">
@@ -364,7 +435,19 @@
                       <span style={`width: ${currentProgress.percent}%`}></span>
                     </div>
                   {/if}
-                  <p>{step.lastMessage ?? 'Sin ejecutar'}</p>
+                  {#if failure === undefined}
+                    <p>{step.lastMessage ?? 'Sin ejecutar'}</p>
+                  {:else}
+                    <div class="failure-feedback" role="alert">
+                      <strong>Qué falló</strong>
+                      <p class="failure-summary">{failure.summary}</p>
+                      <p class="failure-advice">{failure.advice}</p>
+                      <details class="technical-error">
+                        <summary>Ver detalle técnico</summary>
+                        <pre>{failure.detail}</pre>
+                      </details>
+                    </div>
+                  {/if}
                   {#if descriptor !== undefined && descriptor.tables.length > 0}
                     <details>
                       <summary>{descriptor.tables.length} tablas fuente</summary>
@@ -686,6 +769,44 @@
     line-height: 1.35;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  .failure-feedback {
+    display: grid;
+    gap: 0.35rem;
+    padding: 0.55rem 0.65rem;
+    border-left: 0.2rem solid var(--theme-state-negative-color);
+    border-radius: 0.35rem;
+    background: var(--theme-state-negative-background-color);
+  }
+  .failure-feedback > strong {
+    color: var(--theme-state-negative-color);
+    font-size: 0.72rem;
+  }
+  .step .failure-feedback p {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+  .step .failure-summary {
+    color: var(--theme-content-color);
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+  .step .failure-advice {
+    color: var(--caption-color);
+  }
+  .technical-error pre {
+    overflow: auto;
+    max-height: 12rem;
+    margin: 0.4rem 0 0;
+    padding: 0.5rem;
+    border-radius: 0.35rem;
+    color: var(--theme-content-color);
+    background: var(--theme-raw-color);
+    font-size: 0.68rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
   .step-action {
     min-height: 2rem;

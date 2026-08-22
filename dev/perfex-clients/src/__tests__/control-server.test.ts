@@ -9,6 +9,7 @@ import {
   hasMaintainerRole,
   MigrationControlService,
   redactLog,
+  resolveWorkerFailure,
   type MigrationRun
 } from '../control-server'
 import type { SyncConfig } from '../sync'
@@ -46,6 +47,19 @@ describe('centro de migración', () => {
     expect(redactLog('Authorization: Bearer abc.def token=secreto password:clave')).toBe(
       'Authorization: Bearer [REDACTED] token=[REDACTED] password:[REDACTED]'
     )
+  })
+
+  it('conserva el error real del worker en vez de reemplazarlo por el código de salida', () => {
+    const failure = resolveWorkerFailure(
+      'Error: Access denied for user perfex\n    at Connection.query',
+      undefined,
+      1,
+      null
+    )
+
+    expect(failure.summary).toBe('Access denied for user perfex')
+    expect(failure.error).toContain('Connection.query')
+    expect(failure.error).not.toContain('código 1')
   })
 
   it('exige Maintainer y un correo verificado de la allowlist', () => {
