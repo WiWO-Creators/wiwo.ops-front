@@ -115,6 +115,7 @@ export interface WorkbenchTab extends Preference {
 export interface GuidedTourPreference extends Preference {
   attachedTo: AccountUuid
   currentStep: number
+  activatedOn?: Timestamp
   completedOn?: Timestamp
 }
 

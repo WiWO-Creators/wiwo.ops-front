@@ -115,6 +115,7 @@ export class TWorkbenchTab extends TPreference implements WorkbenchTab {
 export class TGuidedTourPreference extends TPreference implements GuidedTourPreference {
   declare attachedTo: AccountUuid
   currentStep!: number
+  activatedOn?: Timestamp
   completedOn?: Timestamp
 }
 
