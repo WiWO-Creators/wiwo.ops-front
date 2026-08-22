@@ -60,6 +60,9 @@
   {/if}
   {#if saveError}<p class="guided-tour-error" role="alert">{saveError}</p>{/if}
   <div class="guided-tour-actions">
+    {#if phase === 'activation' || phase === 'tour'}
+      <button type="button" disabled={saving} on:click={() => emit('skipTour')}>Saltar tutorial</button>
+    {/if}
     {#if phase === 'tour' && saveError}
       <button type="button" on:click={() => emit('retry')}>Reintentar</button>
       {#if failedStep !== undefined}<button type="button" disabled={saving} on:click={() => emit('skip')}>Omitir por ahora</button>{/if}

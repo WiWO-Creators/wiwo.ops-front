@@ -24,7 +24,7 @@
   const guidedTourPreferenceClass = (workbench.class as typeof workbench.class & {
     GuidedTourPreference: Ref<Class<GuidedTourPreference>>
   }).GuidedTourPreference
-  const tourCardActions = new Set<TourCardAction>(['start', 'next', 'previous', 'retry', 'skip'])
+  const tourCardActions = new Set<TourCardAction>(['start', 'next', 'previous', 'retry', 'skip', 'skipTour'])
 
   let active = false
   let phase: GuidedTourPhase = 'activation'
@@ -95,8 +95,8 @@
     }
     if (hasStarted) return
     hasStarted = true
-    phase = getGuidedTourPhase(savedPreference?.activatedOn, savedPreference?.completedOn)
-    if (phase === 'completed') return
+    phase = getGuidedTourPhase(savedPreference?.activatedOn, savedPreference?.completedOn, savedPreference?.skippedOn)
+    if (phase === 'completed' || phase === 'skipped') return
     void ensurePreference(savedPreference?.currentStep ?? 0).catch(() => {
       saveError = 'No pudimos crear el registro del tutorial. Revisa tu conexión e inténtalo otra vez.'
       openTourPanel()
@@ -206,6 +206,9 @@
         return
       case 'skip':
         void skipFailedStep()
+        return
+      case 'skipTour':
+        void skipTour()
     }
   }
 
@@ -379,13 +382,13 @@
     }
   }
 
-  /** Saves progress centrally; final completion retains its timestamp. */
-  async function saveProgress (currentStep: number, completed = false): Promise<boolean> {
+  /** Saves progress centrally with an explicit completed or skipped outcome. */
+  async function saveProgress (currentStep: number, outcome?: 'completed' | 'skipped'): Promise<boolean> {
     try {
       const id = await ensurePreference(currentStep)
       await client.updateDoc(guidedTourPreferenceClass, core.space.Workspace, id, {
         currentStep,
-        ...(completed ? { completedOn: Date.now() } : {})
+        ...(outcome === 'completed' ? { completedOn: Date.now() } : outcome === 'skipped' ? { skippedOn: Date.now() } : {})
       })
       return true
     } catch {
@@ -416,7 +419,7 @@
     if (saving) return
     if (panelStepIndex === steps.length - 1) {
       saving = true
-      const saved = await saveProgress(panelStepIndex, true)
+      const saved = await saveProgress(panelStepIndex, 'completed')
       saving = false
       if (!saved) {
         openTourPanel()
@@ -446,7 +449,7 @@
     const nextStep = failedStep + 1
     saving = true
     if (nextStep >= steps.length) {
-      const saved = await saveProgress(failedStep, true)
+      const saved = await saveProgress(failedStep, 'completed')
       if (saved) {
         closeTourPanel()
         closeDemonstration()
@@ -463,6 +466,23 @@
     }
     saving = false
     if (active) openTourPanel()
+  }
+
+  /** Records an explicit opt-out and closes the tutorial only after it is saved. */
+  async function skipTour (): Promise<void> {
+    if (saving) return
+    saving = true
+    const saved = await saveProgress(panelStepIndex, 'skipped')
+    saving = false
+    if (!saved) {
+      openTourPanel()
+      return
+    }
+    closeTourPanel()
+    closeDemonstration()
+    clearTarget()
+    active = false
+    phase = 'skipped'
   }
 
   /** Moves back through the same visible interface states. */

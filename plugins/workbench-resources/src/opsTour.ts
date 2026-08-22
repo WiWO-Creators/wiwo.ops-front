@@ -14,7 +14,7 @@ export type TourAction =
   | 'openTeleworkConfigure'
   | 'openTeleworkAddRoom'
 export type TourSurface = 'page' | 'popup'
-export type TourCardAction = 'start' | 'next' | 'previous' | 'retry' | 'skip'
+export type TourCardAction = 'start' | 'next' | 'previous' | 'retry' | 'skip' | 'skipTour'
 
 export interface TourStep {
   title: string

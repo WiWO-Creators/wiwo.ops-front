@@ -24,8 +24,10 @@
 
   $: trackedEmployees = employees.filter((employee) => employee.personUuid !== undefined)
   $: completedAccounts = new Set(preferences.filter((preference) => preference.completedOn !== undefined).map((preference) => preference.attachedTo))
+  $: skippedAccounts = new Set(preferences.filter((preference) => preference.skippedOn !== undefined && !completedAccounts.has(preference.attachedTo)).map((preference) => preference.attachedTo))
   $: completedEmployees = trackedEmployees.filter((employee) => completedAccounts.has(employee.personUuid))
-  $: pendingEmployees = trackedEmployees.filter((employee) => !completedAccounts.has(employee.personUuid))
+  $: skippedEmployees = trackedEmployees.filter((employee) => skippedAccounts.has(employee.personUuid))
+  $: pendingEmployees = trackedEmployees.filter((employee) => !completedAccounts.has(employee.personUuid) && !skippedAccounts.has(employee.personUuid))
 </script>
 
 <div class="guided-tour-progress" role="dialog" aria-labelledby="guided-tour-progress-title">
@@ -38,6 +40,7 @@
   </div>
   <div class="guided-tour-summary">
     <span><strong>{completedEmployees.length}</strong> <Label label={workbench.string.GuidedTourCompleted} /></span>
+    <span><strong>{skippedEmployees.length}</strong> <Label label={workbench.string.GuidedTourSkipped} /></span>
     <span><strong>{pendingEmployees.length}</strong> <Label label={workbench.string.GuidedTourPending} /></span>
   </div>
   <Scroller padding={'0 0.25rem'}>
@@ -45,6 +48,10 @@
       <section>
         <h3><Label label={workbench.string.GuidedTourCompleted} /></h3>
         {#each completedEmployees as employee}<div>{employee.name}</div>{:else}<p><Label label={workbench.string.GuidedTourNone} /></p>{/each}
+      </section>
+      <section>
+        <h3><Label label={workbench.string.GuidedTourSkipped} /></h3>
+        {#each skippedEmployees as employee}<div>{employee.name}</div>{:else}<p><Label label={workbench.string.GuidedTourNone} /></p>{/each}
       </section>
       <section>
         <h3><Label label={workbench.string.GuidedTourPending} /></h3>

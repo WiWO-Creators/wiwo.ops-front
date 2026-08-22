@@ -1,4 +1,4 @@
-export type GuidedTourPhase = 'activation' | 'tour' | 'completed'
+export type GuidedTourPhase = 'activation' | 'tour' | 'completed' | 'skipped'
 
 /** Converts stored progress into a valid tour step. */
 export function getGuidedTourStep (step: number | undefined, stepsCount: number): number {
@@ -6,7 +6,12 @@ export function getGuidedTourStep (step: number | undefined, stepsCount: number)
 }
 
 /** Resolves the only phase a user can enter from persisted tutorial data. */
-export function getGuidedTourPhase (activatedOn: number | undefined, completedOn: number | undefined): GuidedTourPhase {
+export function getGuidedTourPhase (
+  activatedOn: number | undefined,
+  completedOn: number | undefined,
+  skippedOn: number | undefined
+): GuidedTourPhase {
   if (completedOn !== undefined) return 'completed'
+  if (skippedOn !== undefined) return 'skipped'
   return activatedOn === undefined ? 'activation' : 'tour'
 }
