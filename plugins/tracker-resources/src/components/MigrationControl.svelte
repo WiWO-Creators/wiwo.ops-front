@@ -312,7 +312,11 @@
     if (/contact:space:Contacts|Contacts.*SystemSpace/i.test(detail)) {
       return 'No reintentes todavía: actualiza el modelo del workspace para restaurar Contacts como SystemSpace.'
     }
-    if (/personUuid duplicados|duplicated local persons|expected one local person/i.test(detail)) {
+    if (
+      /personUuid duplicados|duplicated local persons|expected one local person|social identity.*wrong person/i.test(
+        detail
+      )
+    ) {
       return 'No reintentes ni uses limpiar. Repara los duplicados conservando una persona por personUuid y verifica sus referencias.'
     }
     if (/Redpanda|KafkaJS|broker.*(?:unavailable|not available)|QUEUE_CONFIG/i.test(detail)) {
