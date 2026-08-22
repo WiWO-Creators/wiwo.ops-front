@@ -201,9 +201,13 @@
 
 <style lang="scss">
   .control-center {
+    min-height: 0;
     padding: 2rem;
     max-width: 96rem;
     margin: 0 auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    box-sizing: border-box;
   }
   header,
   .section-title,
