@@ -1108,6 +1108,9 @@ importers:
       '@hcengineering/task':
         specifier: workspace:^0.7.0
         version: link:../../plugins/task
+      '@hcengineering/tags':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/tags
       '@hcengineering/text-html':
         specifier: workspace:^0.7.19
         version: link:../../foundations/core/packages/text-html
