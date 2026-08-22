@@ -31,7 +31,7 @@ import { closeProjects } from './cerrar'
 import { aplicarPermisos } from './permisos'
 import { asignarOwners } from './owners'
 import { createPermanentInvite } from './invitacion'
-import { cleanWorkspace } from './limpiar'
+import { cleanWorkspace, isCleanResult } from './limpiar'
 import { limpiarTiposRepetidos } from './tipos'
 import { notifyResult } from './aviso'
 import { ALL_STAGES, importClients, type Logger, type Stage } from './import'
@@ -501,6 +501,50 @@ export function perfexClientsTool (): void {
     })
 
   program
+    .command('cleanup-step', { hidden: true })
+    .requiredOption('-c, --config <archivo>', 'manifiesto local')
+    .requiredOption('-e, --env <ambiente>', 'ambiente destino')
+    .option('--dry-run', 'no escribe nada', false)
+    .option('--expected <json>', 'conteos confirmados por la vista previa')
+    .action(async (cmd) => {
+      const expected = cmd.expected === undefined ? undefined : JSON.parse(cmd.expected)
+      if (expected !== undefined && !isCleanResult(expected)) throw new Error('Conteos de limpieza inválidos')
+
+      const emit = (level: 'info' | 'warn' | 'error', message: string, result?: unknown): void => {
+        process.stdout.write(`${JSON.stringify({ marker: 'perfex-migration', level, message, result })}\n`)
+      }
+      let stopRequested = false
+      process.on('SIGTERM', () => {
+        stopRequested = true
+        emit('warn', 'Detención recibida; se terminará el ítem activo')
+      })
+      try {
+        const { runCleanupStep } = await import('./cleanup-step')
+        const result = await runCleanupStep({
+          configPath: cmd.config,
+          environmentId: cmd.env,
+          dryRun: cmd.dryRun === true,
+          expected,
+          shouldStop: () => stopRequested,
+          logger: {
+            log: (message) => { emit('info', message) },
+            error: (message) => { emit('error', message) }
+          }
+        })
+        emit('info', 'Conteos de limpieza confirmados', result)
+      } catch (err: unknown) {
+        const { MigrationCancelledError } = await import('./sync-step')
+        if (err instanceof MigrationCancelledError) {
+          emit('warn', err.message)
+          process.exitCode = 2
+          return
+        }
+        emit('error', err instanceof Error ? (err.stack ?? err.message) : String(err))
+        process.exitCode = 1
+      }
+    })
+
+  program
     .command('sync-step', { hidden: true })
     .requiredOption('-c, --config <archivo>', 'manifiesto local')
     .requiredOption('-e, --env <ambiente>', 'ambiente destino')
@@ -529,8 +573,12 @@ export function perfexClientsTool (): void {
           dryRun: cmd.dryRun === true,
           shouldStop: () => stopRequested,
           logger: {
-            log: (message) => { emit('info', message) },
-            error: (message) => { emit('error', message) }
+            log: (message) => {
+              emit('info', message)
+            },
+            error: (message) => {
+              emit('error', message)
+            }
           },
           onQuery: (event) => {
             for (const table of event.tables) {

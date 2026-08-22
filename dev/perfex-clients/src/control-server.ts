@@ -18,6 +18,7 @@ import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 
+import { isCleanResult, type CleanResult } from './limpiar'
 import { readSyncConfig, type SyncConfig } from './sync'
 import { CONTROL_STAGES, isControlStage, type ControlStage } from './sync-control'
 
@@ -33,17 +34,20 @@ export type MigrationStepStatus =
   | 'succeeded'
 
 export type MigrationRunStatus = 'waiting_confirmation' | MigrationStepStatus
+export type MigrationRunKind = 'migration' | 'cleanup-preview' | 'cleanup-execute'
+export type MigrationStage = ControlStage | 'cleanup'
 
 export interface MigrationRunStep {
   id: string
   environment: string
   workspace: string
-  stage: ControlStage
+  stage: MigrationStage
   status: MigrationStepStatus
   startedAt?: string
   finishedAt?: string
   lastMessage?: string
   error?: string
+  result?: CleanResult
 }
 
 export interface MigrationRun {
@@ -51,6 +55,9 @@ export interface MigrationRun {
   createdAt: string
   createdBy: string
   dryRun: boolean
+  kind?: MigrationRunKind
+  sourcePreviewId?: string
+  expectedCleanup?: CleanResult
   status: MigrationRunStatus
   lastSequence: number
   steps: MigrationRunStep[]
@@ -62,7 +69,7 @@ export interface MigrationLogEvent {
   level: 'info' | 'warn' | 'error'
   environment: string
   workspace: string
-  stage: ControlStage
+  stage: MigrationStage
   table?: string
   phase?: 'start' | 'finish' | 'error'
   message: string
@@ -89,6 +96,15 @@ interface WorkerMessage {
   message: string
   table?: string
   phase?: 'start' | 'finish' | 'error'
+  result?: CleanResult
+}
+
+interface CleanupPreviewInput {
+  environment?: unknown
+}
+
+interface CleanupExecuteInput {
+  confirmation?: unknown
 }
 
 class HttpError extends Error {
@@ -181,9 +197,49 @@ export function createRunPlan (
     createdAt: now.toISOString(),
     createdBy,
     dryRun: input.dryRun === true,
+    kind: 'migration',
     status: 'waiting_confirmation',
     lastSequence: 0,
     steps
+  }
+}
+
+/** Construye una operación de limpieza de un único workspace. */
+export function createCleanupPlan (
+  config: SyncConfig,
+  environment: unknown,
+  createdBy: string,
+  kind: Exclude<MigrationRunKind, 'migration'>,
+  options: { expected?: CleanResult, sourcePreviewId?: string } = {},
+  now = new Date()
+): MigrationRun {
+  if (typeof environment !== 'string' || environment === '') {
+    throw new HttpError(400, 'environment debe identificar un workspace')
+  }
+  const workspace = config.workspaces.find(({ env }) => env === environment)
+  if (workspace === undefined) throw new HttpError(400, `Workspace inválido: ${environment}`)
+  if (kind === 'cleanup-execute' && options.expected === undefined) {
+    throw new HttpError(409, 'La limpieza real requiere una vista previa válida')
+  }
+  return {
+    id: randomUUID(),
+    createdAt: now.toISOString(),
+    createdBy,
+    dryRun: kind === 'cleanup-preview',
+    kind,
+    sourcePreviewId: options.sourcePreviewId,
+    expectedCleanup: options.expected,
+    status: 'waiting_confirmation',
+    lastSequence: 0,
+    steps: [
+      {
+        id: `${workspace.env}:cleanup`,
+        environment: workspace.env,
+        workspace: workspace.workspace,
+        stage: 'cleanup',
+        status: 'pending'
+      }
+    ]
   }
 }
 
@@ -216,7 +272,12 @@ export class MigrationControlService {
 
   /** Lista corridas persistidas desde la más reciente. */
   listRuns (): MigrationRun[] {
-    return [...this.runs.values()].sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    return this.sortedRuns().filter((run) => (run.kind ?? 'migration') === 'migration')
+  }
+
+  /** Lista vistas previas y limpiezas reales sin mezclarlas con el historial de migración. */
+  listCleanups (): MigrationRun[] {
+    return this.sortedRuns().filter((run) => (run.kind ?? 'migration') !== 'migration')
   }
 
   /** Obtiene una corrida o falla con respuesta HTTP 404. */
@@ -229,10 +290,40 @@ export class MigrationControlService {
   /** Crea y persiste una corrida pendiente de confirmación. */
   createRun (input: CreateRunInput, createdBy: string): MigrationRun {
     const run = createRunPlan(this.config, input, createdBy)
-    this.runs.set(run.id, run)
-    writeFileSync(this.logPath(run.id), '', { flag: 'a' })
-    this.saveRun(run)
+    this.storeRun(run)
     return run
+  }
+
+  /** Inicia una vista previa de limpieza para un solo workspace. */
+  createCleanupPreview (input: CleanupPreviewInput, createdBy: string): MigrationRun {
+    if (this.active !== undefined) throw new HttpError(409, 'Ya hay una etapa en ejecución')
+    const run = createCleanupPlan(this.config, input.environment, createdBy, 'cleanup-preview')
+    this.storeRun(run)
+    return this.startStep(run.id, run.steps[0].id)
+  }
+
+  /** Confirma una vista previa y comienza el borrado con los mismos conteos. */
+  createCleanupExecution (previewId: string, input: CleanupExecuteInput, createdBy: string): MigrationRun {
+    if (this.active !== undefined) throw new HttpError(409, 'Ya hay una etapa en ejecución')
+    const preview = this.getRun(previewId)
+    if (preview.kind !== 'cleanup-preview') throw new HttpError(409, 'La corrida indicada no es una vista previa')
+    const step = preview.steps[0]
+    if (preview.status !== 'succeeded' || step.result === undefined) {
+      throw new HttpError(409, 'La vista previa debe terminar correctamente antes de borrar')
+    }
+    if (input.confirmation !== step.workspace) {
+      throw new HttpError(400, `Escribe exactamente "${step.workspace}" para confirmar`)
+    }
+    if ([...this.runs.values()].some(({ sourcePreviewId }) => sourcePreviewId === preview.id)) {
+      throw new HttpError(409, 'Esta vista previa ya fue utilizada; genera una nueva')
+    }
+
+    const run = createCleanupPlan(this.config, step.environment, createdBy, 'cleanup-execute', {
+      expected: step.result,
+      sourcePreviewId: preview.id
+    })
+    this.storeRun(run)
+    return this.startStep(run.id, run.steps[0].id)
   }
 
   /** Inicia una sola etapa reintentable en un worker aislado. */
@@ -332,16 +423,27 @@ export class MigrationControlService {
 
   /** Ejecuta una etapa en proceso hijo y consolida su resultado persistente. */
   private spawnStep (run: MigrationRun, step: MigrationRunStep): void {
-    const args = [
-      'sync-step',
-      '--config',
-      this.configPath,
-      '--env',
-      step.environment,
-      '--stage',
-      step.stage,
-      ...(run.dryRun ? ['--dry-run'] : [])
-    ]
+    const args =
+      run.kind === 'cleanup-preview' || run.kind === 'cleanup-execute'
+        ? [
+            'cleanup-step',
+            '--config',
+            this.configPath,
+            '--env',
+            step.environment,
+            ...(run.dryRun ? ['--dry-run'] : []),
+            ...(run.expectedCleanup === undefined ? [] : ['--expected', JSON.stringify(run.expectedCleanup)])
+          ]
+        : [
+            'sync-step',
+            '--config',
+            this.configPath,
+            '--env',
+            step.environment,
+            '--stage',
+            step.stage,
+            ...(run.dryRun ? ['--dry-run'] : [])
+          ]
     const child = fork(this.entryFile, args, { silent: true, env: process.env })
     const active: ActiveStep = { runId: run.id, stepId: step.id, child, stopRequested: false }
     this.active = active
@@ -393,6 +495,7 @@ export class MigrationControlService {
     let event: Omit<MigrationLogEvent, 'sequence' | 'timestamp' | 'environment' | 'workspace' | 'stage'>
     try {
       const parsed = JSON.parse(line) as Partial<WorkerMessage>
+      if (isCleanResult(parsed.result)) step.result = parsed.result
       event = parsed.marker === 'perfex-migration' && parsed.message !== undefined
         ? {
             level: parsed.level ?? fallbackLevel,
@@ -443,6 +546,18 @@ export class MigrationControlService {
     renameSync(temporary, path)
   }
 
+  /** Registra una corrida nueva y crea sus archivos persistentes. */
+  private storeRun (run: MigrationRun): void {
+    this.runs.set(run.id, run)
+    writeFileSync(this.logPath(run.id), '', { flag: 'a' })
+    this.saveRun(run)
+  }
+
+  /** Ordena corridas sin exponer la representación mutable del servicio. */
+  private sortedRuns (): MigrationRun[] {
+    return [...this.runs.values()].sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+  }
+
   private runPath (runId: string): string {
     return join(this.logDir, `${runId}.json`)
   }
@@ -457,7 +572,10 @@ export async function startControlServer (): Promise<void> {
   const configPath = requiredEnv('PERFEX_SYNC_CONFIG')
   const accountsUrl = requiredEnv('ACCOUNTS_URL')
   const allowedEmails = new Set(
-    requiredEnv('PERFEX_MIGRATION_ALLOWED_EMAILS').split(',').map((email) => email.trim().toLowerCase()).filter(Boolean)
+    requiredEnv('PERFEX_MIGRATION_ALLOWED_EMAILS')
+      .split(',')
+      .map((email) => email.trim().toLowerCase())
+      .filter(Boolean)
   )
   const port = Number(process.env.PERFEX_MIGRATION_PORT ?? 4080)
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PERFEX_MIGRATION_PORT inválido')
@@ -465,28 +583,95 @@ export async function startControlServer (): Promise<void> {
   setMetadata(serverClientPlugin.metadata.Endpoint, accountsUrl)
 
   const control = new MigrationControlService(configPath, logDir, process.argv[1])
-  const cleanupTimer = setInterval(() => { control.cleanup() }, 24 * 60 * 60 * 1000)
+  const cleanupTimer = setInterval(
+    () => {
+      control.cleanup()
+    },
+    24 * 60 * 60 * 1000
+  )
   cleanupTimer.unref()
 
   const handleRequest = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     try {
       const url = new URL(req.url ?? '/', 'http://localhost')
-      if (req.method === 'GET' && url.pathname === '/health') { writeJson(res, 200, { ok: true }); return }
+      if (req.method === 'GET' && url.pathname === '/health') {
+        writeJson(res, 200, { ok: true })
+        return
+      }
       const email = await authorize(req, allowedEmails)
 
-      if (req.method === 'GET' && url.pathname === '/api/plan') { writeJson(res, 200, control.getPlan()); return }
-      if (req.method === 'GET' && url.pathname === '/api/runs') { writeJson(res, 200, control.listRuns()); return }
+      if (req.method === 'GET' && url.pathname === '/api/plan') {
+        writeJson(res, 200, control.getPlan())
+        return
+      }
+      if (req.method === 'GET' && url.pathname === '/api/runs') {
+        writeJson(res, 200, control.listRuns())
+        return
+      }
       if (req.method === 'POST' && url.pathname === '/api/runs') {
-        writeJson(res, 201, control.createRun(await readJson(req), email)); return
+        writeJson(res, 201, control.createRun(await readJson<CreateRunInput>(req), email))
+        return
+      }
+
+      if (req.method === 'GET' && url.pathname === '/api/cleanups') {
+        writeJson(res, 200, control.listCleanups())
+        return
+      }
+      if (req.method === 'POST' && url.pathname === '/api/cleanups/preview') {
+        writeJson(res, 202, control.createCleanupPreview(await readJson<CleanupPreviewInput>(req), email))
+        return
+      }
+
+      const cleanupExecuteMatch = /^\/api\/cleanups\/([0-9a-f-]+)\/execute$/.exec(url.pathname)
+      if (req.method === 'POST' && cleanupExecuteMatch !== null) {
+        writeJson(
+          res,
+          202,
+          control.createCleanupExecution(cleanupExecuteMatch[1], await readJson<CleanupExecuteInput>(req), email)
+        )
+        return
+      }
+
+      const cleanupEventsMatch = /^\/api\/cleanups\/([0-9a-f-]+)\/events$/.exec(url.pathname)
+      if (req.method === 'GET' && cleanupEventsMatch !== null) {
+        const after = Number(url.searchParams.get('after') ?? 0)
+        writeJson(res, 200, control.getEvents(cleanupEventsMatch[1], Number.isFinite(after) ? after : 0))
+        return
+      }
+
+      const cleanupLogMatch = /^\/api\/cleanups\/([0-9a-f-]+)\/log$/.exec(url.pathname)
+      if (req.method === 'GET' && cleanupLogMatch !== null) {
+        res.writeHead(200, {
+          'Content-Type': 'application/x-ndjson; charset=utf-8',
+          'Content-Disposition': `attachment; filename="perfex-cleanup-${cleanupLogMatch[1]}.jsonl"`
+        })
+        createReadStream(control.getLogPath(cleanupLogMatch[1])).pipe(res)
+        return
+      }
+
+      const cleanupStopMatch = /^\/api\/cleanups\/([0-9a-f-]+)\/stop$/.exec(url.pathname)
+      if (req.method === 'POST' && cleanupStopMatch !== null) {
+        writeJson(res, 202, control.stopRun(cleanupStopMatch[1]))
+        return
+      }
+
+      const cleanupMatch = /^\/api\/cleanups\/([0-9a-f-]+)$/.exec(url.pathname)
+      if (req.method === 'GET' && cleanupMatch !== null) {
+        writeJson(res, 200, control.getRun(cleanupMatch[1]))
+        return
       }
 
       const runMatch = /^\/api\/runs\/([0-9a-f-]+)$/.exec(url.pathname)
-      if (req.method === 'GET' && runMatch !== null) { writeJson(res, 200, control.getRun(runMatch[1])); return }
+      if (req.method === 'GET' && runMatch !== null) {
+        writeJson(res, 200, control.getRun(runMatch[1]))
+        return
+      }
 
       const eventsMatch = /^\/api\/runs\/([0-9a-f-]+)\/events$/.exec(url.pathname)
       if (req.method === 'GET' && eventsMatch !== null) {
         const after = Number(url.searchParams.get('after') ?? 0)
-        writeJson(res, 200, control.getEvents(eventsMatch[1], Number.isFinite(after) ? after : 0)); return
+        writeJson(res, 200, control.getEvents(eventsMatch[1], Number.isFinite(after) ? after : 0))
+        return
       }
 
       const logMatch = /^\/api\/runs\/([0-9a-f-]+)\/log$/.exec(url.pathname)
@@ -500,11 +685,15 @@ export async function startControlServer (): Promise<void> {
       }
 
       const stopMatch = /^\/api\/runs\/([0-9a-f-]+)\/stop$/.exec(url.pathname)
-      if (req.method === 'POST' && stopMatch !== null) { writeJson(res, 202, control.stopRun(stopMatch[1])); return }
+      if (req.method === 'POST' && stopMatch !== null) {
+        writeJson(res, 202, control.stopRun(stopMatch[1]))
+        return
+      }
 
       const stepMatch = /^\/api\/runs\/([0-9a-f-]+)\/steps\/([^/]+)\/(?:start|retry)$/.exec(url.pathname)
       if (req.method === 'POST' && stepMatch !== null) {
-        writeJson(res, 202, control.startStep(stepMatch[1], decodeURIComponent(stepMatch[2]))); return
+        writeJson(res, 202, control.startStep(stepMatch[1], decodeURIComponent(stepMatch[2])))
+        return
       }
 
       throw new HttpError(404, 'Ruta no encontrada')
@@ -519,7 +708,9 @@ export async function startControlServer (): Promise<void> {
 
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject)
-    server.listen(port, () => { resolve() })
+    server.listen(port, () => {
+      resolve()
+    })
   })
 }
 
@@ -539,18 +730,23 @@ async function authorize (req: IncomingMessage, allowedEmails: Set<string>): Pro
 }
 
 /** Lee y valida un cuerpo JSON acotado. */
-async function readJson (req: IncomingMessage): Promise<CreateRunInput> {
+async function readJson<T extends object> (req: IncomingMessage): Promise<T> {
   let body = ''
   for await (const chunk of req) {
     body += chunk.toString()
     if (body.length > MAX_BODY_BYTES) throw new HttpError(413, 'Solicitud demasiado grande')
   }
-  if (body === '') return {}
+  if (body === '') body = '{}'
+  let parsed: unknown
   try {
-    return JSON.parse(body) as CreateRunInput
+    parsed = JSON.parse(body) as unknown
   } catch {
     throw new HttpError(400, 'JSON inválido')
   }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new HttpError(400, 'El cuerpo debe ser un objeto JSON')
+  }
+  return parsed as T
 }
 
 /** Escribe una respuesta JSON no cacheable si aún no comenzó la respuesta. */

@@ -5,6 +5,7 @@ import { AccountRole, SocialIdType, type SocialId } from '@hcengineering/core'
 
 import {
   authorizedEmail,
+  createCleanupPlan,
   createRunPlan,
   hasMaintainerRole,
   MigrationControlService,
@@ -41,6 +42,20 @@ describe('centro de migración', () => {
   it('rechaza tipos inválidos recibidos por la API', () => {
     expect(() => createRunPlan(config, { environments: 'wiwo' } as unknown as { environments: string[] }, 'j@wiwo.me')).toThrow('lista de strings')
     expect(() => createRunPlan(config, { dryRun: 'sí' } as unknown as { dryRun: boolean }, 'j@wiwo.me')).toThrow('booleano')
+  })
+
+  it('crea una vista previa de limpieza para un solo workspace', () => {
+    const run = createCleanupPlan(config, 'mgc', 'j@wiwo.me', 'cleanup-preview')
+
+    expect(run.kind).toBe('cleanup-preview')
+    expect(run.dryRun).toBe(true)
+    expect(run.steps).toEqual([expect.objectContaining({ id: 'mgc:cleanup', workspace: 'mgc', stage: 'cleanup' })])
+  })
+
+  it('no permite una limpieza real sin conteos confirmados', () => {
+    expect(() => createCleanupPlan(config, 'mgc', 'j@wiwo.me', 'cleanup-execute')).toThrow(
+      'requiere una vista previa válida'
+    )
   })
 
   it('redacta credenciales antes de persistir logs', () => {
@@ -104,6 +119,49 @@ describe('centro de migración', () => {
     expect(recovered.status).toBe('failed')
     expect(recovered.steps[0].status).toBe('failed')
     expect(recovered.steps[0].error).toContain('reinició')
+    rmSync(dir, { recursive: true })
+  })
+
+  it('exige el nombre exacto del workspace antes del borrado', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'perfex-control-'))
+    const configPath = join(dir, 'sync.json')
+    writeFileSync(configPath, JSON.stringify(config))
+    const preview: MigrationRun = {
+      id: '20000000-0000-0000-0000-000000000000',
+      createdAt: new Date().toISOString(),
+      createdBy: 'j@wiwo.me',
+      dryRun: true,
+      kind: 'cleanup-preview',
+      status: 'succeeded',
+      lastSequence: 0,
+      steps: [
+        {
+          id: 'mgc:cleanup',
+          environment: 'mgc',
+          workspace: 'mgc',
+          stage: 'cleanup',
+          status: 'succeeded',
+          result: {
+            projects: 1,
+            issues: 1,
+            organizations: 1,
+            people: 1,
+            attachments: 1,
+            tags: 1,
+            preservedPeople: 2
+          }
+        }
+      ]
+    }
+    writeFileSync(join(dir, `${preview.id}.json`), JSON.stringify(preview))
+
+    const service = new MigrationControlService(configPath, dir, '/tmp/worker.js')
+
+    expect(() => service.createCleanupExecution(preview.id, { confirmation: 'MGC' }, 'j@wiwo.me')).toThrow(
+      'Escribe exactamente "mgc"'
+    )
+    expect(service.listRuns()).toHaveLength(0)
+    expect(service.listCleanups()).toHaveLength(1)
     rmSync(dir, { recursive: true })
   })
 })

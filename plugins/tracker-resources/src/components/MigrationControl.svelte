@@ -18,6 +18,16 @@
     active: { runId: string; stepId: string } | null
   }
 
+  interface CleanResult {
+    projects: number
+    issues: number
+    organizations: number
+    people: number
+    attachments: number
+    tags: number
+    preservedPeople: number
+  }
+
   interface RunStep {
     id: string
     environment: string
@@ -28,6 +38,7 @@
     finishedAt?: string
     lastMessage?: string
     error?: string
+    result?: CleanResult
   }
 
   interface MigrationRun {
@@ -35,6 +46,7 @@
     createdAt: string
     createdBy: string
     dryRun: boolean
+    kind?: 'migration' | 'cleanup-preview' | 'cleanup-execute'
     status: RunStatus
     lastSequence: number
     steps: RunStep[]
@@ -76,6 +88,10 @@
   let selectedRun: MigrationRun | undefined
   let selectedRunId = ''
   let events: LogEvent[] = []
+  let cleanupRuns: MigrationRun[] = []
+  let cleanupRun: MigrationRun | undefined
+  let cleanupEvents: LogEvent[] = []
+  let cleanupConfirmation = ''
   let error = ''
   let loading = true
   let actionPending = false
@@ -88,6 +104,8 @@
   $: nextStep =
     selectedRun?.steps.find(({ status }) => status === 'failed' || status === 'cancelled') ??
     selectedRun?.steps.find(({ status }) => status === 'pending')
+  $: cleanupStep = cleanupRun?.steps[0]
+  $: cleanupFailure = cleanupStep === undefined ? undefined : stepFailure(cleanupStep, cleanupEvents)
   $: filteredEvents = events.filter(
     (event) =>
       (filterEnvironment === '' || event.environment === filterEnvironment) &&
@@ -97,7 +115,11 @@
 
   onMount(() => {
     void initialize()
-    pollTimer = setInterval(() => void poll(), POLL_MS)
+    pollTimer = setInterval(() => {
+      poll().catch((err: unknown) => {
+        error = errorMessage(err)
+      })
+    }, POLL_MS)
   })
 
   onDestroy(() => {
@@ -108,10 +130,16 @@
   async function initialize(): Promise<void> {
     loading = true
     try {
-      const [loadedPlan, loadedRuns] = await Promise.all([request<Plan>('/plan'), request<MigrationRun[]>('/runs')])
+      const [loadedPlan, loadedRuns, loadedCleanups] = await Promise.all([
+        request<Plan>('/plan'),
+        request<MigrationRun[]>('/runs'),
+        request<MigrationRun[]>('/cleanups')
+      ])
       plan = loadedPlan
       runs = loadedRuns
+      cleanupRuns = loadedCleanups
       if (runs.length > 0) await selectRun(runs[0].id)
+      if (cleanupRuns.length > 0) await selectCleanup(cleanupRuns[0].id)
     } catch (err: unknown) {
       error = errorMessage(err)
     } finally {
@@ -121,22 +149,43 @@
 
   /** Refresca corrida y eventos nuevos sin volver a descargar el historial completo. */
   async function poll(): Promise<void> {
-    if (selectedRunId === '' || actionPending) return
+    if (actionPending) return
     try {
-      const [run, newEvents] = await Promise.all([
-        request<MigrationRun>(`/runs/${selectedRunId}`),
-        request<LogEvent[]>(
-          `/runs/${selectedRunId}/events?after=${events.length === 0 ? 0 : events[events.length - 1].sequence}`
-        )
-      ])
-      selectedRun = run
-      runs = runs.map((item) => (item.id === run.id ? run : item))
-      events = [...events, ...newEvents]
+      await Promise.all([pollMigration(), pollCleanup()])
       plan = await request<Plan>('/plan')
       error = ''
     } catch (err: unknown) {
       error = errorMessage(err)
     }
+  }
+
+  /** Refresca la corrida de migración seleccionada, si existe. */
+  async function pollMigration(): Promise<void> {
+    if (selectedRunId === '') return
+    const [run, newEvents] = await Promise.all([
+      request<MigrationRun>(`/runs/${selectedRunId}`),
+      request<LogEvent[]>(
+        `/runs/${selectedRunId}/events?after=${events.length === 0 ? 0 : events[events.length - 1].sequence}`
+      )
+    ])
+    selectedRun = run
+    runs = runs.map((item) => (item.id === run.id ? run : item))
+    events = [...events, ...newEvents]
+  }
+
+  /** Refresca la limpieza visible y sus eventos persistidos. */
+  async function pollCleanup(): Promise<void> {
+    if (cleanupRun === undefined) return
+    const runId = cleanupRun.id
+    const [run, newEvents] = await Promise.all([
+      request<MigrationRun>(`/cleanups/${runId}`),
+      request<LogEvent[]>(
+        `/cleanups/${runId}/events?after=${cleanupEvents.length === 0 ? 0 : cleanupEvents[cleanupEvents.length - 1].sequence}`
+      )
+    ])
+    cleanupRun = run
+    cleanupRuns = cleanupRuns.map((item) => (item.id === run.id ? run : item))
+    cleanupEvents = [...cleanupEvents, ...newEvents]
   }
 
   /** Selecciona una corrida y reconstruye sus logs desde el primer evento. */
@@ -153,13 +202,25 @@
     events = loadedEvents
   }
 
+  /** Recupera una operación de limpieza y su registrador independiente. */
+  async function selectCleanup(runId: string): Promise<void> {
+    cleanupConfirmation = ''
+    const [run, loadedEvents] = await Promise.all([
+      request<MigrationRun>(`/cleanups/${runId}`),
+      request<LogEvent[]>(`/cleanups/${runId}/events?after=0`)
+    ])
+    cleanupRun = run
+    cleanupEvents = loadedEvents
+  }
+
   /** Crea una matriz completa; cada etapa seguirá requiriendo confirmación separada. */
   async function createRun(dryRun: boolean): Promise<void> {
     if (
       !dryRun &&
       !window.confirm('¿Crear una corrida REAL? Cada etapa todavía pedirá confirmación antes de escribir.')
-    )
+    ) {
       return
+    }
     await perform(async () => {
       const run = await request<MigrationRun>('/runs', { method: 'POST', body: JSON.stringify({ dryRun }) })
       runs = [run, ...runs]
@@ -171,10 +232,12 @@
   async function runStep(step: RunStep): Promise<void> {
     if (selectedRun === undefined) return
     const descriptor = stageDescriptor(step.stage)
-    const tables = descriptor?.tables.join(', ') || 'sin tablas Perfex'
+    const tableNames = descriptor?.tables.join(', ')
+    const tables = tableNames === undefined || tableNames === '' ? 'sin tablas Perfex' : tableNames
     const mode = selectedRun.dryRun ? 'simular' : 'EJECUTAR'
-    if (!window.confirm(`¿${mode} “${descriptor?.label ?? step.stage}” en ${step.workspace}?\n\nFuentes: ${tables}`))
+    if (!window.confirm(`¿${mode} “${descriptor?.label ?? step.stage}” en ${step.workspace}?\n\nFuentes: ${tables}`)) {
       return
+    }
     await perform(async () => {
       selectedRun = await request<MigrationRun>(
         `/runs/${selectedRun?.id}/steps/${encodeURIComponent(step.id)}/${step.status === 'pending' ? 'start' : 'retry'}`,
@@ -188,23 +251,79 @@
     if (
       selectedRun === undefined ||
       !window.confirm('¿Detener después del ítem activo? La etapa quedará reintentable.')
-    )
+    ) {
       return
+    }
     await perform(async () => {
       selectedRun = await request<MigrationRun>(`/runs/${selectedRun?.id}/stop`, { method: 'POST' })
     })
   }
 
+  /** Calcula qué borraría la limpieza sin modificar el workspace. */
+  async function previewCleanup(environment: string): Promise<void> {
+    await perform(async () => {
+      const run = await request<MigrationRun>('/cleanups/preview', {
+        method: 'POST',
+        body: JSON.stringify({ environment })
+      })
+      cleanupRuns = [run, ...cleanupRuns]
+      cleanupRun = run
+      cleanupEvents = []
+      cleanupConfirmation = ''
+    })
+  }
+
+  /** Ejecuta el borrado contra los conteos confirmados en la vista previa. */
+  async function executeCleanup(): Promise<void> {
+    if (cleanupRun === undefined || cleanupStep?.result === undefined) return
+    await perform(async () => {
+      const run = await request<MigrationRun>(`/cleanups/${cleanupRun?.id}/execute`, {
+        method: 'POST',
+        body: JSON.stringify({ confirmation: cleanupConfirmation })
+      })
+      cleanupRuns = [run, ...cleanupRuns]
+      cleanupRun = run
+      cleanupEvents = []
+      cleanupConfirmation = ''
+    })
+  }
+
+  /** Detiene la limpieza después del documento que esté siendo eliminado. */
+  async function stopCleanup(): Promise<void> {
+    if (
+      cleanupRun === undefined ||
+      !window.confirm(
+        '¿Detener la limpieza después del documento activo? El workspace puede quedar parcialmente limpio.'
+      )
+    ) {
+      return
+    }
+    await perform(async () => {
+      cleanupRun = await request<MigrationRun>(`/cleanups/${cleanupRun?.id}/stop`, { method: 'POST' })
+    })
+  }
+
+  /** Descarga el JSONL de la limpieza visible. */
+  async function downloadCleanupLog(): Promise<void> {
+    if (cleanupRun === undefined) return
+    await downloadJsonl(`/cleanups/${cleanupRun.id}/log`, `perfex-cleanup-${cleanupRun.id}.jsonl`)
+  }
+
   /** Descarga el JSONL autenticado sin poner el token en la URL. */
   async function downloadLog(): Promise<void> {
     if (selectedRun === undefined) return
+    await downloadJsonl(`/runs/${selectedRun.id}/log`, `perfex-migration-${selectedRun.id}.jsonl`)
+  }
+
+  /** Descarga un registrador autenticado y libera su URL temporal. */
+  async function downloadJsonl(path: string, filename: string): Promise<void> {
     await perform(async () => {
-      const response = await fetch(`${API}/runs/${selectedRun?.id}/log`, { headers: authHeaders() })
+      const response = await fetch(`${API}${path}`, { headers: authHeaders() })
       if (!response.ok) throw new Error(await responseError(response))
       const url = URL.createObjectURL(await response.blob())
       const link = document.createElement('a')
       link.href = url
-      link.download = `perfex-migration-${selectedRun?.id}.jsonl`
+      link.download = filename
       link.click()
       URL.revokeObjectURL(url)
     })
@@ -255,12 +374,12 @@
   }
 
   /** Recupera la causa real, incluso para corridas antiguas que guardaron solo el código de salida. */
-  function stepFailure(step: RunStep): StepFailure | undefined {
+  function stepFailure(step: RunStep, sourceEvents: LogEvent[] = events): StepFailure | undefined {
     if (step.status !== 'failed') return undefined
     let detail = step.error ?? step.lastMessage ?? ''
     if (/^El worker (?:terminó|se cerró)/i.test(detail)) {
-      for (let index = events.length - 1; index >= 0; index--) {
-        const event = events[index]
+      for (let index = sourceEvents.length - 1; index >= 0; index--) {
+        const event = sourceEvents[index]
         if (
           event.level === 'error' &&
           event.environment === step.environment &&
@@ -307,7 +426,7 @@
       return 'Revisa el HULY_TOKEN del workspace indicado y vuelve a crear el servicio.'
     }
     if (/Duplicados sin canónico/i.test(detail)) {
-      return 'Completa los identificadores faltantes en duplicados.json antes de reintentar.'
+      return 'Completa duplicados.json o usa “Preparar limpieza” para reiniciar este workspace antes de migrar de nuevo.'
     }
     if (/contact:space:Contacts|Contacts.*SystemSpace/i.test(detail)) {
       return 'No reintentes todavía: actualiza el modelo del workspace para restaurar Contacts como SystemSpace.'
@@ -371,6 +490,147 @@
 
   {#if error !== ''}
     <div class="notice error" role="alert">{error}</div>
+  {/if}
+
+  {#if plan !== undefined}
+    <section class="cleanup-zone" aria-labelledby="cleanup-title">
+      <div class="cleanup-header">
+        <div>
+          <h3 id="cleanup-title">Reiniciar datos del workspace</h3>
+          <p>Elimina datos de negocio para repetir la migración. Usuarios, cuentas y configuración se conservan.</p>
+        </div>
+        <div class="cleanup-workspaces">
+          {#each plan.workspaces as workspace (workspace.env)}
+            <button
+              type="button"
+              class="button secondary"
+              disabled={actionPending || plan.active !== null}
+              on:click={() => previewCleanup(workspace.env)}
+            >
+              Preparar limpieza de {workspace.workspace}
+            </button>
+          {/each}
+        </div>
+      </div>
+
+      {#if cleanupRun !== undefined && cleanupStep !== undefined}
+        <article class="cleanup-operation">
+          <div class="cleanup-operation-header">
+            <div>
+              <span class="eyebrow">{cleanupStep.workspace}</span>
+              <strong>{cleanupRun.kind === 'cleanup-preview' ? 'Vista previa' : 'Limpieza irreversible'}</strong>
+            </div>
+            <div class="run-actions">
+              <span class="status {statusClass(cleanupRun.status)}">{statusLabels[cleanupRun.status]}</span>
+              <button type="button" class="button secondary" disabled={actionPending} on:click={downloadCleanupLog}
+                >Descargar JSONL</button
+              >
+              {#if cleanupStep.status === 'running' || cleanupStep.status === 'stopping'}
+                <button
+                  type="button"
+                  class="button dangerous"
+                  disabled={actionPending || cleanupStep.status === 'stopping'}
+                  on:click={stopCleanup}
+                >
+                  {cleanupStep.status === 'stopping' ? 'Deteniendo…' : 'Detener limpieza'}
+                </button>
+              {/if}
+            </div>
+          </div>
+
+          {#if cleanupFailure !== undefined}
+            <div class="failure-feedback" role="alert">
+              <strong>Qué falló</strong>
+              <p class="failure-summary">{cleanupFailure.summary}</p>
+              <p class="failure-advice">{cleanupFailure.advice}</p>
+              <details class="technical-error">
+                <summary>Ver detalle técnico</summary>
+                <pre>{cleanupFailure.detail}</pre>
+              </details>
+            </div>
+          {:else}
+            <p class="cleanup-message">{cleanupStep.lastMessage ?? 'Preparando operación…'}</p>
+          {/if}
+
+          {#if cleanupStep.result !== undefined}
+            <dl class="cleanup-counts">
+              <div>
+                <dt>Proyectos</dt>
+                <dd>{cleanupStep.result.projects}</dd>
+              </div>
+              <div>
+                <dt>Tareas</dt>
+                <dd>{cleanupStep.result.issues}</dd>
+              </div>
+              <div>
+                <dt>Empresas</dt>
+                <dd>{cleanupStep.result.organizations}</dd>
+              </div>
+              <div>
+                <dt>Contactos sin cuenta</dt>
+                <dd>{cleanupStep.result.people}</dd>
+              </div>
+              <div>
+                <dt>Adjuntos</dt>
+                <dd>{cleanupStep.result.attachments}</dd>
+              </div>
+              <div>
+                <dt>Etiquetas</dt>
+                <dd>{cleanupStep.result.tags}</dd>
+              </div>
+              <div class="preserved">
+                <dt>Usuarios preservados</dt>
+                <dd>{cleanupStep.result.preservedPeople}</dd>
+              </div>
+            </dl>
+          {/if}
+
+          {#if cleanupRun.kind === 'cleanup-preview' && cleanupRun.status === 'succeeded' && cleanupStep.result !== undefined}
+            <div class="cleanup-confirmation">
+              <p>
+                Borrado sin vuelta atrás. Escribe <strong>{cleanupStep.workspace}</strong> para confirmar exactamente este
+                workspace.
+              </p>
+              <label for="cleanup-confirmation">Nombre del workspace</label>
+              <div>
+                <input id="cleanup-confirmation" type="text" autocomplete="off" bind:value={cleanupConfirmation} />
+                <button
+                  type="button"
+                  class="button dangerous"
+                  disabled={actionPending || cleanupConfirmation !== cleanupStep.workspace || plan.active !== null}
+                  on:click={executeCleanup}
+                >
+                  Eliminar datos de {cleanupStep.workspace}
+                </button>
+              </div>
+            </div>
+          {:else if cleanupRun.kind === 'cleanup-execute' && cleanupRun.status === 'succeeded'}
+            <div class="cleanup-complete" role="status">
+              <p>Workspace limpio. Crea una corrida nueva para comenzar desde Preflight.</p>
+              <button type="button" class="button primary" disabled={actionPending} on:click={() => createRun(false)}
+                >Crear nueva ejecución</button
+              >
+            </div>
+          {/if}
+
+          <details class="cleanup-log">
+            <summary>Ver registros de limpieza ({cleanupEvents.length})</summary>
+            <div class="log" role="log" aria-live="polite">
+              {#if cleanupEvents.length === 0}
+                <div class="log-empty">Aún no hay eventos.</div>
+              {:else}
+                {#each cleanupEvents as event (event.sequence)}
+                  <div class="cleanup-log-line {event.level}">
+                    <time>{new Date(event.timestamp).toLocaleTimeString('es-CL')}</time>
+                    <span>{event.message}</span>
+                  </div>
+                {/each}
+              {/if}
+            </div>
+          </details>
+        </article>
+      {/if}
+    </section>
   {/if}
 
   {#if loading}
@@ -609,6 +869,7 @@
   }
   .button:focus-visible,
   .step-action:focus-visible,
+  input:focus-visible,
   select:focus-visible,
   summary:focus-visible {
     outline: 2px solid var(--accent-color);
@@ -639,6 +900,134 @@
   .notice.error {
     color: var(--theme-state-negative-color);
     background: var(--theme-state-negative-background-color);
+  }
+  .cleanup-zone {
+    display: grid;
+    gap: 1rem;
+    padding: 1rem;
+    border: 1px solid var(--theme-divider-color);
+    border-radius: 0.8rem;
+    background: var(--theme-bg-color);
+  }
+  .cleanup-header {
+    display: grid;
+    gap: 0.75rem;
+  }
+  .cleanup-header p,
+  .cleanup-message,
+  .cleanup-confirmation p,
+  .cleanup-complete p {
+    color: var(--caption-color);
+    font-size: 0.78rem;
+    line-height: 1.45;
+  }
+  .cleanup-workspaces {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .cleanup-workspaces .button {
+    min-height: 2.1rem;
+    font-size: 0.75rem;
+  }
+  .cleanup-operation {
+    display: grid;
+    gap: 0.85rem;
+    padding: 0.9rem;
+    border: 1px solid var(--theme-state-negative-color);
+    border-radius: 0.65rem;
+    background: color-mix(in srgb, var(--theme-state-negative-background-color), transparent 45%);
+  }
+  .cleanup-operation-header,
+  .cleanup-complete,
+  .cleanup-confirmation > div {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .cleanup-operation-header > div:first-child {
+    display: grid;
+    gap: 0.15rem;
+  }
+  .cleanup-counts {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin: 0;
+  }
+  .cleanup-counts > div {
+    padding: 0.55rem 0.65rem;
+    border-radius: 0.45rem;
+    background: var(--theme-raw-color);
+  }
+  .cleanup-counts dt {
+    color: var(--caption-color);
+    font-size: 0.68rem;
+  }
+  .cleanup-counts dd {
+    margin: 0.15rem 0 0;
+    font-size: 1rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .cleanup-counts .preserved {
+    color: var(--theme-state-positive-color);
+    background: var(--theme-state-positive-background-color);
+  }
+  .cleanup-confirmation {
+    display: grid;
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--theme-divider-color);
+  }
+  .cleanup-confirmation label {
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .cleanup-confirmation input {
+    min-width: 12rem;
+    min-height: 2.5rem;
+    flex: 1;
+    color: var(--theme-content-color);
+    border: 1px solid var(--theme-divider-color);
+    border-radius: 0.5rem;
+    padding: 0 0.7rem;
+    background: var(--theme-raw-color);
+    font: inherit;
+  }
+  .cleanup-log {
+    padding-top: 0.25rem;
+  }
+  .cleanup-log .log {
+    max-height: 12rem;
+    margin-top: 0.5rem;
+    border-radius: 0.45rem;
+  }
+  .cleanup-log-line {
+    display: grid;
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+    gap: 0.6rem;
+    min-height: 1.75rem;
+    padding: 0.28rem 0.85rem;
+  }
+  .cleanup-log-line time {
+    color: var(--caption-color);
+    font-variant-numeric: tabular-nums;
+  }
+  .cleanup-log-line.warn span {
+    color: var(--theme-warning-color);
+  }
+  .cleanup-log-line.error span {
+    color: var(--theme-state-negative-color);
+  }
+  .cleanup-operation .failure-feedback p {
+    overflow: visible;
+    color: var(--caption-color);
+    font-size: 0.78rem;
+    line-height: 1.4;
+    text-overflow: clip;
+    white-space: normal;
   }
   .run-bar {
     min-height: 3.5rem;
@@ -942,9 +1331,15 @@
     }
     .run-bar,
     .migration-header,
-    .recorder-header {
+    .recorder-header,
+    .cleanup-operation-header,
+    .cleanup-complete,
+    .cleanup-confirmation > div {
       align-items: stretch;
       flex-direction: column;
+    }
+    .cleanup-counts {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     .run-bar label {
       min-width: 0;
