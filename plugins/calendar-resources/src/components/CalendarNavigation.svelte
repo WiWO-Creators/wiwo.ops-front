@@ -31,16 +31,18 @@
   export let onForward: () => void
 </script>
 
-<div class="flex-row-center gap-2">
+<div class="flex-row-center gap-2" data-tutorial="calendar-navigation">
   {#if ddItems.length > 1}
-    <DropdownLabelsIntl
-      items={ddItems.map((it) => {
-        return { id: it.id, label: it.label, params: it.params }
-      })}
-      size={'medium'}
-      selected={ddItems.find((it) => it.mode === mode)?.id}
-      on:selected={(e) => (mode = ddItems.find((it) => it.id === e.detail)?.mode ?? ddItems[0].mode)}
-    />
+    <span data-tutorial="calendar-view-selector">
+      <DropdownLabelsIntl
+        items={ddItems.map((it) => {
+          return { id: it.id, label: it.label, params: it.params }
+        })}
+        size={'medium'}
+        selected={ddItems.find((it) => it.mode === mode)?.id}
+        on:selected={(e) => (mode = ddItems.find((it) => it.id === e.detail)?.mode ?? ddItems[0].mode)}
+      />
+    </span>
   {/if}
   <Button label={calendar.string.Today} on:click={onToday} />
   <Button icon={IconBack} kind={'ghost'} on:click={onBack} />

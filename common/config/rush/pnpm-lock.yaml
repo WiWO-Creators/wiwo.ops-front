@@ -30189,6 +30189,9 @@ importers:
       '@hcengineering/login':
         specifier: workspace:^0.7.0
         version: link:../login
+      '@hcengineering/love':
+        specifier: workspace:^0.7.0
+        version: link:../love
       '@hcengineering/notification':
         specifier: workspace:^0.7.0
         version: link:../notification

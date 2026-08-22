@@ -56,30 +56,34 @@
 
 <div class="hulyComponent">
   <Header adaptive={'disabled'}>
-    <DropdownLabels
-      {items}
-      selected={selected?._id}
-      size={'large'}
-      kind={'ghost'}
-      enableSearch={false}
-      autoSelect={false}
-      on:selected={changeFloor}
-    />
+    <span data-tutorial="telework-floor-selector">
+      <DropdownLabels
+        {items}
+        selected={selected?._id}
+        size={'large'}
+        kind={'ghost'}
+        enableSearch={false}
+        autoSelect={false}
+        on:selected={changeFloor}
+      />
+    </span>
     <svelte:fragment slot="beforeTitle">
       <ViewletSelector bind:viewlet bind:preference bind:loading viewletQuery={{ attachTo: lovePlg.class.Floor }} />
     </svelte:fragment>
     <svelte:fragment slot="actions">
       {#if editable}
-        <ModernButton
-          icon={IconEdit}
-          label={lovePlg.string.EditOffice}
-          size={'small'}
-          on:click={() => dispatch('configure')}
-        />
+        <span data-tutorial="telework-edit-office">
+          <ModernButton
+            icon={IconEdit}
+            label={lovePlg.string.EditOffice}
+            size={'small'}
+            on:click={() => dispatch('configure')}
+          />
+        </span>
       {/if}
     </svelte:fragment>
   </Header>
-  <div class="hulyComponent-content__column content">
+  <div class="hulyComponent-content__column content" data-tutorial="telework-rooms">
     {#if viewlet?.$lookup?.descriptor?.component}
       <Component is={viewlet.$lookup.descriptor.component} props={{ floor, rooms }} on:open />
     {/if}

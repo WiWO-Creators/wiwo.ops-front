@@ -314,7 +314,7 @@
       on:selected={changeFloor}
     />
     <svelte:fragment slot="actions">
-      <ButtonIcon icon={IconAdd} size={'small'} on:click={addRoom} />
+      <span data-tutorial="telework-add-room"><ButtonIcon icon={IconAdd} size={'small'} on:click={addRoom} /></span>
       <div class="hulyHeader-divider short" />
       <ModernButton
         label={lovePlg.string.FinalizeEditing}
