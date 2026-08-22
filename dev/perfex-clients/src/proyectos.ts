@@ -39,6 +39,7 @@ import {
   type PerfexTask
 } from '@hcengineering/perfex'
 import { toHulyMilestone } from './hitos'
+import { formatProgress } from './progreso'
 import {
   buildProjectIdentifier,
   CLOSED_PROJECT_STATUSES,
@@ -53,8 +54,78 @@ import {
   TASK_TYPE_NAME
 } from './tareas'
 
-/** Cuántas tareas se actualizan a la vez. Más alto satura el servidor sin ganar tiempo. */
-const UPDATE_BATCH = 25
+/** Cada cuántas creaciones se informa el avance resumido. */
+const PROGRESS_INTERVAL = 25
+
+/**
+ * Actualiza documentos uno a uno para no saturar el transactor e informa cuál está en curso.
+ *
+ * @param pending documentos pendientes.
+ * @param logger destino de los mensajes de avance.
+ * @param describe texto que identifica el documento en el log.
+ * @param update operación a ejecutar por documento.
+ * @returns termina cuando todos los documentos fueron actualizados.
+ * @throws propaga el error de la actualización que no pudo completarse.
+ */
+export async function actualizarEnSerie<T> (
+  pending: T[],
+  logger: Logger,
+  describe: (item: T) => string,
+  update: (item: T) => Promise<void>
+): Promise<void> {
+  for (const [index, item] of pending.entries()) {
+    logger.log(`Actualizando ${describe(item)} (${formatProgress(index + 1, pending.length)})`)
+    await update(item)
+  }
+}
+
+/**
+ * Traduce los eventos del importador a mensajes con nombre y avance de proyectos y tareas.
+ *
+ * @param logger destino final de cada mensaje.
+ * @param totalProyectos cantidad de proyectos nuevos planificados.
+ * @param totalTareas cantidad de tareas nuevas planificadas.
+ * @returns logger compatible con WorkspaceImporter.
+ */
+export function crearLoggerConProgreso (logger: Logger, totalProyectos: number, totalTareas: number) {
+  let proyectoPendiente: string | undefined
+  let tareaPendiente: string | undefined
+  let proyectosCreados = 0
+  let tareasCreadas = 0
+
+  return {
+    log: (message: string, data?: unknown) => {
+      if (message === 'Creating project: ') {
+        proyectoPendiente = String(data)
+        logger.log(`Creando proyecto: ${proyectoPendiente}`)
+        return
+      }
+      if (message.startsWith('Project created: ')) {
+        proyectosCreados++
+        const nombre = proyectoPendiente ?? message.slice('Project created: '.length)
+        logger.log(`Proyecto creado: ${nombre} (${formatProgress(proyectosCreados, totalProyectos)})`)
+        proyectoPendiente = undefined
+        return
+      }
+      if (message.startsWith('Creating issue: ')) {
+        tareaPendiente = message.slice('Creating issue: '.length)
+        logger.log(`Creando tarea: ${tareaPendiente}`)
+        return
+      }
+      if (message.startsWith('Issue created: ')) {
+        tareasCreadas++
+        const nombre = tareaPendiente ?? message.slice('Issue created: '.length)
+        logger.log(`Tarea creada: ${nombre} (${formatProgress(tareasCreadas, totalTareas)})`)
+        tareaPendiente = undefined
+        return
+      }
+      logger.log(data === undefined ? message : `${message}${String(data)}`)
+    },
+    error: (message: string, data?: unknown) => {
+      logger.error(data === undefined ? message : `${message}${String(data)}`)
+    }
+  }
+}
 
 export interface ProjectImportOptions {
   /** Clientes del ambiente, para nombrar los proyectos de tareas sueltas de cada uno. */
@@ -277,7 +348,9 @@ export async function importProjects (
       priority: getPriorityName(task.priority),
       assignee,
       subdocs: [],
-      comments: (commentsByTask.get(task.id) ?? []).map((comment) => buildComment(comment, staffById))
+      comments: (commentsByTask.get(task.id) ?? []).map((comment) => buildComment(comment, staffById)),
+      // La ancla nace con la tarea: si una corrida se interrumpe, reanudarla no la duplica.
+      additionalData: { perfexId: task.id }
     }
   }
 
@@ -425,7 +498,7 @@ export async function importProjects (
     spaces: importProjectList.map((p) => ({ ...p, projectType: { name: PROJECT_TYPE_NAME } }))
   }
 
-  const importer = new WorkspaceImporter(client, logger, uploader, workspaceData)
+  const importer = new WorkspaceImporter(client, crearLoggerConProgreso(logger, porCrear.length, plan.total), uploader, workspaceData)
   if (importProjectList.length > 0) await importer.performImport()
 
   // Cliente, id de Perfex, estado y fechas: el importador no escribe ninguno de los cuatro. Los
@@ -461,12 +534,11 @@ export async function importProjects (
 
   // Fechas y atributos propios del fork: tampoco los escribe el importador.
   //
-  // Se arma la lista completa y después se manda por tandas en paralelo. Ir de a una tarea, y
-  // encima buscándola antes de tocarla, era lo que hacía eternas las corridas grandes.
+  // ponytail: transacciones secuenciales para evitar saturar Huly; límite concurrente sólo si se mide estable.
   const taskById = new Map<number, PerfexTask>(tasks.map((task): [number, PerfexTask] => [task.id, task]))
   const statuses = await client.findAll(tracker.class.IssueStatus, {}, { projection: { _id: 1, name: 1 } })
   const statusByName = new Map(statuses.map((status) => [status.name, status._id]))
-  const pending: Array<{ issueId: Ref<Issue>, space: Ref<Project>, update: Record<string, any> }> = []
+  const pending: Array<{ issueId: Ref<Issue>, space: Ref<Project>, update: Record<string, any>, task: PerfexTask }> = []
 
   for (const [perfexId, issueId] of issueIdByTask) {
     const task = taskById.get(perfexId)
@@ -488,22 +560,16 @@ export async function importProjects (
     }
     const status = statusByName.get(getStatusName(task.status))
     if (status !== undefined) update.status = status
-    pending.push({ issueId, space, update })
+    pending.push({ issueId, space, update, task })
   }
 
-  let updated = 0
-  for (let i = 0; i < pending.length; i += UPDATE_BATCH) {
-    const batch = pending.slice(i, i + UPDATE_BATCH)
-    await Promise.all(
-      batch.map(async ({ issueId, space, update }) => {
-        await client.updateDoc(tracker.class.Issue, space, issueId, update)
-      })
-    )
-    updated += batch.length
-    // Señal de vida en corridas largas, para poder seguirlas por el archivo de log.
-    logger.log(`  ... ${updated} de ${pending.length} tareas completadas`)
-  }
-  logger.log(`Tareas completadas con fechas y campos de Perfex: ${updated}`)
+  await actualizarEnSerie(
+    pending,
+    logger,
+    ({ task }) => `tarea "${task.name?.trim() || `Tarea ${task.id}`}" (Perfex #${task.id})`,
+    async ({ issueId, space, update }) => await client.updateDoc(tracker.class.Issue, space, issueId, update)
+  )
+  logger.log(`Tareas completadas con fechas y campos de Perfex: ${pending.length}`)
 }
 
 /**
@@ -540,7 +606,7 @@ async function crearTareasSueltas (
       await importer.createIssueWithSubissues(issue, tracker.ids.NoParent, proyecto, projectId, [])
       spaceByTask.set(task.id, projectId)
       creadas++
-      if (creadas % UPDATE_BATCH === 0) logger.log(`  ... ${creadas} tareas nuevas creadas`)
+      if (creadas % PROGRESS_INTERVAL === 0) logger.log(`  ... ${creadas} tareas nuevas creadas`)
     }
   }
   logger.log(`Tareas nuevas en proyectos ya existentes: ${creadas}`)
@@ -700,16 +766,11 @@ export async function importMilestones (
     pendingTasks.push({ issueId: tarea.id, space, milestone })
   }
 
-  let updated = 0
-  for (let i = 0; i < pendingTasks.length; i += UPDATE_BATCH) {
-    const batch = pendingTasks.slice(i, i + UPDATE_BATCH)
-    await Promise.all(
-      batch.map(async ({ issueId, space, milestone }) => {
-        await client.updateDoc(tracker.class.Issue, space, issueId, { milestone })
-      })
-    )
-    updated += batch.length
-    logger.log(`  ... ${updated} de ${pendingTasks.length} tareas con hito`)
-  }
-  logger.log(`Tareas asociadas a su hito: ${updated}`)
+  await actualizarEnSerie(
+    pendingTasks,
+    logger,
+    ({ issueId, milestone }) => `hito ${milestone} de tarea ${issueId}`,
+    async ({ issueId, space, milestone }) => await client.updateDoc(tracker.class.Issue, space, issueId, { milestone })
+  )
+  logger.log(`Tareas asociadas a su hito: ${pendingTasks.length}`)
 }

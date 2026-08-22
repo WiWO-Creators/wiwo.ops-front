@@ -2,7 +2,7 @@ import { type Ref } from '@hcengineering/core'
 import { type PerfexTask } from '@hcengineering/perfex'
 import { type Project } from '@hcengineering/tracker'
 
-import { type Destino, planificarProyectos } from '../proyectos'
+import { actualizarEnSerie, crearLoggerConProgreso, type Destino, planificarProyectos } from '../proyectos'
 
 function tarea (id: number): PerfexTask {
   return { id } as unknown as PerfexTask
@@ -56,5 +56,42 @@ describe('planificarProyectos', () => {
     expect(plan.porCrear).toEqual([])
     expect(plan.porCompletar).toEqual([])
     expect(plan.total).toBe(0)
+  })
+})
+
+describe('crearLoggerConProgreso', () => {
+  it('incluye nombre y avance al crear proyectos y tareas', () => {
+    const log = jest.fn()
+    const logger = crearLoggerConProgreso({ log, error: jest.fn() }, 2, 4)
+
+    logger.log('Creating project: ', 'Campaña Norte')
+    logger.log('Project created: project-id')
+    logger.log('Creating issue: Llamar cliente')
+    logger.log('Issue created: issue-id')
+
+    expect(log).toHaveBeenNthCalledWith(1, 'Creando proyecto: Campaña Norte')
+    expect(log).toHaveBeenNthCalledWith(2, 'Proyecto creado: Campaña Norte (1/2 (50%))')
+    expect(log).toHaveBeenNthCalledWith(3, 'Creando tarea: Llamar cliente')
+    expect(log).toHaveBeenNthCalledWith(4, 'Tarea creada: Llamar cliente (1/4 (25%))')
+  })
+})
+
+describe('actualizarEnSerie', () => {
+  it('informa el documento actual y espera cada actualización', async () => {
+    const log = jest.fn()
+    const actualizados: number[] = []
+
+    await actualizarEnSerie(
+      [7, 9],
+      { log, error: jest.fn() },
+      (id) => `tarea Perfex #${id}`,
+      async (id) => {
+        actualizados.push(id)
+      }
+    )
+
+    expect(actualizados).toEqual([7, 9])
+    expect(log).toHaveBeenNthCalledWith(1, 'Actualizando tarea Perfex #7 (1/2 (50%))')
+    expect(log).toHaveBeenNthCalledWith(2, 'Actualizando tarea Perfex #9 (2/2 (100%))')
   })
 })

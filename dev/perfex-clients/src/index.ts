@@ -192,10 +192,12 @@ export function perfexClientsTool (): void {
     .option('-o, --output <archivo>', 'resultado JSON', 'perfex-sync-result.json')
     .option('--dry-run', 'planifica, detecta duplicados y no escribe nada', false)
     .action(async (cmd) => {
+      console.log('SYNC-ALL: leyendo configuración')
       const config = readSyncConfig(cmd.config)
       const mapaDuplicados = readDuplicateMap(config.mapaDuplicados)
       const permisosCsv = readFileSync(config.permisosCsv, 'utf8')
       const results: Array<Record<string, unknown>> = []
+      console.log(`SYNC-ALL: ${config.workspaces.length} workspaces por sincronizar${cmd.dryRun === true ? ' (simulación)' : ''}`)
 
       for (const destination of config.workspaces) {
         const environment = getEnvironment(destination.env)
@@ -213,10 +215,13 @@ export function perfexClientsTool (): void {
         const startedAt = new Date().toISOString()
 
         try {
+          logger.log(`Inicio: workspace ${destination.workspace}`)
           const token = process.env[destination.tokenEnv]
           if (token === undefined || token === '') throw new Error(`Falta la variable ${destination.tokenEnv}`)
+          logger.log('Conectando a Perfex')
           const perfex = await PerfexReader.connect(getPerfexConfig())
           try {
+            logger.log('Perfex conectado; conectando a Huly')
             await withHulyClient(
               {
                 frontUrl: config.front,
@@ -225,6 +230,7 @@ export function perfexClientsTool (): void {
                 transactor: config.transactor
               },
               async (client, uploader, ensurePerson) => {
+                logger.log('Huly conectado; revisando duplicados')
                 const unresolved = duplicadosSinResolver(await buscarDuplicados(client), mapaDuplicados)
                 if (unresolved.length > 0) {
                   throw new Error(
@@ -247,6 +253,7 @@ export function perfexClientsTool (): void {
                 await importClients(client, perfex, logger, options, uploader, ensurePerson)
                 const owners = await asignarOwners(client, token, logger, destination.owners, { dryRun: options.dryRun })
                 const permisos = await aplicarPermisos(client, perfex, logger, permisosCsv, { dryRun: options.dryRun })
+                logger.log('Revisando proyectos y tareas ausentes')
                 const source = idsDelAmbiente(
                   environment,
                   await perfex.getClients(),
@@ -257,6 +264,7 @@ export function perfexClientsTool (): void {
                 logger.log(
                   `Archivado${options.dryRun ? ' planificado' : ''}: ${archived.proyectos} proyectos, ${archived.tareas} tareas`
                 )
+                logger.log('Workspace sincronizado')
                 results.push({
                   environment: environment.id,
                   workspace: destination.workspace,
