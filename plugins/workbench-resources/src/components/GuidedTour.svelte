@@ -1,77 +1,99 @@
 <script lang="ts">
-  import core, { getCurrentAccount, type Class, type Ref } from '@hcengineering/core'
+  import core, { getCurrentAccount, type Class, type ModulePermissionGroup, type Ref } from '@hcengineering/core'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import tracker, { trackerId } from '@hcengineering/tracker'
-  import { getCurrentLocation, location, navigate, showPopup, type PopupResult } from '@hcengineering/ui'
-  import workbench from '@hcengineering/workbench'
+  import { getCurrentLocation, Label, location, navigate, showPopup, type PopupResult } from '@hcengineering/ui'
+  import workbench, { type Application } from '@hcengineering/workbench'
   import type { GuidedTourPreference } from '@hcengineering/workbench/src/types'
   import { onDestroy, tick } from 'svelte'
   import { guidedTourStarts } from '../guidedTour'
   import { getGuidedTourPhase, getGuidedTourStep, type GuidedTourPhase } from '../guidedTourState'
-
-  type TourAction = 'openTracker' | 'openNewMenu' | 'openIssueForm' | 'openBoard'
-
-  interface TourStep {
-    title: string
-    description: string
-    selector: string
-    action?: TourAction
-  }
-
-  const steps: TourStep[] = [
-    { title: 'Abre Seguimiento', description: 'Seguimiento reúne proyectos y procesos. La guía abre esta sección para ti.', selector: '[data-id="app-sidebar-tracker"]', action: 'openTracker' },
-    { title: 'Crea o abre un proyecto', description: 'Este botón reúne las acciones para empezar. Elige Crear proyecto cuando necesites un espacio nuevo.', selector: '[data-tutorial="tracker-new-item"]' },
-    { title: 'Revisa las opciones', description: 'El menú muestra crear proyecto, crear proceso e importar. La guía lo abre sin ejecutar ninguna acción.', selector: '[data-tutorial="tracker-new-item"]', action: 'openNewMenu' },
-    { title: 'Crea un proceso', description: 'Así se ve el formulario. Es una simulación: no crea ni guarda un proceso.', selector: '#issue-name', action: 'openIssueForm' },
-    { title: 'Elige el proyecto', description: 'Todo proceso pertenece a un proyecto. Selecciónalo aquí antes de guardarlo.', selector: '[data-tutorial="issue-project"]' },
-    { title: 'Define el trabajo', description: 'Escribe un título claro y agrega el contexto necesario en la descripción.', selector: '#issue-description' },
-    { title: 'Ordena la prioridad', description: 'Estado y prioridad indican qué hacer primero y en qué etapa está el proceso.', selector: '#status-editor' },
-    { title: 'Asigna responsable', description: 'Indica quién es responsable. Puedes sumar etiquetas, componente, hito y fechas en esta misma ficha.', selector: '#assignee-editor' },
-    { title: 'Divide el trabajo', description: 'Agrega subtareas para convertir el proceso en acciones concretas antes de guardarlo.', selector: '[data-tutorial="issue-subissues"]' },
-    { title: 'Mira el tablero', description: 'El selector de vista permite cambiar a Tablero para seguir el avance por estado.', selector: '[data-tutorial="viewlet-selector"]', action: 'openBoard' }
-  ]
+  import { getOpsTourSteps, isOpsApplication, type TourStep } from '../opsTour'
+  import { filterVisibleApplications, getDisabledApplications } from '../utils'
 
   const account = getCurrentAccount()
   const client = getClient()
   const preferenceQuery = createQuery()
+  const hiddenAppsQuery = createQuery()
+  const modulePermissionsQuery = createQuery()
+  const allApps = client.getModel().findAllSync<Application>(workbench.class.Application, {})
   const guidedTourPreferenceClass = (workbench.class as typeof workbench.class & {
     GuidedTourPreference: Ref<Class<GuidedTourPreference>>
   }).GuidedTourPreference
   let active = false
   let phase: GuidedTourPhase = 'activation'
+  let steps: TourStep[] = []
   let stepIndex = 0
+  let hiddenApps: Array<Ref<Application>> = []
+  let disabledApps = new Set<Ref<Application>>()
+  let hiddenAppsLoaded = false
+  let permissionsLoaded = false
+  let preferenceLoaded = false
+  let savedPreference: GuidedTourPreference | undefined
+  let hasStarted = false
+  let restartRequested = false
   let preferenceId: Ref<GuidedTourPreference> | undefined
   let createPreferencePromise: Promise<Ref<GuidedTourPreference>> | undefined
-  let hasCheckedInitialState = false
   let saving = false
   let saveError: string | undefined
   let target: HTMLElement | undefined
   let nextButton: HTMLButtonElement | undefined
   let tutorialPopup: PopupResult | undefined
+  let failedStep: number | undefined
   let spotlight = { top: 0, left: 0, width: 0, height: 0 }
 
   const unsubscribeTour = guidedTourStarts.subscribe((started) => {
     if (started === 0) return
-    if (phase === 'activation') openActivation()
-    else openTour(0)
+    restartRequested = true
+    startWhenReady()
   })
   const unsubscribeLocation = location.subscribe(() => {
     if (active && phase === 'tour') void updateTarget()
   })
 
+  hiddenAppsQuery.query(workbench.class.HiddenApplication, { space: core.space.Workspace }, (records) => {
+    hiddenApps = records.map((record) => record.attachedTo)
+    hiddenAppsLoaded = true
+    startWhenReady()
+  })
+  modulePermissionsQuery.query(core.class.ModulePermissionGroup, {}, (records) => {
+    disabledApps = getDisabledApplications(records as ModulePermissionGroup[])
+    permissionsLoaded = true
+    startWhenReady()
+  })
   preferenceQuery.query(guidedTourPreferenceClass, { space: core.space.Workspace, attachedTo: account.uuid }, (records) => {
-    const preference = records[0]
-    preferenceId = preference?._id
-    if (hasCheckedInitialState) return
-    hasCheckedInitialState = true
-    phase = getGuidedTourPhase(preference?.activatedOn, preference?.completedOn)
+    savedPreference = records[0]
+    preferenceId = savedPreference?._id
+    preferenceLoaded = true
+    startWhenReady()
+  }, { limit: 1 })
+
+  $: steps = getOpsTourSteps(
+    filterVisibleApplications(allApps, hiddenApps, disabledApps)
+      .filter(isOpsApplication)
+      .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))
+  )
+  $: startWhenReady()
+
+  /** Starts the tour only when user preferences and visible functionality are loaded. */
+  function startWhenReady (): void {
+    if (!hiddenAppsLoaded || !permissionsLoaded || !preferenceLoaded || steps.length === 0) return
+    if (restartRequested) {
+      restartRequested = false
+      if (phase === 'activation') openActivation()
+      else openTour(0)
+      return
+    }
+    if (hasStarted) return
+    hasStarted = true
+    phase = getGuidedTourPhase(savedPreference?.activatedOn, savedPreference?.completedOn)
     if (phase === 'completed') return
-    void ensurePreference(preference?.currentStep ?? 0).catch(() => {
+    void ensurePreference(savedPreference?.currentStep ?? 0).catch(() => {
       saveError = 'No pudimos crear el registro del tutorial. Revisa tu conexión e inténtalo otra vez.'
     })
     if (phase === 'activation') openActivation()
-    else openTour(getGuidedTourStep(preference?.currentStep, steps.length))
-  }, { limit: 1 })
+    else openTour(getGuidedTourStep(savedPreference?.currentStep, steps.length))
+  }
 
   /** Opens the mandatory activation screen before the real tour. */
   function openActivation (): void {
@@ -131,16 +153,18 @@
     return true
   }
 
-  /** Navigates to Seguimiento without depending on a click target. */
-  function openTracker (): void {
+  /** Navigates to a visible Ops functionality without depending on a click target. */
+  function openApplication (appAlias: string | undefined): void {
+    if (appAlias === undefined) throw new Error('No encontramos la funcionalidad de Ops.')
     const currentLocation = getCurrentLocation()
-    navigate({ ...currentLocation, path: [...currentLocation.path.slice(0, 2), trackerId], fragment: undefined, query: undefined })
+    navigate({ ...currentLocation, path: [...currentLocation.path.slice(0, 2), appAlias], fragment: undefined, query: undefined })
   }
 
   /** Opens the real action menu while leaving every action unselected. */
   async function openNewMenu (): Promise<void> {
     const header = await findTarget('[data-tutorial="tracker-new-item"]')
-    const button = header?.querySelectorAll<HTMLButtonElement>('button').item(-1)
+    const buttons = header?.querySelectorAll<HTMLButtonElement>('button')
+    const button = buttons !== undefined ? buttons[buttons.length - 1] : undefined
     if (button === undefined || button === null) throw new Error('No encontramos el menú de creación.')
     button.click()
   }
@@ -175,9 +199,9 @@
   /** Performs the interface transition required before rendering a step. */
   async function runStepAction (step: TourStep): Promise<void> {
     switch (step.action) {
-      case 'openTracker':
+      case 'openApplication':
         closeTutorialPopup()
-        openTracker()
+        openApplication(step.appAlias)
         return
       case 'openNewMenu':
         await openNewMenu()
@@ -193,10 +217,19 @@
   /** Renders a step only after its required interface state is available. */
   async function showStep (index: number): Promise<boolean> {
     saveError = undefined
+    const step = steps[index]
+    if (step === undefined) {
+      failedStep = index
+      saveError = 'No encontramos este paso de la guía. Pulsa Reintentar para actualizar el recorrido.'
+      return false
+    }
     try {
-      await runStepAction(steps[index])
-      return await updateTarget(index)
+      await runStepAction(step)
+      const shown = await updateTarget(index)
+      failedStep = shown ? undefined : index
+      return shown
     } catch (error) {
+      failedStep = index
       saveError = error instanceof Error ? error.message : 'No pudimos mostrar esta parte de la guía. Pulsa Reintentar para volver a intentarlo.'
       return false
     }
@@ -269,6 +302,29 @@
     saving = false
   }
 
+  /** Records a failed demonstration and continues with the next functionality step. */
+  async function skipFailedStep (): Promise<void> {
+    if (saving || failedStep === undefined) return
+    const nextStep = failedStep + 1
+    saving = true
+    if (nextStep >= steps.length) {
+      const saved = await saveProgress(failedStep, true)
+      if (saved) {
+        closeTutorialPopup()
+        clearTarget()
+        active = false
+        phase = 'completed'
+      }
+    } else {
+      const saved = await saveProgress(nextStep)
+      if (saved) {
+        stepIndex = nextStep
+        await showStep(nextStep)
+      }
+    }
+    saving = false
+  }
+
   /** Moves back through the same visible interface states. */
   async function previous (): Promise<void> {
     if (saving || stepIndex === 0) return
@@ -310,17 +366,19 @@
   <section class="guided-tour-card" role="dialog" aria-modal="true" aria-labelledby="guided-tour-title">
     {#if phase === 'activation'}
       <span class="guided-tour-step">Tutorial obligatorio</span>
-      <h2 id="guided-tour-title">Conoce Seguimiento</h2>
-      <p>Verás el flujo completo para organizar procesos sin crear datos de ejemplo.</p>
+      <h2 id="guided-tour-title">Conoce las funcionalidades de Ops</h2>
+      <p>Verás cada funcionalidad activa y su recorrido principal sin crear datos de ejemplo.</p>
     {:else}
       <span class="guided-tour-step">Paso {stepIndex + 1} de {steps.length}</span>
       <h2 id="guided-tour-title">{steps[stepIndex].title}</h2>
+      {#if steps[stepIndex].moduleLabel !== undefined}<p class="guided-tour-module"><Label label={steps[stepIndex].moduleLabel} /></p>{/if}
       <p>{steps[stepIndex].description}</p>
     {/if}
     {#if saveError}<p class="guided-tour-error" role="alert">{saveError}</p>{/if}
     <div class="guided-tour-actions">
       {#if phase === 'tour' && saveError}
         <button type="button" on:click={retry}>Reintentar</button>
+        {#if failedStep !== undefined}<button type="button" disabled={saving} on:click={skipFailedStep}>Omitir por ahora</button>{/if}
       {/if}
       <div class="guided-tour-navigation">
         {#if phase === 'tour' && stepIndex > 0}<button type="button" disabled={saving} on:click={previous}>Anterior</button>{/if}
@@ -336,10 +394,11 @@
   :global(.guided-tour-target) { position: relative; z-index: 1001 !important; border-radius: 0.5rem; }
   .guided-tour-spotlight { position: fixed; z-index: 1000; pointer-events: none; border: 2px solid var(--button-primary-BackgroundColor); border-radius: 0.625rem; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.58); transition: all 0.18s var(--timing-main); }
   .guided-tour-card { position: fixed; z-index: 1002; right: 1.5rem; bottom: 1.5rem; width: min(24rem, calc(100vw - 2rem)); padding: 1.25rem; color: var(--theme-content-color); background: var(--theme-popup-color); border: 1px solid var(--theme-button-border); border-radius: 0.75rem; box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.35); }
-  .guided-tour-step, .guided-tour-error { color: var(--theme-dark-color); font-size: 0.8125rem; }
+  .guided-tour-step, .guided-tour-error, .guided-tour-module { color: var(--theme-dark-color); font-size: 0.8125rem; }
   h2 { margin: 0.5rem 0; font-size: 1.125rem; }
   p { margin: 0; line-height: 1.45; }
   .guided-tour-error { margin-top: 0.75rem; color: var(--button-negative-BackgroundColor); }
+  .guided-tour-module { margin-bottom: 0.5rem; font-weight: 600; }
   .guided-tour-actions, .guided-tour-navigation { display: flex; align-items: center; gap: 0.5rem; }
   .guided-tour-actions { justify-content: space-between; margin-top: 1.25rem; }
   .guided-tour-navigation { margin-left: auto; }

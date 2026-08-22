@@ -23,6 +23,7 @@
   import workbenchPlugin, { type Application } from '@hcengineering/workbench'
 
   import workbench from '../plugin'
+  import { isOpsApplication } from '../opsTour'
   import { filterVisibleApplications, getDisabledApplications } from '../utils'
 
   // Sólo copy de presentación: qué módulos existen lo decide el modelo, no este mapa.
@@ -50,8 +51,6 @@
   // Ni la propia vista Inicio ni la bandeja de entrada son módulos: son navegación.
   // Todo lo demás va al grid, incluidos los que además están fijos arriba en la barra
   // (Seguimiento, Planificador, Teletrabajo).
-  const notModules = new Set(['home', 'inbox', 'notification'])
-
   // Matices vibrantes al estilo WiwoLab. Cada módulo elige el suyo por hash del alias:
   // uno nuevo se pinta solo, sin mapa manual que mantener.
   const accentHues = [226, 262, 292, 330, 8, 28, 45, 142, 168, 196]
@@ -79,7 +78,7 @@
   $: firstName = $myEmployeeStore?.name !== undefined ? getFirstName($myEmployeeStore.name).trim() : ''
 
   $: modules = filterVisibleApplications(allApps, hiddenAppsIds, disabledApplications)
-    .filter((app) => !notModules.has(app.alias) && app.position !== 'bottom')
+    .filter((app) => isOpsApplication(app) && app.position !== 'bottom')
     .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))
 
   /**
