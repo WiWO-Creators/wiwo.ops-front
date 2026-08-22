@@ -719,6 +719,12 @@ export const contactOperation: MigrateOperation = {
         func: async (client) => {
           await createDefaultSpace(client, contact.space.Contacts, { name: 'Contacts', description: 'Contacts' })
         }
+      },
+      {
+        state: 'restore-contacts-space-v3',
+        func: async (client) => {
+          await createDefaultSpace(client, contact.space.Contacts, { name: 'Contacts', description: 'Contacts' })
+        }
       }
     ])
   }
