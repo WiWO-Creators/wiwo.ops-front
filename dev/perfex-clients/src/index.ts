@@ -36,7 +36,7 @@ import { limpiarTiposRepetidos } from './tipos'
 import { notifyResult } from './aviso'
 import { ALL_STAGES, importClients, type Logger, type Stage } from './import'
 import { moveClient } from './move'
-import { getPerfexConfig, PerfexReader } from '@hcengineering/perfex'
+import { getPerfexConfig, PerfexReader, type PerfexQueryEvent } from '@hcengineering/perfex'
 import {
   archivarAusentes,
   buscarDuplicados,
@@ -45,6 +45,7 @@ import {
   readDuplicateMap,
   readSyncConfig
 } from './sync'
+import { isControlStage } from './sync-control'
 
 function parseStages (value: string | undefined): Stage[] {
   if (value === undefined || value.trim() === '') return ALL_STAGES
@@ -174,11 +175,12 @@ export function perfexClientsTool (): void {
 
         console.log(`RESULTADO: ok — ambiente ${environment.label}`)
         await notifyResult(avisarA, { environment: environment.label, ok: true, summary }, consoleLogger)
-      } catch (err: any) {
-        console.error(`RESULTADO: error — ambiente ${environment.label}: ${err.message}`)
+      } catch (err: unknown) {
+        const error = err instanceof Error ? err.message : String(err)
+        console.error(`RESULTADO: error — ambiente ${environment.label}: ${error}`)
         await notifyResult(
           avisarA,
-          { environment: environment.label, ok: false, summary, error: err.message },
+          { environment: environment.label, ok: false, summary, error },
           consoleLogger
         )
         process.exitCode = 1
@@ -498,10 +500,79 @@ export function perfexClientsTool (): void {
       })
     })
 
-  program.parse(process.argv)
+  program
+    .command('sync-step', { hidden: true })
+    .requiredOption('-c, --config <archivo>', 'manifiesto local')
+    .requiredOption('-e, --env <ambiente>', 'ambiente destino')
+    .requiredOption('-s, --stage <etapa>', 'etapa controlada')
+    .option('--dry-run', 'no escribe nada', false)
+    .action(async (cmd) => {
+      if (!isControlStage(cmd.stage)) throw new Error(`Etapa desconocida: ${cmd.stage}`)
+      const emit = (
+        level: 'info' | 'warn' | 'error',
+        message: string,
+        extra: Partial<Pick<PerfexQueryEvent, 'phase'>> & { table?: string } = {}
+      ): void => {
+        process.stdout.write(`${JSON.stringify({ marker: 'perfex-migration', level, message, ...extra })}\n`)
+      }
+      let stopRequested = false
+      process.on('SIGTERM', () => {
+        stopRequested = true
+        emit('warn', 'Detención recibida; se terminará el ítem activo')
+      })
+      try {
+        const { runSyncStep } = await import('./sync-step')
+        await runSyncStep({
+          configPath: cmd.config,
+          environmentId: cmd.env,
+          stage: cmd.stage,
+          dryRun: cmd.dryRun === true,
+          shouldStop: () => stopRequested,
+          logger: {
+            log: (message) => { emit('info', message) },
+            error: (message) => { emit('error', message) }
+          },
+          onQuery: (event) => {
+            for (const table of event.tables) {
+              emit(
+                event.phase === 'error' ? 'error' : 'info',
+                event.phase === 'start'
+                  ? `Leyendo ${table}`
+                  : event.phase === 'finish'
+                    ? `${table}: ${event.rows ?? 0} filas leídas`
+                    : `${table}: ${event.error ?? 'error de lectura'}`,
+                { table, phase: event.phase }
+              )
+            }
+          }
+        })
+      } catch (err: unknown) {
+        const { MigrationCancelledError } = await import('./sync-step')
+        if (err instanceof MigrationCancelledError) {
+          emit('warn', err.message)
+          process.exitCode = 2
+          return
+        }
+        emit('error', err instanceof Error ? (err.stack ?? err.message) : String(err))
+        process.exitCode = 1
+      }
+    })
+
+  program
+    .command('serve')
+    .description('sirve el centro de control de migración')
+    .action(async () => {
+      const { startControlServer } = await import('./control-server')
+      await startControlServer()
+    })
+
+  void program.parseAsync(process.argv).catch((err: unknown) => {
+    console.error(err instanceof Error ? (err.stack ?? err.message) : String(err))
+    process.exitCode = 1
+  })
 }
 
-interface Credentials {
+export interface Credentials {
   frontUrl: string
   workspaceUrl: string
   /** Token del workspace. Es la unica via cuando el ingreso a Huly es con Google. */
@@ -522,7 +593,7 @@ interface Credentials {
  * Acepta dos formas de identificarse: un token del workspace, o usuario y contraseña. Si la
  * instancia entra con Google, la única que sirve es el token, porque no hay contraseña propia.
  */
-async function withHulyClient (
+export async function withHulyClient (
   credentials: Credentials,
   f: (
     client: TxOperations,
