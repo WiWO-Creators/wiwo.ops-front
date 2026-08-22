@@ -2,7 +2,7 @@
   import core, { getCurrentAccount, type Class, type ModulePermissionGroup, type Ref } from '@hcengineering/core'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import tracker, { trackerId } from '@hcengineering/tracker'
-  import { getCurrentLocation, location, navigate, showPopup, type PopupResult } from '@hcengineering/ui'
+  import { getCurrentLocation, location, navigate, showPopup, type PopupAlignment, type PopupResult } from '@hcengineering/ui'
   import workbench, { type Application } from '@hcengineering/workbench'
   import type { GuidedTourPreference } from '@hcengineering/workbench/src/types'
   import { onDestroy, tick } from 'svelte'
@@ -143,6 +143,13 @@
     tutorialPopup = undefined
   }
 
+  /** Anchors the tour panel beside its current target so modal fields remain visible. */
+  function getTourPanelAlignment (): PopupAlignment {
+    const panelTarget = target
+    if (phase !== 'tour' || panelTarget === undefined) return 'top'
+    return { getBoundingClientRect: () => panelTarget.getBoundingClientRect() }
+  }
+
   /** Opens the tour controls through the standard popup stack. */
   function openTourPanel (): void {
     if (!active) return
@@ -158,7 +165,7 @@
         saveError,
         failedStep
       },
-      'top',
+      getTourPanelAlignment(),
       undefined,
       handleTourPanelUpdate,
       { category: 'guided-tour', overlay: false }
