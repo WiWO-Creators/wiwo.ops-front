@@ -51,6 +51,7 @@
   const modulePermissionsQuery = createQuery()
   const allApps = client.getModel().findAllSync<Application>(workbench.class.Application, {})
   const guidedTourPreferenceClass = workbench.class.GuidedTourPreference
+  const supportsRemoteProgress = client.getHierarchy().hasClass(guidedTourPreferenceClass) === true
   const tourCardActions = new Set<TourCardAction>(['start', 'next', 'previous'])
   const workspace = String(getCurrentLocation().path[1] ?? 'workspace')
   const storageKey = getGuidedTourStorageKey(workspace, account.uuid)
@@ -111,23 +112,27 @@
     permissionsLoaded = true
     startWhenReady()
   })
-  preferenceQuery.query(
-    guidedTourPreferenceClass,
-    { space: core.space.Workspace, attachedTo: account.uuid },
-    (records) => {
-      const firstResponse = !preferenceLoaded
-      savedPreference = records[0]
-      preferenceId = savedPreference?._id
-      preferenceLoaded = true
-      if (hasStarted && firstResponse && localProgress?.pendingSync !== true && savedPreference !== undefined) {
-        applyRemoteProgress(savedPreference)
-        return
-      }
-      if (localProgress?.pendingSync === true) void syncLocalProgress()
-      startWhenReady()
-    },
-    { limit: 1 }
-  )
+  if (supportsRemoteProgress) {
+    preferenceQuery.query(
+      guidedTourPreferenceClass,
+      { space: core.space.Workspace, attachedTo: account.uuid },
+      (records) => {
+        const firstResponse = !preferenceLoaded
+        savedPreference = records[0]
+        preferenceId = savedPreference?._id
+        preferenceLoaded = true
+        if (hasStarted && firstResponse && localProgress?.pendingSync !== true && savedPreference !== undefined) {
+          applyRemoteProgress(savedPreference)
+          return
+        }
+        if (localProgress?.pendingSync === true) void syncLocalProgress()
+        startWhenReady()
+      },
+      { limit: 1 }
+    )
+  } else {
+    preferenceLoaded = true
+  }
 
   $: if (!stepsLocked) {
     steps = getOpsTourSteps(
@@ -562,7 +567,7 @@
 
   /** Synchronizes the newest local snapshot without blocking tutorial navigation. */
   async function syncLocalProgress (): Promise<void> {
-    if (syncPromise !== undefined || localProgress?.pendingSync !== true) return
+    if (!supportsRemoteProgress || syncPromise !== undefined || localProgress?.pendingSync !== true) return
     const snapshot = localProgress
     syncPromise = (async () => {
       try {
