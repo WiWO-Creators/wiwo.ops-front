@@ -19,6 +19,13 @@ test('agrega administración de Teletrabajo solo a mantenedores', () => {
   expect(steps.some((step) => step.action === 'openTeleworkAddRoom')).toBe(true)
 })
 
+test.each(['tracker', 'calendar', 'love'])('cada paso de %s tiene una demostración real del módulo', (alias) => {
+  const steps = getOpsTourSteps([app(alias)], true)
+
+  expect(steps.every((step) => step.demo.length > 0)).toBe(true)
+  expect(new Set(steps.map((step) => step.demoComponent))).toEqual(new Set([`${alias}:component:GuidedTourDemo`]))
+})
+
 test('no considera navegación global como funcionalidad de Ops', () => {
   expect(isOpsApplication(app('home'))).toBe(false)
   expect(isOpsApplication(app('inbox'))).toBe(false)

@@ -45,6 +45,7 @@ import CalendarWidget from './components/CalendarWidget.svelte'
 import ScheduleNavSection from './components/ScheduleNavSection.svelte'
 import CalendarSettings from './components/CalendarSettings.svelte'
 import IntegrationState from './components/IntegrationState.svelte'
+import GuidedTourDemo from './components/GuidedTourDemo.svelte'
 import calendar from './plugin'
 import contact from '@hcengineering/contact'
 import { deleteObjects } from '@hcengineering/view-resources'
@@ -202,7 +203,8 @@ export default async (): Promise<Resources> => ({
     ConnectApp,
     CalendarWidget,
     CalendarSettings,
-    IntegrationState
+    IntegrationState,
+    GuidedTourDemo
   },
   actionImpl: {
     SaveEventReminder: saveEventReminder,

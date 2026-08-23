@@ -15,22 +15,27 @@
   export let hidden = false
   export let ignoreFragment = false
   export let defaultViewletDescriptor: Ref<ViewletDescriptor> | undefined = undefined
+  export let tutorialDemo: boolean = false
 
   const query = createQuery()
 
-  $: query.query(
-    view.class.Viewlet,
-    viewletQuery,
-    (res) => {
-      viewlets = res
-      dispatch('viewlets', viewlets)
-    },
-    {
-      lookup: {
-        descriptor: view.class.ViewletDescriptor
+  $: if (tutorialDemo) {
+    query.unsubscribe()
+  } else {
+    query.query(
+      view.class.Viewlet,
+      viewletQuery,
+      (res) => {
+        viewlets = res
+        dispatch('viewlets', viewlets)
+      },
+      {
+        lookup: {
+          descriptor: view.class.ViewletDescriptor
+        }
       }
-    }
-  )
+    )
+  }
 
   let key = makeViewletKey(undefined, ignoreFragment)
 
@@ -56,7 +61,7 @@
       viewlets[0]
     if (viewlet?._id !== newViewlet?._id || !deepEqual(viewlet.config, newViewlet.config)) {
       viewlet = newViewlet
-      setActiveViewletId(newViewlet._id)
+      if (!tutorialDemo) setActiveViewletId(newViewlet._id)
       dispatch('viewlet', viewlet)
     }
   }
@@ -72,7 +77,10 @@
 
   const preferenceQuery = createQuery()
 
-  $: if (viewlet != null) {
+  $: if (tutorialDemo) {
+    preferenceQuery.unsubscribe()
+    loading = false
+  } else if (viewlet != null) {
     preferenceQuery.query(
       view.class.ViewletPreference,
       {
@@ -104,7 +112,7 @@
           return
         }
         viewlet = viewlets.find((vl) => vl._id === result.detail.id)
-        if (viewlet) {
+        if (viewlet && !tutorialDemo) {
           setActiveViewletId(viewlet._id)
         }
       }

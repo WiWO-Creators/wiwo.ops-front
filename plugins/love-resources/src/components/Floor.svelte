@@ -22,9 +22,11 @@
 
   import lovePlg from '../plugin'
   import { floors, selectedFloor } from '../stores'
+  import RoomPreview from './RoomPreview.svelte'
 
   export let rooms: Room[] = []
   export let floor: Ref<Floor>
+  export let tutorialFloor: Floor | undefined = undefined
 
   const dispatch = createEventDispatcher()
 
@@ -32,22 +34,22 @@
   let preference: ViewletPreference | undefined
   let loading = false
 
-  let selected = $floors.filter((fl) => fl._id === floor)[0]
-  $: selected = $floors.filter((fl) => fl._id === floor)[0]
+  let availableFloors: Floor[] = []
+  $: availableFloors = tutorialFloor === undefined ? $floors : [tutorialFloor]
+  let selected: Floor | undefined
+  $: selected = availableFloors.filter((fl) => fl._id === floor)[0]
 
   const me = getCurrentAccount()
 
   let editable: boolean = false
-  $: editable = hasAccountRole(me, AccountRole.Maintainer)
+  $: editable = tutorialFloor !== undefined || hasAccountRole(me, AccountRole.Maintainer)
 
-  let items = $floors.map((p) => {
-    return { id: p._id, label: p.name }
-  })
-  $: items = $floors.map((p) => {
+  let items: Array<{ id: Ref<Floor>, label: string }> = []
+  $: items = availableFloors.map((p) => {
     return { id: p._id, label: p.name }
   })
 
-  function changeFloor (event: CustomEvent<Ref<Floor>>) {
+  function changeFloor (event: CustomEvent<Ref<Floor>>): void {
     if (event.detail) {
       selectedFloor.set(event.detail)
     }
@@ -68,7 +70,9 @@
       />
     </span>
     <svelte:fragment slot="beforeTitle">
-      <ViewletSelector bind:viewlet bind:preference bind:loading viewletQuery={{ attachTo: lovePlg.class.Floor }} />
+      {#if tutorialFloor === undefined}
+        <ViewletSelector bind:viewlet bind:preference bind:loading viewletQuery={{ attachTo: lovePlg.class.Floor }} />
+      {/if}
     </svelte:fragment>
     <svelte:fragment slot="actions">
       {#if editable}
@@ -84,8 +88,24 @@
     </svelte:fragment>
   </Header>
   <div class="hulyComponent-content__column content" data-tutorial="telework-rooms">
-    {#if viewlet?.$lookup?.descriptor?.component}
+    {#if tutorialFloor !== undefined}
+      <div class="tutorial-floor-grid">
+        {#each rooms as room}
+          <RoomPreview {room} info={[]} />
+        {/each}
+      </div>
+    {:else if viewlet?.$lookup?.descriptor?.component}
       <Component is={viewlet.$lookup.descriptor.component} props={{ floor, rooms }} on:open />
     {/if}
   </div>
 </div>
+
+<style lang="scss">
+  .tutorial-floor-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(3rem, 1fr));
+    grid-template-rows: repeat(3, minmax(3rem, 1fr));
+    min-height: 14rem;
+    padding: 1rem;
+  }
+</style>
