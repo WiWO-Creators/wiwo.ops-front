@@ -14,11 +14,11 @@ export interface OwnersOptions {
 
 export interface OwnersPlan {
   promover: AccountUuid[]
-  invitar: string[]
+  asegurar: string[]
 }
 
 /**
- * Separa cuentas promovibles de correos que todavía deben aceptar una invitación Owner.
+ * Separa cuentas promovibles de correos cuya cuenta o membresía todavía debe crearse.
  *
  * @throws si no se indicó ningún correo.
  */
@@ -32,17 +32,17 @@ export function planificarOwners (
 
   const miembrosPorCuenta = new Map(miembros.map((miembro) => [miembro.person, miembro]))
   const promover: AccountUuid[] = []
-  const invitar: string[] = []
+  const asegurar: string[] = []
   for (const correo of solicitados) {
     const account = cuentas.porCorreo.get(correo)
     const miembro = account === undefined ? undefined : miembrosPorCuenta.get(account)
     if (account === undefined || miembro === undefined) {
-      invitar.push(correo)
+      asegurar.push(correo)
     } else if (miembro.role !== AccountRole.Owner) {
       promover.push(account)
     }
   }
-  return { promover, invitar }
+  return { promover, asegurar }
 }
 
 /**
@@ -60,7 +60,7 @@ export async function asignarOwners (
   const cuentas = await cargarCuentas(client)
   const accountClient = getAccountClient(token)
   const plan = planificarOwners(correos, cuentas, await accountClient.getWorkspaceMembers())
-  const cambios = plan.promover.length + plan.invitar.length
+  const cambios = plan.promover.length + plan.asegurar.length
 
   if (cambios === 0) {
     logger.log('Los owners indicados ya están configurados.')
@@ -71,9 +71,9 @@ export async function asignarOwners (
   if (plan.promover.length > 0) {
     logger.log(`${plan.promover.length} accounts a promover a owner: ${nombres}${options.dryRun ? ' (simulado)' : ''}`)
   }
-  if (plan.invitar.length > 0) {
+  if (plan.asegurar.length > 0) {
     logger.log(
-      `${plan.invitar.length} owners sin cuenta o membresía: se enviará invitación Owner a ${plan.invitar.join(', ')}` +
+      `${plan.asegurar.length} owners sin cuenta o membresía: se crearán y asignarán a ${plan.asegurar.join(', ')}` +
         (options.dryRun ? ' (simulado)' : '')
     )
   }
@@ -83,9 +83,9 @@ export async function asignarOwners (
     await accountClient.updateWorkspaceRole(account, AccountRole.Owner)
     logger.log(`  owner promovido: ${cuentas.nombres.get(account) ?? account}`)
   }
-  for (const correo of plan.invitar) {
-    await accountClient.resendInvite(correo, AccountRole.Owner)
-    logger.log(`  invitación owner enviada: ${correo}; la cuenta se activa al aceptarla`)
+  for (const correo of plan.asegurar) {
+    await accountClient.ensureWorkspaceAccount(correo, AccountRole.Owner)
+    logger.log(`  cuenta owner creada o reutilizada: ${correo}`)
   }
   return cambios
 }

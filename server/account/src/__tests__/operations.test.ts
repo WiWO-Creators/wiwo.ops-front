@@ -55,7 +55,8 @@ import {
   leaveWorkspace,
   checkJoin,
   mergeSpecifiedPersons,
-  canMergeSpecifiedPersons
+  canMergeSpecifiedPersons,
+  ensureWorkspaceAccount
 } from '../operations'
 import { accountPlugin } from '../plugin'
 
@@ -112,6 +113,7 @@ describe('account operations', () => {
     },
     getWorkspaceRole: jest.fn(),
     getWorkspaceMembers: jest.fn(),
+    assignWorkspace: jest.fn(),
     unassignWorkspace: jest.fn(),
     updateWorkspaceRole: jest.fn(),
     person: {
@@ -190,6 +192,80 @@ describe('account operations', () => {
           role: AccountRole.Owner
         })
       ).rejects.toThrow(new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {})))
+    })
+  })
+
+  describe('ensureWorkspaceAccount', () => {
+    test('creates an automatic account and assigns it to the workspace', async () => {
+      const targetAccount = 'new-owner' as AccountUuid
+      ;(mockDb.account.findOne as jest.Mock).mockResolvedValueOnce(mockAccount)
+      ;(mockDb.workspace.findOne as jest.Mock).mockResolvedValue(mockWorkspace)
+      ;(mockDb.getWorkspaceRole as jest.Mock)
+        .mockResolvedValueOnce(AccountRole.Owner)
+        .mockResolvedValueOnce(null)
+      const getEmailSocialId = jest.spyOn(utils, 'getEmailSocialId').mockResolvedValue(null)
+      const signUpByEmail = jest.spyOn(utils, 'signUpByEmail').mockResolvedValue({
+        account: targetAccount,
+        socialId: 'new-huly-social-id' as PersonId
+      })
+
+      await expect(
+        ensureWorkspaceAccount(mockCtx, mockDb, mockBranding, mockToken, {
+          email: 'new-owner@example.com',
+          role: AccountRole.Owner
+        })
+      ).resolves.toBe(targetAccount)
+
+      expect(signUpByEmail).toHaveBeenCalledWith(
+        mockCtx,
+        mockDb,
+        mockBranding,
+        'new-owner@example.com',
+        null,
+        'new-owner',
+        '',
+        true,
+        true
+      )
+      expect(mockDb.assignWorkspace).toHaveBeenCalledWith(targetAccount, mockWorkspace.uuid, AccountRole.Owner)
+      getEmailSocialId.mockRestore()
+      signUpByEmail.mockRestore()
+    })
+
+    test('reuses an existing account and membership on retry', async () => {
+      const targetAccount = 'existing-owner' as AccountUuid
+      ;(mockDb.account.findOne as jest.Mock)
+        .mockResolvedValueOnce(mockAccount)
+        .mockResolvedValueOnce({ uuid: targetAccount })
+      ;(mockDb.workspace.findOne as jest.Mock).mockResolvedValue(mockWorkspace)
+      ;(mockDb.getWorkspaceRole as jest.Mock)
+        .mockResolvedValueOnce(AccountRole.Owner)
+        .mockResolvedValueOnce(AccountRole.Owner)
+      const existingSocialId: SocialId = {
+        _id: 'existing-email-social-id' as PersonId,
+        personUuid: targetAccount,
+        type: SocialIdType.EMAIL,
+        value: 'existing-owner@example.com',
+        key: 'email:existing-owner@example.com',
+        verifiedOn: Date.now()
+      }
+      const getEmailSocialId = jest
+        .spyOn(utils, 'getEmailSocialId')
+        .mockResolvedValue(existingSocialId)
+      const signUpByEmail = jest.spyOn(utils, 'signUpByEmail')
+
+      await expect(
+        ensureWorkspaceAccount(mockCtx, mockDb, mockBranding, mockToken, {
+          email: 'existing-owner@example.com',
+          role: AccountRole.Owner
+        })
+      ).resolves.toBe(targetAccount)
+
+      expect(signUpByEmail).not.toHaveBeenCalled()
+      expect(mockDb.assignWorkspace).not.toHaveBeenCalled()
+      expect(mockDb.updateWorkspaceRole).not.toHaveBeenCalled()
+      getEmailSocialId.mockRestore()
+      signUpByEmail.mockRestore()
     })
   })
 

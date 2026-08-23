@@ -26,13 +26,13 @@ describe('planificarOwners', () => {
 
     expect(planificarOwners(['ANA@wiwo.me', 'beto@wiwo.me', 'beto@wiwo.me'], cuentas, miembros)).toEqual({
       promover: [beto],
-      invitar: []
+      asegurar: []
     })
   })
 
-  it('invita a quien todavía no tiene cuenta o membresía', () => {
-    expect(planificarOwners(['nadie@wiwo.me'], cuentas, [])).toEqual({ promover: [], invitar: ['nadie@wiwo.me'] })
-    expect(planificarOwners(['ana@wiwo.me'], cuentas, [])).toEqual({ promover: [], invitar: ['ana@wiwo.me'] })
+  it('asegura a quien todavía no tiene cuenta o membresía', () => {
+    expect(planificarOwners(['nadie@wiwo.me'], cuentas, [])).toEqual({ promover: [], asegurar: ['nadie@wiwo.me'] })
+    expect(planificarOwners(['ana@wiwo.me'], cuentas, [])).toEqual({ promover: [], asegurar: ['ana@wiwo.me'] })
   })
 
   it('sigue exigiendo al menos un owner', () => {
@@ -41,9 +41,9 @@ describe('planificarOwners', () => {
 })
 
 describe('asignarOwners', () => {
-  it('envía una invitación Owner si el correo todavía no tiene cuenta', async () => {
-    const resendInvite = jest.fn(async () => {})
-    const accountClient = { getWorkspaceMembers: jest.fn(async () => []), resendInvite }
+  it('crea y asigna una cuenta Owner si el correo todavía no tiene cuenta', async () => {
+    const ensureWorkspaceAccount = jest.fn(async () => 'gerencia' as AccountUuid)
+    const accountClient = { getWorkspaceMembers: jest.fn(async () => []), ensureWorkspaceAccount }
     const getAccountClientMock = getAccountClient as jest.MockedFunction<typeof getAccountClient>
     getAccountClientMock.mockReturnValue(accountClient as never)
     const client = { findAll: jest.fn(async () => []) }
@@ -52,7 +52,7 @@ describe('asignarOwners', () => {
     await expect(
       asignarOwners(client as never, 'token', logger, ['gerencia@wiwo.me'], { dryRun: false })
     ).resolves.toBe(1)
-    expect(resendInvite).toHaveBeenCalledWith('gerencia@wiwo.me', AccountRole.Owner)
-    expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('invitación owner enviada'))
+    expect(ensureWorkspaceAccount).toHaveBeenCalledWith('gerencia@wiwo.me', AccountRole.Owner)
+    expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('cuenta owner creada'))
   })
 })

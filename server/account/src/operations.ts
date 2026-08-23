@@ -2560,6 +2560,65 @@ export async function ensurePerson (
   return { uuid: personUuid, socialId: newSocialId }
 }
 
+/**
+ * Creates or reuses an automatic account and ensures membership in the token workspace.
+ *
+ * @throws PlatformError if the email or role is invalid, or the caller cannot assign that role.
+ */
+export async function ensureWorkspaceAccount (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: { email: string, role: AccountRole }
+): Promise<AccountUuid> {
+  const normalizedEmail = cleanEmail(params.email ?? '')
+  if (!isEmail(normalizedEmail) || !assignableRoles.includes(params.role)) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+  }
+
+  const { account, workspace: workspaceUuid, extra } = decodeTokenVerbose(ctx, token)
+  const caller = await db.account.findOne({ uuid: account })
+  if (caller == null) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, { account }))
+  }
+
+  const workspace = await db.workspace.findOne({ uuid: workspaceUuid })
+  if (workspace == null) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, { workspaceUuid }))
+  }
+
+  const callerRole = account === systemAccountUuid ? AccountRole.Owner : await db.getWorkspaceRole(account, workspace.uuid)
+  verifyAllowedRole(callerRole, params.role, extra)
+
+  const emailSocialId = await getEmailSocialId(db, normalizedEmail)
+  const existingAccount =
+    emailSocialId == null ? null : await db.account.findOne({ uuid: emailSocialId.personUuid as AccountUuid })
+  let targetAccount = existingAccount?.uuid
+
+  if (targetAccount == null) {
+    const person = emailSocialId == null ? null : await db.person.findOne({ uuid: emailSocialId.personUuid })
+    const storedFirstName = person?.firstName.trim()
+    const firstName =
+      storedFirstName == null || storedFirstName === ''
+        ? normalizedEmail.slice(0, normalizedEmail.indexOf('@'))
+        : storedFirstName
+    const lastName = person?.lastName ?? ''
+    targetAccount = (
+      await signUpByEmail(ctx, db, branding, normalizedEmail, null, firstName, lastName, true, true)
+    ).account
+  }
+
+  const currentRole = await db.getWorkspaceRole(targetAccount, workspace.uuid)
+  if (currentRole == null) {
+    await db.assignWorkspace(targetAccount, workspace.uuid, params.role)
+  } else if (getRolePower(currentRole) < getRolePower(params.role)) {
+    await db.updateWorkspaceRole(targetAccount, workspace.uuid, params.role)
+  }
+
+  return targetAccount
+}
+
 async function getMailboxOptions (
   ctx: MeasureContext,
   db: AccountDB,
@@ -3592,6 +3651,7 @@ export type AccountMethods =
   | 'findPersonBySocialId'
   | 'findSocialIdBySocialKey'
   | 'ensurePerson'
+  | 'ensureWorkspaceAccount'
   | 'exchangeGuestToken'
   | 'getMailboxOptions'
   | 'createMailbox'
@@ -3682,6 +3742,7 @@ export function getMethods (
     getMailboxes: wrap(getMailboxes),
     deleteMailbox: wrap(deleteMailbox),
     ensurePerson: wrap(ensurePerson),
+    ensureWorkspaceAccount: wrap(ensureWorkspaceAccount),
     exchangeGuestToken: wrap(exchangeGuestToken),
     addEmailSocialId: wrap(addEmailSocialId),
     addHulyAssistantSocialId: wrap(addHulyAssistantSocialId),
