@@ -88,7 +88,14 @@ describe('planificarColaboradores', () => {
 })
 
 describe('importColaboradores', () => {
-  it('nunca ejecuta más de cinco escrituras simultáneas', async () => {
+  afterEach(() => {
+    jest.restoreAllMocks()
+    jest.useRealTimers()
+  })
+
+  it('escribe secuencialmente y espera 30 segundos cada cinco colaboradores', async () => {
+    jest.useFakeTimers()
+    const timeoutSpy = jest.spyOn(global, 'setTimeout')
     const tasks = Array.from({ length: 12 }, (_, index) => tarea(index + 1, 2, [1]))
     const followers = tasks.map((task, index) => seguidor(task.id, index + 100))
     const employees = followers.map(({ staffid }) => ({
@@ -113,7 +120,7 @@ describe('importColaboradores', () => {
     const addCollection = jest.fn(async () => {
       activeWrites++
       maximumActiveWrites = Math.max(maximumActiveWrites, activeWrites)
-      await new Promise<void>((resolve) => setImmediate(resolve))
+      await Promise.resolve()
       activeWrites--
     })
     const perfex = {
@@ -125,15 +132,18 @@ describe('importColaboradores', () => {
     }
     const client = { findAll, addCollection }
 
-    await importColaboradores(
+    const migration = importColaboradores(
       client as never,
       perfex as unknown as PerfexReader,
       { log: jest.fn(), error: jest.fn() },
       { dryRun: false, includeClosedTasks: false }
     )
+    await jest.runAllTimersAsync()
+    await migration
 
     expect(addCollection).toHaveBeenCalledTimes(12)
-    expect(maximumActiveWrites).toBe(5)
+    expect(maximumActiveWrites).toBe(1)
+    expect(timeoutSpy.mock.calls.filter(([, delay]) => delay === 30_000)).toHaveLength(2)
   })
 })
 

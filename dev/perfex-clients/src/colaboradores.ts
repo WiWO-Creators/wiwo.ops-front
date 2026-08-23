@@ -25,9 +25,12 @@ import tracker, { type Issue, type Project } from '@hcengineering/tracker'
 
 import { cargarCuentas } from './permisos'
 import { COMPLETED_TASK_STATUS } from './tareas'
+import { waitForWriteDrain } from './write-throttle'
 
-/** Máximo de escrituras simultáneas para no saturar los side-effects del transactor. */
+/** Cantidad de colaboradores antes de dejar drenar al transactor. */
 const UPDATE_BATCH = 5
+/** Pausa entre tandas para completar fulltext, actividad, notificaciones y eventos. */
+const BATCH_DELAY_MS = 30_000
 /** Ids por consulta al preguntarle a Huly por documentos ya existentes. */
 const QUERY_BATCH = 500
 
@@ -176,21 +179,24 @@ export async function importColaboradores (
   let escritos = 0
   for (let i = 0; i < faltantes.length; i += UPDATE_BATCH) {
     const batch = faltantes.slice(i, i + UPDATE_BATCH)
-    await Promise.all(
-      batch.map(async ({ tarea, collaborator }) => {
-        await client.addCollection(
-          core.class.Collaborator,
-          tarea.space,
-          tarea.id,
-          tracker.class.Issue,
-          'collaborators',
-          { collaborator }
-        )
-      })
-    )
+    for (const { tarea, collaborator } of batch) {
+      await client.addCollection(
+        core.class.Collaborator,
+        tarea.space,
+        tarea.id,
+        tracker.class.Issue,
+        'collaborators',
+        { collaborator }
+      )
+    }
     escritos += batch.length
     logger.log(`  ... ${escritos} de ${faltantes.length} colaboradores puestos`)
     avisarAvance()
+    if (i + UPDATE_BATCH < faltantes.length) {
+      logger.log('  ... pausa de 30 segundos para drenar efectos del transactor')
+      await waitForWriteDrain(BATCH_DELAY_MS)
+      logger.log('  ... transactor drenado; continúa la siguiente tanda')
+    }
   }
   logger.log(`Colaboradores puestos: ${escritos}`)
 }

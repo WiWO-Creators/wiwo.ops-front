@@ -46,6 +46,11 @@ import {
   readSyncConfig
 } from './sync'
 import { isControlStage } from './sync-control'
+import {
+  createSequentialWriteRunner,
+  MIGRATION_CREATE_DELAY_MS,
+  serializeCreateOperations
+} from './write-throttle'
 
 function parseStages (value: string | undefined): Stage[] {
   if (value === undefined || value.trim() === '') return ALL_STAGES
@@ -662,14 +667,17 @@ export async function withHulyClient (
   // ensurePerson vive en la API REST del transactor: crea la persona junto con su identidad de
   // correo, así cuando esa persona entre con el mismo correo queda vinculada a este contacto.
   const restClient = createRestClient(endpoint, workspace, token)
+  const runWrite = createSequentialWriteRunner(MIGRATION_CREATE_DELAY_MS)
   const ensurePerson = async (email: string, firstName: string, lastName: string): Promise<Ref<Person>> => {
-    const { localPerson } = await restClient.ensurePerson(SocialIdType.EMAIL, email, firstName, lastName)
-    return localPerson as Ref<Person>
+    return await runWrite(async () => {
+      const { localPerson } = await restClient.ensurePerson(SocialIdType.EMAIL, email, firstName, lastName)
+      return localPerson as Ref<Person>
+    })
   }
 
   const connection = await createClient(endpoint, token)
   try {
-    await f(new TxOperations(connection, author), uploader, ensurePerson)
+    await f(serializeCreateOperations(new TxOperations(connection, author), runWrite), uploader, ensurePerson)
   } finally {
     await connection.close()
   }
@@ -690,7 +698,8 @@ async function withTokenClient (
   const { endpoint, author } = await resolveByToken(token, transactor)
   const connection = await createClient(endpoint, token)
   try {
-    await f(new TxOperations(connection, author))
+    const runWrite = createSequentialWriteRunner(MIGRATION_CREATE_DELAY_MS)
+    await f(serializeCreateOperations(new TxOperations(connection, author), runWrite))
   } finally {
     await connection.close()
   }
