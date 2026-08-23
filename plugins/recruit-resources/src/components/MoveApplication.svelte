@@ -53,11 +53,11 @@
   const dispatch = createEventDispatcher()
   const client = getClient()
 
-  export function canClose (): boolean {
+  export function canClose(): boolean {
     return true
   }
 
-  async function updateApplication () {
+  async function updateApplication() {
     if (selectedState === undefined) {
       throw new Error(`Please select initial state:${_space}`)
     }
@@ -74,7 +74,7 @@
     dispatch('close')
   }
 
-  let states: Array<{ id: number | string, color: number, label: string }> = []
+  let states: Array<{ id: number | string; color: number; label: string }> = []
   let selectedState: TaskStatus | undefined
   let rawStates: TaskStatus[] = []
   const spaceQuery = createQuery()
@@ -106,7 +106,7 @@
   }
 
   let verticalContent: boolean = false
-  $: verticalContent = $deviceInfo.isMobile && $deviceInfo.isPortrait
+  $: verticalContent = $deviceInfo.isCompact && $deviceInfo.isPortrait
   let btn: HTMLButtonElement
 
   $: color = selectedState

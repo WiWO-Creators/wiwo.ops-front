@@ -2,7 +2,7 @@
   import platform, { OK, PlatformEvent, Severity, Status, addEventListener, getMetadata } from '@hcengineering/platform'
   import { onDestroy, onMount } from 'svelte'
   import type { AnyComponent, WidthType } from '../../types'
-  import { deviceSizes, deviceWidths } from '../../types'
+  import { deviceSizes, deviceWidths, getDeviceSize } from '../../types'
   // import { applicationShortcutKey } from '../../utils'
   import { Theme, themeStore } from '@hcengineering/theme'
   import {
@@ -25,23 +25,23 @@
 
   let application: AnyComponent | undefined
 
-  function updateAppFocused (isFocused: boolean): void {
+  function updateAppFocused(isFocused: boolean): void {
     const isFocusedCurrent = $isAppFocusedStore
     const isFocusedNew = isFocused && !document.hidden && document.hasFocus()
     if (isFocusedCurrent !== isFocusedNew) {
       isAppFocusedStore.set(isFocusedNew)
     }
   }
-  function visibilityChangeHandler (): void {
+  function visibilityChangeHandler(): void {
     updateAppFocused(!document.hidden)
   }
-  function handleWindowFocus (): void {
+  function handleWindowFocus(): void {
     updateAppFocused(true)
   }
-  function handleWindowBlur (): void {
+  function handleWindowBlur(): void {
     updateAppFocused(false)
   }
-  function handleWindowBeforeUnload (): void {
+  function handleWindowBeforeUnload(): void {
     // Many text inputs across the platform rely on the blur event to persist state,
     // but they don’t account for cases where the tab is forcefully closed, navigated away from, or destroyed.
     // Handling beforeunload for every input individually is impractical,
@@ -138,27 +138,31 @@
   let docWidth: number = window.innerWidth
   let docHeight: number = window.innerHeight
 
-  let isMobile: boolean
-  const alwaysMobile: boolean = false
-  $: isMobile = alwaysMobile || checkMobile()
-  // `isMobile` mira el user-agent, asi que no se entera de una ventana angosta y el iPad, que desde
-  // iPadOS 13 se anuncia como Macintosh, queda afuera. `isCompact` es la señal de layout: mismo
-  // modo compacto para el telefono y para cualquier pantalla de hasta 680px (breakpoint `sm`).
-  // Se calcula con `docWidth` y no con `$deviceInfo.size`: leer del mismo store al que despues se
-  // le escribe `isCompact` es un ciclo, y el compilador de Svelte lo rechaza.
+  const isMobile = checkMobile()
   const compactWidth = deviceWidths[deviceSizes.indexOf('sm')]
   let isCompact: boolean
-  $: isCompact = isMobile || docWidth <= compactWidth
+  $: isCompact = docWidth <= compactWidth
   let isPortrait: boolean
   $: isPortrait = docWidth <= docHeight
+
+  const coarsePointerQuery = window.matchMedia('(pointer: coarse)')
+  const hoverQuery = window.matchMedia('(hover: hover)')
+  let hasCoarsePointer = coarsePointerQuery.matches
+  let canHover = hoverQuery.matches
+
+  /** Sincroniza capacidades de entrada que pueden cambiar al conectar un mouse o teclado. */
+  const updateInputCapabilities = (): void => {
+    hasCoarsePointer = coarsePointerQuery.matches
+    canHover = hoverQuery.matches
+  }
 
   $: $deviceInfo.docWidth = docWidth
   $: $deviceInfo.docHeight = docHeight
   $: $deviceInfo.isPortrait = isPortrait
   $: $deviceInfo.isMobile = isMobile
   $: $deviceInfo.isCompact = isCompact
-  $: $deviceInfo.minWidth = docWidth <= 480
-  $: $deviceInfo.twoRows = docWidth <= 680
+  $: $deviceInfo.hasCoarsePointer = hasCoarsePointer
+  $: $deviceInfo.canHover = canHover
   $: $deviceInfo.language = $themeStore.language
   $: $deviceInfo.fontSize = $themeStore.fontSize
 
@@ -175,10 +179,14 @@
   }
   $: document.documentElement.style.setProperty('--keyboard-inset', `${keyboardInset}px`)
   onMount(() => {
+    coarsePointerQuery.addEventListener('change', updateInputCapabilities)
+    hoverQuery.addEventListener('change', updateInputCapabilities)
     viewport?.addEventListener('resize', updateKeyboardInset)
     viewport?.addEventListener('scroll', updateKeyboardInset)
     updateKeyboardInset()
     return () => {
+      coarsePointerQuery.removeEventListener('change', updateInputCapabilities)
+      hoverQuery.removeEventListener('change', updateInputCapabilities)
       viewport?.removeEventListener('resize', updateKeyboardInset)
       viewport?.removeEventListener('scroll', updateKeyboardInset)
     }
@@ -204,14 +212,9 @@
     else if (i === deviceSizes.length - 1) css[ds] = `(min-width: ${deviceWidths[i - 1]}.01px)`
     else css[ds] = `(min-width: ${deviceWidths[i - 1]}.01px) and (max-width: ${deviceWidths[i]}px)`
   })
-  const getSize = (width: number): WidthType => {
-    return deviceSizes[
-      deviceWidths.findIndex((it) => (it === -1 ? deviceWidths[deviceWidths.length - 2] < width : it > width))
-    ]
-  }
   const updateDeviceSize = () => {
     if (remove !== null) remove()
-    const size = getSize(docWidth)
+    const size = getDeviceSize(docWidth)
     const mqString = css[size]
     const media = matchMedia(mqString)
 
@@ -230,8 +233,7 @@
   updateDeviceSize()
 
   $: secondRow = checkAdaptiveMatching($deviceInfo.size, 'xs')
-  $: appsMini =
-    isCompact && ((isPortrait && docWidth <= 480) || (!isPortrait && docHeight <= 480))
+  $: appsMini = isCompact && ((isPortrait && docWidth <= 480) || (!isPortrait && docHeight <= 480))
 
   const weekInfoFirstDay: number = getLocalWeekStart()
   const savedFirstDayOfWeek = localStorage.getItem('firstDayOfWeek') ?? 'system'
@@ -248,7 +250,13 @@
 />
 
 <Theme>
-  <div id="ui-root" class:mobile-theme={isCompact} class:keyboard-open={keyboardInset > 0}>
+  <div
+    id="ui-root"
+    class:mobile-theme={isCompact}
+    class:coarse-pointer={hasCoarsePointer}
+    class:can-hover={canHover}
+    class:keyboard-open={keyboardInset > 0}
+  >
     <div class="antiStatusBar">
       <div class="flex-row-center h-full content-color gap-3 px-4">
         {#if desktopPlatform}
@@ -345,12 +353,13 @@
     display: flex;
     flex-direction: column;
     // height: 100vh;
-    height: calc(100% - var(--huly-top-indent, 0rem));
-    height: calc(100dvh - var(--huly-top-indent, 0rem));
+    height: calc(100% - var(--huly-top-indent, 0rem) - var(--keyboard-inset));
+    height: calc(100dvh - var(--huly-top-indent, 0rem) - var(--keyboard-inset));
     // height: var(--app-height);
     // Notch lateral en landscape.
     padding-left: var(--safe-left);
     padding-right: var(--safe-right);
+    padding-bottom: var(--safe-bottom);
 
     .antiStatusBar {
       -webkit-app-region: drag;
@@ -400,7 +409,9 @@
 
     .app {
       display: flex;
-      height: calc(100% - var(--status-bar-height));
+      flex: 1 1 auto;
+      min-width: 0;
+      min-height: 0;
 
       .error {
         margin-top: 45vh;

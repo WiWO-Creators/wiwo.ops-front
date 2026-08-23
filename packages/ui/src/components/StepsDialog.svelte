@@ -49,7 +49,7 @@
   let isStepValid = false
   let isSaving = false
 
-  async function handleStepSelect (index: number) {
+  async function handleStepSelect(index: number) {
     const newStepIndex = index < steps.length ? Math.max(0, index) : Math.max(0, steps.length - 1)
 
     if (newStepIndex > currentStepIndex) {
@@ -60,17 +60,17 @@
     isStepValid = false
   }
 
-  function handleComponentChange (ev: CustomEvent<{ isValid?: boolean }>) {
+  function handleComponentChange(ev: CustomEvent<{ isValid?: boolean }>) {
     isStepValid = !!ev.detail.isValid
   }
 
-  async function handleDone () {
+  async function handleDone() {
     await completeCurrentStep()
 
     dispatch('close')
   }
 
-  async function completeCurrentStep () {
+  async function completeCurrentStep() {
     if (!step?.done) {
       return
     }
@@ -124,8 +124,8 @@
       on:click={isDone
         ? handleDone
         : async () => {
-          await handleStepSelect(currentStepIndex + 1)
-        }}
+            await handleStepSelect(currentStepIndex + 1)
+          }}
     />
   </svelte:fragment>
 
@@ -162,8 +162,8 @@
               on:click={disabled || selected
                 ? undefined
                 : async () => {
-                  await handleStepSelect(index)
-                }}
+                    await handleStepSelect(index)
+                  }}
             >
               <Label label={step.name} />
             </li>
@@ -178,15 +178,15 @@
 
   {#if currentStepModel?.component}
     {@const { component, props } = currentStepModel}
-    {@const isMobile = $deviceInfo.isMobile}
+    {@const isCompact = $deviceInfo.isCompact}
 
     <Scroller>
       <div
         class="clear-mins flex-no-shrink"
-        class:popupPanel-body__mobile-content={isMobile}
-        class:popupPanel-body__main-content={!isMobile}
-        class:py-8={!isMobile}
-        class:max={!isMobile && useMaxWidth}
+        class:popupPanel-body__mobile-content={isCompact}
+        class:popupPanel-body__main-content={!isCompact}
+        class:py-8={!isCompact}
+        class:max={!isCompact && useMaxWidth}
       >
         {#if typeof component === 'string'}
           <Component bind:innerRef={step} is={component} {props} on:change={handleComponentChange} />

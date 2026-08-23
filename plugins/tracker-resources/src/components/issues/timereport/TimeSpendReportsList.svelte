@@ -36,7 +36,7 @@
 
   const toProjectId = (ref: Ref<Space>) => ref as Ref<Project>
 
-  function editSpendReport (
+  function editSpendReport(
     event: MouseEvent,
     value: TimeSpendReport,
     defaultTimeReportDay: TimeReportDayType | undefined
@@ -54,7 +54,7 @@
       $deviceInfo.isCompact ? 'top' : eventToHTMLElement(event)
     )
   }
-  $: twoRows = $deviceInfo.twoRows
+  $: twoRows = $deviceInfo.docWidth <= 680
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->

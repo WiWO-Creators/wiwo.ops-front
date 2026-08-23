@@ -313,7 +313,7 @@ export * from './resize'
 export * from './lazy'
 export * from './stores'
 
-export function createApp (target: HTMLElement): SvelteComponent {
+export function createApp(target: HTMLElement): SvelteComponent {
   return new Root({ target })
 }
 
@@ -337,12 +337,12 @@ export const deviceOptionsStore = writable<DeviceOptions>({
   isPortrait: false,
   isMobile: false,
   isCompact: false,
+  hasCoarsePointer: false,
+  canHover: true,
   navigator: { visible: true, float: false, direction: 'vertical' },
   fontSize: 0,
   size: null,
   sizes: { xs: false, sm: false, md: false, lg: false, xl: false, xxl: false },
-  minWidth: false,
-  twoRows: false,
   firstDayOfWeek: 1
 })
 

@@ -12,6 +12,7 @@ const config: PlaywrightTestConfig = {
     { name: 'setup', testMatch: /.*\.setup\.ts/ },
     {
       name: 'Platform',
+      testIgnore: /responsive\.spec\.ts/,
       use: {
         testIdAttribute: 'data-id',
         permissions: ['clipboard-read', 'clipboard-write'],
@@ -30,6 +31,49 @@ const config: PlaywrightTestConfig = {
         contextOptions: {
           reducedMotion: 'reduce'
         }
+      },
+      fullyParallel: false,
+      dependencies: ['setup']
+    },
+    {
+      name: 'Responsive Android',
+      testMatch: /responsive\.spec\.ts/,
+      use: {
+        ...devices['Pixel 7'],
+        testIdAttribute: 'data-id',
+        permissions: ['clipboard-read', 'clipboard-write'],
+        screenshot: 'only-on-failure',
+        viewport: { width: 390, height: 844 },
+        trace: 'retain-on-failure',
+        contextOptions: { reducedMotion: 'reduce' }
+      },
+      fullyParallel: false,
+      dependencies: ['setup']
+    },
+    {
+      name: 'Responsive iPhone',
+      testMatch: /responsive\.spec\.ts/,
+      use: {
+        ...devices['iPhone 13'],
+        testIdAttribute: 'data-id',
+        screenshot: 'only-on-failure',
+        viewport: { width: 390, height: 844 },
+        trace: 'retain-on-failure',
+        contextOptions: { reducedMotion: 'reduce' }
+      },
+      fullyParallel: false,
+      dependencies: ['setup']
+    },
+    {
+      name: 'Responsive iPad',
+      testMatch: /responsive\.spec\.ts/,
+      use: {
+        ...devices['iPad Pro 11'],
+        testIdAttribute: 'data-id',
+        screenshot: 'only-on-failure',
+        viewport: { width: 768, height: 1024 },
+        trace: 'retain-on-failure',
+        contextOptions: { reducedMotion: 'reduce' }
       },
       fullyParallel: false,
       dependencies: ['setup']

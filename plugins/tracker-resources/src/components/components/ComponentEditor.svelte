@@ -87,7 +87,7 @@
       : 'space' in value
         ? value.space
         : undefined)
-  $: twoRows = $deviceInfo.twoRows
+  $: twoRows = $deviceInfo.docWidth <= 680
 
   let rulesQuery: RuleApplyResult<Component> | undefined
   let query: DocumentQuery<Component>

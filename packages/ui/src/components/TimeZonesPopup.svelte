@@ -81,7 +81,7 @@
     <EditWithIcon
       icon={IconSearch}
       size={'large'}
-      autoFocus={!$deviceOptionsStore.isMobile}
+      autoFocus={!$deviceOptionsStore.hasCoarsePointer}
       bind:value={search}
       placeholder={ui.string.SearchDots}
     />

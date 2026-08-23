@@ -24,7 +24,7 @@
   export let issues: Issue[]
 
   const listProvider = new ListSelectionProvider(() => {})
-  $: twoRows = $deviceInfo.twoRows
+  $: twoRows = $deviceInfo.docWidth <= 680
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->

@@ -102,17 +102,17 @@
 
   $: hasSelected = value.some((v) => v.isSelected)
 
-  function openIssue (target: Ref<Issue>): void {
+  function openIssue(target: Ref<Issue>): void {
     subIssueListProvider(subIssues, target)
     showPanel(tracker.component.EditIssue, target, tracker.class.Issue, 'content')
   }
 
-  function sendSelect (id: SelectPopupValueType['id']): void {
+  function sendSelect(id: SelectPopupValueType['id']): void {
     selected = id
     openIssue(id as Ref<Issue>)
   }
 
-  export function onKeydown (key: KeyboardEvent): boolean {
+  export function onKeydown(key: KeyboardEvent): boolean {
     if (key.code === 'Tab') {
       dispatch('close')
       key.preventDefault()
@@ -169,7 +169,7 @@
         icon={IconSearch}
         size={'large'}
         width={'100%'}
-        autoFocus={!$deviceOptionsStore.isMobile}
+        autoFocus={!$deviceOptionsStore.hasCoarsePointer}
         bind:value={search}
         {placeholder}
         {placeholderParam}

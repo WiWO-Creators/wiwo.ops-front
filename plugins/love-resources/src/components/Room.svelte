@@ -58,7 +58,7 @@
     roomEl.removeEventListener('fullscreenchange', handleFullScreen)
   })
 
-  function updateStyle (count: number, screenSharing: boolean): void {
+  function updateStyle(count: number, screenSharing: boolean): void {
     columns = screenSharing ? 1 : Math.min(Math.ceil(Math.sqrt(count)), 8)
     rows = Math.ceil(count / columns)
     gridStyle = `grid-template-columns: repeat(${columns}, 1fr); aspect-ratio: ${columns * 1280}/${rows * 720};`
@@ -66,7 +66,7 @@
 
   const handleFullScreen = () => ($isFullScreen = document.fullscreenElement != null)
 
-  function checkFullscreen (): void {
+  function checkFullscreen(): void {
     const needFullScreen = $isFullScreen
     if (document.fullscreenElement && !needFullScreen) {
       document
@@ -91,7 +91,7 @@
     }
   }
 
-  function onFullScreen (): void {
+  function onFullScreen(): void {
     const needFullScreen = !$isFullScreen
     if (!document.fullscreenElement && needFullScreen && roomEl != null) {
       roomEl
@@ -134,7 +134,7 @@
     class:sharing={withScreenSharing}
     class:many={columns > 3}
     class:hidden={loading}
-    class:mobile={$deviceInfo.isMobile}
+    class:mobile={$deviceInfo.isCompact}
   >
     <div class="screenContainer">
       <ScreenSharingView bind:hasActiveTrack={withScreenSharing} />

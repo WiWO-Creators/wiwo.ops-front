@@ -88,7 +88,7 @@
 
   $: _space = space ?? (!Array.isArray(value) ? value.space : { $in: Array.from(new Set(value.map((it) => it.space))) })
 
-  $: twoRows = $deviceInfo.twoRows
+  $: twoRows = $deviceInfo.docWidth <= 680
   afterUpdate(() => dispatch('resize', element?.clientWidth))
 </script>
 

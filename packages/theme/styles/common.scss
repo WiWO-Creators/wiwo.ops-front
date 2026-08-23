@@ -138,18 +138,16 @@
     height: 100%;
     border-right: 1px solid var(--theme-navpanel-divider);
   }
-  // La clase que emite Workbench.svelte es `horizontal`; con el typo original esta regla no
-  // aplicaba a nada y la barra de apps de abajo se quedaba sin alto propio.
+  // En shells compactos la barra de apps ocupa una fila fija superior.
   &.horizontal {
-    min-height: calc(var(--app-panel-width) + var(--safe-bottom));
-    height: calc(var(--app-panel-width) + var(--safe-bottom));
+    min-height: var(--app-panel-width);
+    height: var(--app-panel-width);
     width: 100%;
-    padding-bottom: var(--safe-bottom);
-    border-top: 1px solid var(--theme-navpanel-divider);
+    border-bottom: 1px solid var(--theme-navpanel-divider);
   }
   &.lastDivider { border-color: var(--theme-navpanel-border); }
 }
-// Con el teclado virtual abierto la barra de apps quedaria flotando en el medio de la pantalla.
+// Con el teclado virtual abierto se prioriza el espacio util del editor.
 #ui-root.keyboard-open .antiPanel-application.horizontal { display: none; }
 
 .normal-font .antiPanel-application .app .icon-container.noty { clip-path: url(#notify-normal); }
@@ -181,8 +179,8 @@
 
     &:not(.inner) {
       position: fixed;
-      top: calc(var(--status-bar-height) + 3.5rem + 1px);
-      height: calc(100% - var(--status-bar-height) - 3.5rem - 2px);
+      top: calc(var(--status-bar-height) + var(--safe-top) + 3.5rem + 1px);
+      height: calc(100% - var(--status-bar-height) - var(--safe-top) - var(--safe-bottom) - 3.5rem - 2px);
       border-left: 1px solid var(--theme-divider-color);
 
       &.portrait { left: 0; }
@@ -199,8 +197,8 @@
 
   &.fly:not(.second) {
     position: fixed;
-    top: calc(var(--status-bar-height) + 1px);
-    height: calc(100% - var(--status-bar-height) - 2px);
+    top: calc(var(--status-bar-height) + var(--safe-top) + 1px);
+    height: calc(100% - var(--status-bar-height) - var(--safe-top) - var(--safe-bottom) - 2px);
     background-color: var(--theme-navpanel-color);
     z-index: 450;
     filter: drop-shadow(2px 0 5px rgba(0, 0, 0, .2));
@@ -210,8 +208,13 @@
   }
 }
 
+.apps-horizontal .antiPanel-navigator.fly:not(.second) {
+  top: calc(var(--status-bar-height) + var(--safe-top) + var(--app-panel-width));
+  height: calc(100% - var(--status-bar-height) - var(--safe-top) - var(--safe-bottom) - var(--app-panel-width));
+}
+
 @media (max-width: 480px) {
-  .mobile-theme {
+  #ui-root {
     .mobile-wrapper,
     .antiPanel-navigator {
       overflow: hidden;
@@ -219,8 +222,8 @@
       border-radius: var(--medium-BorderRadius);
     }
     .antiPanel-navigator {
-      top: var(--status-bar-height);
-      height: calc(100% - var(--status-bar-height) - var(--app-panel-width));
+      top: calc(var(--status-bar-height) + var(--safe-top) + var(--app-panel-width));
+      height: calc(100% - var(--status-bar-height) - var(--safe-top) - var(--safe-bottom) - var(--app-panel-width));
 
       .antiSeparator { display: none; }
       &.fly {
@@ -228,11 +231,12 @@
         filter: var(--theme-navpanel-shadow-mobile);
       }
       &.second.float.fly {
-        height: calc(100% - var(--status-bar-height) - var(--app-panel-width) - 3.5rem);
+        top: calc(var(--status-bar-height) + var(--safe-top) + var(--app-panel-width) + 3.5rem);
+        height: calc(100% - var(--status-bar-height) - var(--safe-top) - var(--safe-bottom) - var(--app-panel-width) - 3.5rem);
       }
       &.fly:not(.second) {
-        top: var(--status-bar-height);
-        height: calc(100% - var(--status-bar-height) - var(--app-panel-width));
+        top: calc(var(--status-bar-height) + var(--safe-top) + var(--app-panel-width));
+        height: calc(100% - var(--status-bar-height) - var(--safe-top) - var(--safe-bottom) - var(--app-panel-width));
       }
     }
   }

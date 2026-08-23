@@ -20,20 +20,17 @@
   import inventory from '../plugin'
   import CreateCategory from './CreateCategory.svelte'
   import HierarchyView from './HierarchyView.svelte'
-  // import { deviceOptionsStore as deviceInfo } from '@hcengineering/ui'
 
   let search = ''
   let resultQuery: DocumentQuery<Category> = {}
 
-  function updateResultQuery (search: string): void {
+  function updateResultQuery(search: string): void {
     resultQuery = search === '' ? {} : { $search: search }
   }
 
-  function showCreateDialog () {
+  function showCreateDialog() {
     showPopup(CreateCategory, { space: core.space.Workspace }, 'top')
   }
-
-  // $: twoRows = $deviceInfo.twoRows
 </script>
 
 <Header adaptive={'disabled'}>

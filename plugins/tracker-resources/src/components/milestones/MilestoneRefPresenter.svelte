@@ -38,7 +38,7 @@
     ;[milestone] = res
   })
 
-  $: twoRows = $deviceInfo.twoRows
+  $: twoRows = $deviceInfo.docWidth <= 680
 
   const dispatch = createEventDispatcher()
   // El color elegido a mano manda; si no hay, se deriva del nombre para que cada hito se
