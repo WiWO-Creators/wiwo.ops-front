@@ -1,5 +1,7 @@
 # UI Sanity testing using play-wright
 
+Spanish guide: [Local Docker review environment](./local-docker.es.md).
+
 ## Prepare environment with docker to test final product.
 
 ```bash
