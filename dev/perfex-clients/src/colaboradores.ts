@@ -26,8 +26,8 @@ import tracker, { type Issue, type Project } from '@hcengineering/tracker'
 import { cargarCuentas } from './permisos'
 import { COMPLETED_TASK_STATUS } from './tareas'
 
-/** Documentos por tanda al escribir, igual que en el resto de la migración. */
-const UPDATE_BATCH = 25
+/** Máximo de escrituras simultáneas para no saturar los side-effects del transactor. */
+const UPDATE_BATCH = 5
 /** Ids por consulta al preguntarle a Huly por documentos ya existentes. */
 const QUERY_BATCH = 500
 

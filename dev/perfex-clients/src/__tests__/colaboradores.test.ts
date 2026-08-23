@@ -1,6 +1,9 @@
-import { type PerfexFollower, type PerfexTask } from '@hcengineering/perfex'
+import contact from '@hcengineering/contact'
+import core from '@hcengineering/core'
+import { type PerfexFollower, type PerfexReader, type PerfexTask } from '@hcengineering/perfex'
+import tracker from '@hcengineering/tracker'
 
-import { planificarColaboradores } from '../colaboradores'
+import { importColaboradores, planificarColaboradores } from '../colaboradores'
 import { buildIssueDescription } from '../proyectos'
 
 function tarea (id: number, status: number, assignees: number[]): PerfexTask {
@@ -81,6 +84,56 @@ describe('planificarColaboradores', () => {
 
   it('no devuelve nada cuando no hay tareas ni seguidores', () => {
     expect(planificarColaboradores([], [], abiertas)).toEqual([])
+  })
+})
+
+describe('importColaboradores', () => {
+  it('nunca ejecuta más de cinco escrituras simultáneas', async () => {
+    const tasks = Array.from({ length: 12 }, (_, index) => tarea(index + 1, 2, [1]))
+    const followers = tasks.map((task, index) => seguidor(task.id, index + 100))
+    const employees = followers.map(({ staffid }) => ({
+      _id: `person-${staffid}`,
+      personUuid: `account-${staffid}`,
+      name: `Persona ${staffid}`
+    }))
+    const socialIdentities = followers.map(({ staffid }) => ({
+      attachedTo: `person-${staffid}`,
+      value: `persona-${staffid}@wiwo.me`
+    }))
+    const issues = tasks.map(({ id }) => ({ _id: `issue-${id}`, space: 'project', perfexId: id }))
+    const findAll = jest.fn(async (classRef: string) => {
+      if (classRef === contact.mixin.Employee) return employees
+      if (classRef === contact.class.SocialIdentity) return socialIdentities
+      if (classRef === tracker.class.Issue) return issues
+      if (classRef === core.class.Collaborator) return []
+      return []
+    })
+    let activeWrites = 0
+    let maximumActiveWrites = 0
+    const addCollection = jest.fn(async () => {
+      activeWrites++
+      maximumActiveWrites = Math.max(maximumActiveWrites, activeWrites)
+      await new Promise<void>((resolve) => setImmediate(resolve))
+      activeWrites--
+    })
+    const perfex = {
+      getTasks: jest.fn().mockResolvedValue(tasks),
+      getFollowers: jest.fn().mockResolvedValue(followers),
+      getStaff: jest.fn().mockResolvedValue(
+        followers.map(({ staffid }) => ({ staffid, email: `persona-${staffid}@wiwo.me` }))
+      )
+    }
+    const client = { findAll, addCollection }
+
+    await importColaboradores(
+      client as never,
+      perfex as unknown as PerfexReader,
+      { log: jest.fn(), error: jest.fn() },
+      { dryRun: false, includeClosedTasks: false }
+    )
+
+    expect(addCollection).toHaveBeenCalledTimes(12)
+    expect(maximumActiveWrites).toBe(5)
   })
 })
 
