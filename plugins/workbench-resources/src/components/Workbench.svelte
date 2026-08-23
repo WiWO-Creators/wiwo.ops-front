@@ -53,8 +53,6 @@
     CompAndProps,
     Component,
     defineSeparators,
-    checkAdaptiveMatching,
-    type DeviceOptions,
     deviceOptionsStore as deviceInfo,
     Dock,
     getCurrentLocation,
@@ -140,8 +138,8 @@
   } from '../workbench'
   import { get } from 'svelte/store'
 
-  // Ancho del contenedor del workbench, no del viewport: no es un breakpoint de dispositivo.
-  const HIDE_NAVIGATOR = 720
+  // Tablet y menores usan barra superior y drawers; el contenido conserva todo el ancho útil.
+  const FLOAT_NAVIGATION = 1024
   let contentPanel: HTMLElement
 
   const { setTheme } = getContext<{ setTheme: (theme: string) => void }>('theme')
@@ -176,23 +174,13 @@
 
   const linkProviders = client.getModel().findAllSync(view.mixin.LinkIdProvider, {})
 
-  /**
-   * Pantalla compacta y angosta a la vez: ahi el navigator y el aside no pueden convivir.
-   *
-   * Es una funcion y no un `$:`: como declaracion reactiva entra en el ciclo que el compilador de
-   * Svelte rechaza —depende de `$deviceInfo` y los bloques que la leen le escriben al mismo store—,
-   * y como `const` se evaluaba una sola vez y no se enteraba de rotar el telefono.
-   */
-  function isMobileAdaptive (device: DeviceOptions): boolean {
-    return device.isCompact && device.minWidth
-  }
   const defaultNavigator = !(getMetadata(workbench.metadata.NavigationExpandedDefault) ?? true)
   const savedNavigator = localStorage.getItem('hiddenNavigator')
   let hiddenNavigator: boolean = savedNavigator !== null ? savedNavigator === 'true' : defaultNavigator
   let hiddenAside: boolean = true
   $deviceInfo.navigator.visible = !hiddenNavigator
 
-  async function toggleNav (): Promise<void> {
+  async function toggleNav(): Promise<void> {
     $deviceInfo.navigator.visible = !$deviceInfo.navigator.visible
     if (!$deviceInfo.navigator.float) {
       hiddenNavigator = !$deviceInfo.navigator.visible
@@ -230,7 +218,7 @@
     }
   )
 
-  async function initCurrentTab (tabs: WorkbenchTab[]): Promise<void> {
+  async function initCurrentTab(tabs: WorkbenchTab[]): Promise<void> {
     const tab = tabs.find((t) => t._id === $tabIdStore)
     const loc = getCurrentLocation()
     const tabLoc = tab ? getTabLocation(tab) : undefined
@@ -353,7 +341,7 @@
 
   let windowWorkspaceName = ''
 
-  async function updateWindowTitle (loc: Location): Promise<void> {
+  async function updateWindowTitle(loc: Location): Promise<void> {
     let wsUrl = loc.path[1]
     const ws = $workspacesStore.find((it) => it.url === wsUrl)
     if (ws !== undefined) {
@@ -370,7 +358,7 @@
     void broadcastEvent(workbench.event.NotifyTitle, document.title)
   }
 
-  async function getWindowTitle (loc: Location): Promise<string | undefined> {
+  async function getWindowTitle(loc: Location): Promise<string | undefined> {
     if (loc.fragment == null) return
     const hierarchy = client.getHierarchy()
     const [, id, _class] = decodeURIComponent(loc.fragment).split('|')
@@ -387,7 +375,7 @@
     }
   }
 
-  async function resolveShortLink (loc: Location): Promise<ResolvedLocation | undefined> {
+  async function resolveShortLink(loc: Location): Promise<ResolvedLocation | undefined> {
     let locationResolver = currentApplication?.locationResolver
     if (loc.path[2] != null && loc.path[2].trim().length > 0) {
       const app = apps.find((p) => p.alias === loc.path[2])
@@ -401,7 +389,7 @@
     }
   }
 
-  function mergeLoc (loc: Location, resolved: ResolvedLocation): Location {
+  function mergeLoc(loc: Location, resolved: ResolvedLocation): Location {
     const resolvedApp = resolved.loc.path[2]
     const resolvedSpace = resolved.loc.path[3]
     const resolvedSpecial = resolved.loc.path[4]
@@ -456,7 +444,7 @@
     return loc
   }
 
-  async function syncLoc (loc: Location): Promise<void> {
+  async function syncLoc(loc: Location): Promise<void> {
     accessDeniedStore.set(false)
     const originalLoc = JSON.stringify(loc)
     if ($tabIdStore !== $prevTabIdStore) {
@@ -569,7 +557,7 @@
     }
   }
 
-  async function setOpenPanelFocus (fragment: string): Promise<void> {
+  async function setOpenPanelFocus(fragment: string): Promise<void> {
     const props = decodeURIComponent(fragment).split('|')
 
     if (props.length >= 3) {
@@ -600,7 +588,7 @@
       closePanel(false)
     }
   }
-  let panelDoc: undefined | { _id: Ref<Doc>, _class: Ref<Class<Doc>> } = undefined
+  let panelDoc: undefined | { _id: Ref<Doc>; _class: Ref<Class<Doc>> } = undefined
   const panelQuery = createQuery()
 
   $: if (panelDoc !== undefined) {
@@ -612,7 +600,7 @@
     })
   }
 
-  function clear (level: number): void {
+  function clear(level: number): void {
     switch (level) {
       case 1:
         currentAppAlias = undefined
@@ -634,7 +622,7 @@
     }
   }
 
-  async function updateSpace (spaceId?: Ref<Space>): Promise<void> {
+  async function updateSpace(spaceId?: Ref<Space>): Promise<void> {
     if (spaceId === currentSpace) return
     clear(2)
     currentSpace = spaceId
@@ -648,7 +636,7 @@
     createItemLabel = currentView?.createItemLabel
   }
 
-  function setSpaceSpecial (spaceSpecial: string | undefined): void {
+  function setSpaceSpecial(spaceSpecial: string | undefined): void {
     if (currentSpecial !== undefined && spaceSpecial === currentSpecial) return
     clear(3)
     if (spaceSpecial === undefined) return
@@ -658,7 +646,7 @@
     }
   }
 
-  function getSpecialComponent (id: string): SpecialNavModel | undefined {
+  function getSpecialComponent(id: string): SpecialNavModel | undefined {
     const sp = navigatorModel?.specials?.find((x) => x.id === id)
     if (sp !== undefined) {
       if (sp.accessLevel !== undefined && !hasAccountRole(account, sp.accessLevel)) {
@@ -682,26 +670,28 @@
 
   let cover: HTMLElement
   let workbenchWidth: number = $deviceInfo.docWidth
+  let shellWidth: number = $deviceInfo.docWidth
 
-  $deviceInfo.navigator.float = workbenchWidth <= HIDE_NAVIGATOR
-  const checkWorkbenchWidth = (): void => {
-    if (workbenchWidth <= HIDE_NAVIGATOR && !$deviceInfo.navigator.float) {
+  /** Ajusta drawers al ancho real del shell sin depender del user-agent ni del viewport global. */
+  const updateShellLayout = (): void => {
+    if (shellWidth <= FLOAT_NAVIGATION && !$deviceInfo.navigator.float) {
       $deviceInfo.navigator.visible = false
       $deviceInfo.navigator.float = true
-    } else if (workbenchWidth > HIDE_NAVIGATOR && $deviceInfo.navigator.float) {
+    } else if (shellWidth > FLOAT_NAVIGATION && $deviceInfo.navigator.float) {
       $deviceInfo.navigator.float = false
       $deviceInfo.navigator.visible = !hiddenNavigator
     }
+
+    if (shellWidth <= FLOAT_NAVIGATION && !$sidebarStore.float) {
+      hiddenAside = $sidebarStore.variant === SidebarVariant.MINI
+      $sidebarStore.float = true
+    } else if (shellWidth > FLOAT_NAVIGATION && $sidebarStore.float) {
+      $sidebarStore.float = false
+      $sidebarStore.variant = hiddenAside ? SidebarVariant.MINI : SidebarVariant.EXPANDED
+    }
   }
-  checkWorkbenchWidth()
-  // El aside flota de `lg` para abajo (1024px), el mismo corte que usa el resto del layout.
-  $: if (checkAdaptiveMatching($deviceInfo.size, 'lg') && !$sidebarStore.float) {
-    hiddenAside = $sidebarStore.variant === SidebarVariant.MINI
-    $sidebarStore.float = true
-  } else if (!checkAdaptiveMatching($deviceInfo.size, 'lg') && $sidebarStore.float) {
-    $sidebarStore.float = false
-    $sidebarStore.variant = hiddenAside ? SidebarVariant.MINI : SidebarVariant.EXPANDED
-  }
+  updateShellLayout()
+
   const checkOnHide = (): void => {
     if ($deviceInfo.navigator.visible && $deviceInfo.navigator.float) $deviceInfo.navigator.visible = false
   }
@@ -711,7 +701,7 @@
     oldNavVisible !== $deviceInfo.navigator.visible ||
     oldASideVisible !== ($sidebarStore.variant !== SidebarVariant.MINI)
   ) {
-    if (isMobileAdaptive($deviceInfo) && $deviceInfo.navigator.float) {
+    if ($deviceInfo.navigator.float && $sidebarStore.float) {
       if ($deviceInfo.navigator.visible && $sidebarStore.variant !== SidebarVariant.MINI) {
         if (oldNavVisible) $deviceInfo.navigator.visible = false
         else $sidebarStore.variant = SidebarVariant.MINI
@@ -729,11 +719,13 @@
     $sidebarStore.widget = Array.from($sidebarStore.widgetsState.keys())[0]
   }
   location.subscribe(() => {
-    if (isMobileAdaptive(get(deviceInfo)) && $sidebarStore.variant !== SidebarVariant.MINI) {
+    const device = get(deviceInfo)
+    const sidebar = get(sidebarStore)
+    if (device.navigator.float && sidebar.float && sidebar.variant !== SidebarVariant.MINI) {
       $sidebarStore.variant = SidebarVariant.MINI
     }
   })
-  $: $deviceInfo.navigator.direction = $deviceInfo.isCompact && $deviceInfo.isPortrait ? 'horizontal' : 'vertical'
+  $: $deviceInfo.navigator.direction = shellWidth <= FLOAT_NAVIGATION ? 'horizontal' : 'vertical'
   let appsMini: boolean
   $: appsMini =
     $deviceInfo.isCompact &&
@@ -753,11 +745,26 @@
       ? 'logo-portrait'
       : 'logo'
 
+  /** Cierra ambos drawers flotantes y devuelve si había alguno abierto. */
+  function closeFloatingPanels(): boolean {
+    const navigatorOpen = $deviceInfo.navigator.float && $deviceInfo.navigator.visible
+    const sidebarOpen = $sidebarStore.float && $sidebarStore.variant !== SidebarVariant.MINI
+    if (navigatorOpen) $deviceInfo.navigator.visible = false
+    if (sidebarOpen) $sidebarStore.variant = SidebarVariant.MINI
+    return navigatorOpen || sidebarOpen
+  }
+
+  /** Permite cerrar drawers con teclado sin interceptar Escape consumido por popups. */
+  function handleFloatingPanelsKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Escape' || event.defaultPrevented) return
+    if (closeFloatingPanels()) event.preventDefault()
+  }
+
   onMount(() => {
     subscribeMobile(setTheme)
   })
 
-  function checkInbox (popups: CompAndProps[]) {
+  function checkInbox(popups: CompAndProps[]) {
     if (inboxPopup !== undefined) {
       const exists = popups.find((p) => p.id === inboxPopup?.id)
       if (!exists) {
@@ -767,7 +774,7 @@
   }
 
   let supportStatus: SupportStatus | undefined = undefined
-  function handleSupportStatusChanged (status: SupportStatus) {
+  function handleSupportStatusChanged(status: SupportStatus) {
     supportStatus = status
   }
 
@@ -784,7 +791,7 @@
   })
 
   let supportWidgetLoading = false
-  async function handleToggleSupportWidget (): Promise<void> {
+  async function handleToggleSupportWidget(): Promise<void> {
     const timer = setTimeout(() => {
       supportWidgetLoading = true
     }, 100)
@@ -841,7 +848,7 @@
       ? !client.getHierarchy().as($myEmployeeStore, contact.mixin.Employee).active
       : false
 
-  function isExcludedApp (alias: string): boolean {
+  function isExcludedApp(alias: string): boolean {
     const me = getCurrentAccount()
 
     if (me.role === AccountRole.ReadOnlyGuest || me.role === AccountRole.Guest) {
@@ -851,6 +858,8 @@
     }
   }
 </script>
+
+<svelte:window on:keydown={handleFloatingPanelsKeydown} />
 
 <GuidedTour />
 
@@ -881,7 +890,13 @@
       <path d="M15.8,17.5h1.8v-0.4C17,17.4,16.4,17.5,15.8,17.5z" />
     </clipPath>
   </svg>
-  <div class="workbench-container apps-{$deviceInfo.navigator.direction}">
+  <div
+    class="workbench-container apps-{$deviceInfo.navigator.direction}"
+    use:resizeObserver={(element) => {
+      shellWidth = element.clientWidth
+      updateShellLayout()
+    }}
+  >
     <div
       class="antiPanel-application {$deviceInfo.navigator.direction} no-print"
       class:lastDivider={!$deviceInfo.navigator.visible}
@@ -1019,13 +1034,12 @@
         class:rounded={$sidebarStore.variant === SidebarVariant.EXPANDED}
         use:resizeObserver={(element) => {
           workbenchWidth = element.clientWidth
-          checkWorkbenchWidth()
         }}
       >
         <!-- svelte-ignore a11y-click-events-have-key-events -->
         <!-- svelte-ignore a11y-no-static-element-interactions -->
-        {#if $deviceInfo.navigator.float && $deviceInfo.navigator.visible}
-          <div class="cover shown" on:click={() => ($deviceInfo.navigator.visible = false)} />
+        {#if ($deviceInfo.navigator.float && $deviceInfo.navigator.visible) || ($sidebarStore.float && $sidebarStore.variant !== SidebarVariant.MINI)}
+          <div class="cover shown" on:click={closeFloatingPanels} />
         {/if}
         {#if mainNavigator}
           <div
@@ -1074,7 +1088,7 @@
                 {/if}
               </NavFooter>
             </div>
-            {#if !($deviceInfo.isCompact && $deviceInfo.isPortrait && $deviceInfo.minWidth)}
+            {#if !($deviceInfo.isPortrait && $deviceInfo.docWidth <= 480)}
               <Separator
                 name={'workbench'}
                 float={$deviceInfo.navigator.float ? 'navigator' : true}
@@ -1097,7 +1111,7 @@
           class={navigatorModel === undefined ? 'hulyPanels-container' : 'hulyComponent overflow-hidden'}
           class:straighteningCorners={$sidebarStore.float &&
             $sidebarStore.variant === SidebarVariant.EXPANDED &&
-            !(isMobileAdaptive($deviceInfo) && $deviceInfo.isPortrait)}
+            !($deviceInfo.navigator.float && $sidebarStore.float)}
           data-id={'contentPanel'}
         >
           {#if currentApplication && currentApplication.component}
@@ -1183,7 +1197,7 @@
     touch-action: none;
 
     &.apps-horizontal {
-      flex-direction: column-reverse;
+      flex-direction: column;
     }
     &.inner {
       background-color: var(--theme-navpanel-color);
@@ -1204,8 +1218,8 @@
       pointer-events: none;
     }
     .antiPanel-application.horizontal {
-      border-radius: 0 0 var(--medium-BorderRadius) var(--medium-BorderRadius);
-      border-top: none;
+      border-radius: var(--medium-BorderRadius) var(--medium-BorderRadius) 0 0;
+      border-bottom: none;
     }
     .antiPanel-application:not(.horizontal) {
       border-radius: var(--medium-BorderRadius) 0 0 var(--medium-BorderRadius);
@@ -1252,22 +1266,31 @@
     }
     .logo-container.mini,
     .topmenu-container.mini {
-      position: fixed;
-      top: 4px;
-    }
-    .logo-container.mini {
-      left: 4px;
       width: 1.75rem;
       height: 1.75rem;
     }
-    .topmenu-container.mini {
-      left: calc(1.75rem + 8px);
+
+    :global(.coarse-pointer) & .logo-container,
+    :global(.coarse-pointer) & .topmenu-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-width: 2.75rem;
+      min-height: 2.75rem;
     }
   }
 
   .info-box {
     display: flex;
     align-items: center;
+
+    :global(.coarse-pointer) & #profile-button {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-width: 2.75rem;
+      min-height: 2.75rem;
+    }
 
     &.vertical {
       flex-direction: column;
@@ -1332,6 +1355,7 @@
 
     &.shown {
       display: block;
+      background-color: var(--theme-overlay-color);
     }
   }
 

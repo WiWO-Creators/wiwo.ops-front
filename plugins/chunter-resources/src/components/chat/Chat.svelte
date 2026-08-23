@@ -53,7 +53,7 @@
 
   const linkProviders = client.getModel().findAllSync(view.mixin.LinkIdProvider, {})
 
-  let selectedData: { id: string, _class: Ref<Class<Doc>> } | undefined = undefined
+  let selectedData: { id: string; _class: Ref<Class<Doc>> } | undefined = undefined
 
   let currentSpecial: SpecialNavModel | undefined
 
@@ -70,7 +70,7 @@
 
   $: void loadObject(selectedData?.id, selectedData?._class)
 
-  async function loadObject (id?: string, _class?: Ref<Class<Doc>>): Promise<void> {
+  async function loadObject(id?: string, _class?: Ref<Class<Doc>>): Promise<void> {
     if (id == null || _class == null || _class === '') {
       object = undefined
       objectQuery.unsubscribe()
@@ -95,7 +95,7 @@
     )
   }
 
-  function syncLocation (loc: Location): void {
+  function syncLocation(loc: Location): void {
     if (loc.path[2] !== chunterId) {
       return
     }
@@ -131,7 +131,7 @@
     }
   }
 
-  async function handleChannelSelected (event: CustomEvent): Promise<void> {
+  async function handleChannelSelected(event: CustomEvent): Promise<void> {
     if (event.detail === null) {
       selectedData = undefined
       return
@@ -176,7 +176,7 @@
       <div class="antiPanel-wrap__content hulyNavPanel-container">
         <ChatNavigator {object} {currentSpecial} on:select={handleChannelSelected} />
       </div>
-      {#if !($deviceInfo.isCompact && $deviceInfo.isPortrait && $deviceInfo.minWidth)}
+      {#if !($deviceInfo.isPortrait && $deviceInfo.docWidth <= 480)}
         <Separator name="chat" float={$deviceInfo.navigator.float ? 'navigator' : true} index={0} />
       {/if}
     </div>

@@ -110,11 +110,11 @@
   const hierarchy = client.getHierarchy()
   fillDefaults(hierarchy, doc, recruit.class.Applicant)
 
-  export function canClose (): boolean {
+  export function canClose(): boolean {
     return (preserveCandidate || _candidate === undefined) && assignee === undefined
   }
 
-  async function createApplication (): Promise<void> {
+  async function createApplication(): Promise<void> {
     if (selectedState === undefined) {
       throw new Error(`Please select initial state:${_space}`)
     }
@@ -180,14 +180,14 @@
     })
   }
 
-  async function invokeValidate (
+  async function invokeValidate(
     action: Resource<<T extends Doc>(doc: T, client: Client) => Promise<Status>>
   ): Promise<Status> {
     const impl = await getResource(action)
     return await impl({ ...doc, space: _space }, client)
   }
 
-  async function validate (
+  async function validate(
     doc: Applicant,
     space: Ref<Space>,
     _class: Ref<Class<Doc>>,
@@ -209,7 +209,7 @@
 
   $: validate(doc, _space, doc._class, _candidate)
 
-  let states: Array<{ id: number | string, color: number, label: string }> = []
+  let states: Array<{ id: number | string; color: number; label: string }> = []
   let selectedState: TaskStatus | undefined
   $: rawStates = getStates(vacancy, $typeStore, $statusStore.byId)
   const spaceQuery = createQuery()
@@ -269,7 +269,7 @@
     candidateQuery.unsubscribe()
   }
   let verticalContent: boolean = false
-  $: verticalContent = $deviceInfo.isMobile && $deviceInfo.isPortrait
+  $: verticalContent = $deviceInfo.isCompact && $deviceInfo.isPortrait
   let btn: HTMLButtonElement
 
   let descriptionBox: AttachmentStyledBox

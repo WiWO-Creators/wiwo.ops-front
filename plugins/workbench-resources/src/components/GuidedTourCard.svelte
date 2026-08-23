@@ -9,8 +9,7 @@
   export let stepIndex: number
   export let stepsCount: number
   export let saving: boolean
-  export let saveError: string | undefined
-  export let failedStep: number | undefined
+  export let usingDemo: boolean
 
   const dispatch = createEventDispatcher<{ update: TourCardAction }>()
   let card: HTMLElement | undefined
@@ -56,21 +55,29 @@
     <span class="guided-tour-step">Paso {stepIndex + 1} de {stepsCount}</span>
     <h2 id="guided-tour-title">{step.title}</h2>
     {#if step.moduleLabel !== undefined}<p class="guided-tour-module"><Label label={step.moduleLabel} /></p>{/if}
+    {#if usingDemo}<p class="guided-tour-demo-label">Vista de demostración</p>{/if}
     <p>{step.description}</p>
   {/if}
-  {#if saveError}<p class="guided-tour-error" role="alert">{saveError}</p>{/if}
   <div class="guided-tour-actions">
     {#if phase === 'activation' || phase === 'tour'}
-      <button type="button" disabled={saving} on:click={() => emit('skipTour')}>Saltar tutorial</button>
-    {/if}
-    {#if phase === 'tour' && saveError}
-      <button type="button" on:click={() => emit('retry')}>Reintentar</button>
-      {#if failedStep !== undefined}<button type="button" disabled={saving} on:click={() => emit('skip')}>Omitir por ahora</button>{/if}
+      <button type="button" disabled={saving} on:click={() => { emit('skipTour') }}>Saltar tutorial</button>
     {/if}
     <div class="guided-tour-navigation">
-      {#if phase === 'tour' && stepIndex > 0}<button type="button" disabled={saving} on:click={() => emit('previous')}>Anterior</button>{/if}
-      <button type="button" class="guided-tour-next" bind:this={nextButton} disabled={saving} on:click={() => emit(phase === 'activation' ? 'start' : 'next')}>
-        {saving ? 'Guardando…' : phase === 'activation' ? 'Comenzar' : stepIndex === stepsCount - 1 ? 'Finalizar' : 'Siguiente'}
+      {#if phase === 'tour' && stepIndex > 0}<button type="button" disabled={saving} on:click={() => { emit('previous') }}>Anterior</button>{/if}
+      <button
+        type="button"
+        class="guided-tour-next"
+        bind:this={nextButton}
+        disabled={saving}
+        on:click={() => { emit(phase === 'activation' ? 'start' : 'next') }}
+      >
+        {saving
+          ? 'Preparando…'
+          : phase === 'activation'
+            ? 'Comenzar'
+            : stepIndex === stepsCount - 1
+              ? 'Finalizar'
+              : 'Siguiente'}
       </button>
     </div>
   </div>
@@ -78,11 +85,11 @@
 
 <style lang="scss">
   .guided-tour-card { width: min(24rem, calc(100vw - 2rem)); padding: 1.25rem; color: var(--theme-content-color); background: var(--theme-popup-color); border: 1px solid var(--theme-button-border); border-radius: 0.75rem; box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.35); }
-  .guided-tour-step, .guided-tour-error, .guided-tour-module { color: var(--theme-dark-color); font-size: 0.8125rem; }
+  .guided-tour-step, .guided-tour-module, .guided-tour-demo-label { color: var(--theme-dark-color); font-size: 0.8125rem; }
   h2 { margin: 0.5rem 0; font-size: 1.125rem; }
   p { margin: 0; line-height: 1.45; }
-  .guided-tour-error { margin-top: 0.75rem; color: var(--button-negative-BackgroundColor); }
   .guided-tour-module { margin-bottom: 0.5rem; font-weight: 600; }
+  .guided-tour-demo-label { width: fit-content; margin-bottom: 0.5rem; padding: 0.125rem 0.5rem; border: 1px solid var(--theme-button-border); border-radius: 999px; }
   .guided-tour-actions, .guided-tour-navigation { display: flex; align-items: center; gap: 0.5rem; }
   .guided-tour-actions { justify-content: space-between; margin-top: 1.25rem; }
   .guided-tour-navigation { margin-left: auto; }

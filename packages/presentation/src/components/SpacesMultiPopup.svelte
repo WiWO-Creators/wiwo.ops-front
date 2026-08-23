@@ -88,7 +88,7 @@
       icon={IconSearch}
       size={'large'}
       width={'100%'}
-      autoFocus={!$deviceOptionsStore.isMobile}
+      autoFocus={!$deviceOptionsStore.hasCoarsePointer}
       bind:value={searchQuery}
       {placeholder}
       {placeholderParam}

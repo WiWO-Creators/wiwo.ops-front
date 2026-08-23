@@ -70,10 +70,10 @@
 
   $: showActivity = !withoutActivity && !isGuest
 
-  export function getAside (): string | boolean {
+  export function getAside(): string | boolean {
     return panel.getAside()
   }
-  export function setAside (id: string | boolean): void {
+  export function setAside(id: string | boolean): void {
     panel.setAside(id)
   }
 
@@ -252,7 +252,7 @@
     <slot name="page-footer" />
   </svelte:fragment>
 
-  {#if $deviceInfo.isMobile}
+  {#if $deviceInfo.isCompact}
     <div bind:this={content} class="popupPanel-body__mobile-content clear-mins" class:max>
       <slot />
       {#if showActivity}

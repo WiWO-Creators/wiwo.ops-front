@@ -73,12 +73,12 @@
     )
   }
 
-  function onSelected (e: CustomEvent<any>): void {
+  function onSelected(e: CustomEvent<any>): void {
     if (syncWithLocationQuery) return
     parentQuery = { [parentKey]: e.detail }
   }
 
-  function showCreateDialog (): void {
+  function showCreateDialog(): void {
     if (createComponent === undefined) return
     showPopup(createComponent, { ...createComponentProps, space }, 'top')
   }
@@ -99,10 +99,19 @@
     } else localStorage.setItem('componentNavigator', 'hidden')
   }
 
+  /** Cierra el navigator flotante sin interferir con popups que ya consumieron Escape. */
+  const handleKeydown = (event: KeyboardEvent): void => {
+    if (event.key !== 'Escape' || event.defaultPrevented || !visibleNavigator || !floatNavigator) return
+    toggleNavigator()
+    event.preventDefault()
+  }
+
   if (showNavigator && !visibleNavigator) {
     toggleNavigator()
   }
 </script>
+
+<svelte:window on:keydown={handleKeydown} />
 
 <div
   bind:this={container}
@@ -121,7 +130,7 @@
     {#if floatNavigator}
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <!-- svelte-ignore a11y-no-static-element-interactions -->
-      <div class="cover" class:mobile={$deviceInfo.isCompact} on:click={toggleNavigator} />
+      <div class="cover" on:click={toggleNavigator} />
     {/if}
     <div
       class="antiPanel-navigator {$deviceInfo.navigator.direction === 'horizontal' ? 'portrait' : 'landscape'} second"
@@ -156,7 +165,7 @@
           on:select={onSelected}
         />
       </div>
-      {#if !($deviceInfo.isCompact && $deviceInfo.isPortrait && $deviceInfo.minWidth)}
+      {#if !($deviceInfo.isPortrait && $deviceInfo.docWidth <= 480)}
         <Separator
           name={'parentsNavigator'}
           float={floatNavigator ? 'navigator' : true}
@@ -210,11 +219,8 @@
     top: 0;
     left: 0;
     width: 100vw;
-    height: 100vh;
+    height: 100dvh;
+    background-color: var(--theme-overlay-color);
     z-index: 10;
-
-    &.mobile {
-      background-color: var(--theme-overlay-color);
-    }
   }
 </style>

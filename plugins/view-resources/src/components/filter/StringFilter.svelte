@@ -28,7 +28,7 @@
   filter.modes = [view.filter.FilterContains]
   filter.mode ??= filter.modes[0]
 
-  export function onKeyDown (event: KeyboardEvent): boolean {
+  export function onKeyDown(event: KeyboardEvent): boolean {
     if (event.key === 'Enter') {
       event.preventDefault()
       event.stopPropagation()
@@ -40,7 +40,7 @@
     return false
   }
 
-  function save () {
+  function save() {
     if (search == null || search === '') {
       return
     }
@@ -58,7 +58,7 @@
       icon={IconSearch}
       size={'large'}
       width={'100%'}
-      autoFocus={!$deviceOptionsStore.isMobile}
+      autoFocus={!$deviceOptionsStore.hasCoarsePointer}
       bind:value={search}
       placeholder={filter.key.label}
       on:change

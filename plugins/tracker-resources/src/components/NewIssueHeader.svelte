@@ -14,7 +14,7 @@
 -->
 <script lang="ts">
   import { Analytics } from '@hcengineering/analytics'
-  import core, { AccountRole, Ref, Space } from '@hcengineering/core'
+  import { AccountRole, Ref, Space } from '@hcengineering/core'
   import { MultipleDraftController, createQuery, getClient } from '@hcengineering/presentation'
   import { TrackerEvents } from '@hcengineering/tracker'
   import { HeaderButton, showPopup } from '@hcengineering/ui'
@@ -25,11 +25,12 @@
   import CreateIssue from './CreateIssue.svelte'
 
   export let currentSpace: Ref<Space> | undefined
+  export let tutorialDemo: boolean = false
 
   let closed = true
   let draftExists = false
-  let projectExists = false
-  let loading = true
+  let projectExists = tutorialDemo
+  let loading = !tutorialDemo
 
   const query = createQuery()
   const client = getClient()
@@ -44,12 +45,15 @@
     })
   )
 
-  query.query(tracker.class.Project, {}, (res) => {
-    projectExists = res.length > 0
-    loading = false
-  })
+  if (!tutorialDemo) {
+    query.query(tracker.class.Project, {}, (res) => {
+      projectExists = res.length > 0
+      loading = false
+    })
+  }
 
   function newProject (): void {
+    if (tutorialDemo) return
     closed = false
     showPopup(tracker.component.CreateProject, {}, 'top', () => {
       closed = true
@@ -57,6 +61,7 @@
   }
 
   function newIssue (): void {
+    if (tutorialDemo) return
     closed = false
     Analytics.handleEvent(TrackerEvents.NewIssueButtonClicked)
     showPopup(CreateIssue, { space: currentSpace, shouldSaveDraft: true }, 'top', () => {

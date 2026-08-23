@@ -38,7 +38,6 @@
     Label,
     Loading,
     Spinner,
-    deviceOptionsStore as deviceInfo,
     lazyObserver,
     mouseAttractor,
     resizeObserver
@@ -341,12 +340,8 @@
 
   let isBuildingModel = true
   let model: AttributeModel[] | undefined
-  // En pantalla compacta la tabla se queda con lo indispensable: seis columnas de ancho fijo no
-  // entran en un telefono y la tabla termina desbordando de costado. Es el mismo criterio que ya
-  // usan las listas con `optional`.
   let visibleModel: AttributeModel[] | undefined
-  $: visibleModel =
-    $deviceInfo.isCompact === true ? model?.filter((m) => m.displayProps?.optional !== true) : model
+  $: visibleModel = model
   let modelOptions: BuildModelOptions | undefined
 
   const updateModelOptions = reduceCalls(async function updateModelOptions (
@@ -402,18 +397,16 @@
   }
 </script>
 
-{#if !visibleModel || isBuildingModel}
-  <Loading />
-{:else}
-  <table
-    id={tableId}
+<div
+  class="table-container"
     use:resizeObserver={(element) => {
       width = element.clientWidth
     }}
-    class="antiTable"
-    class:metaColumn={enableChecking || showNotification}
-    class:highlightRows
-  >
+>
+  {#if !visibleModel || isBuildingModel}
+    <Loading />
+  {:else}
+    <table id={tableId} class="antiTable" class:metaColumn={enableChecking || showNotification} class:highlightRows>
     {#if !hiddenHeader}
       <thead class="scroller-thead">
         <tr class="scroller-thead__tr">
@@ -434,6 +427,7 @@
           {/if}
           {#each visibleModel.filter((m) => !m.displayProps?.grow) as attribute}
             <th
+              class:optional={attribute.displayProps?.optional === true}
               class:w-full={attribute.displayProps?.grow === true}
               class:sortable={attribute.sortingKey}
               class:sorted={attribute.sortingKey === _sortKey}
@@ -517,6 +511,7 @@
               {#if row < rowLimit}
                 {#each visibleModel.filter((m) => !m.displayProps?.grow) as attribute, cell}
                   <td
+                    class:optional={attribute.displayProps?.optional === true}
                     class:align-left={attribute.displayProps?.align === 'left'}
                     class:align-center={attribute.displayProps?.align === 'center'}
                     class:align-right={attribute.displayProps?.align === 'right'}
@@ -577,7 +572,7 @@
                     </div>
                   </td>
                 {/if}
-                <td id={`loader-${i}-${attribute.key}`}>
+                <td id={`loader-${i}-${attribute.key}`} class:optional={attribute.displayProps?.optional === true}>
                   <Spinner size="small" />
                 </td>
               {/if}
@@ -586,13 +581,13 @@
         {/each}
       </tbody>
     {/if}
-  </table>
-  {#if loading > 0}<Loading />{/if}
-{/if}
-{#if showFooter}
-  <div class="space" />
-  <div class="footer" style="width: {width}px;">
-    <div class="content" class:padding={showNotification || enableChecking}>
+    </table>
+    {#if loading > 0}<Loading />{/if}
+  {/if}
+  {#if showFooter}
+    <div class="space" />
+    <div class="footer" style="width: {width}px;">
+      <div class="content" class:padding={showNotification || enableChecking}>
       <span class="select-text">
         <Label label={view.string.Total} params={{ total: gtotal }} />
       </span>
@@ -620,11 +615,26 @@
           }}
         />
       {/if}
+      </div>
     </div>
-  </div>
-{/if}
+  {/if}
+</div>
 
 <style lang="scss">
+  .table-container {
+    container: table-container / inline-size;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+  }
+
+  @container table-container (max-width: 680px) {
+    .optional { display: none; }
+    .antiTable :is(th, td) { padding-inline: .75rem; }
+  }
+
   .space {
     flex-grow: 1;
     height: 100%;

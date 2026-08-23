@@ -16,7 +16,7 @@
   import { AnyAttribute, Doc, getObjectValue } from '@hcengineering/core'
   import notification from '@hcengineering/notification'
   import { getClient, updateAttribute } from '@hcengineering/presentation'
-  import { CheckBox, Component, IconCircles, tooltip, deviceOptionsStore as deviceInfo } from '@hcengineering/ui'
+  import { CheckBox, Component, IconCircles, tooltip } from '@hcengineering/ui'
   import { AttributeModel } from '@hcengineering/view'
   import { createEventDispatcher, onMount } from 'svelte'
   import view from '../../plugin'
@@ -34,7 +34,7 @@
   export let compactMode: boolean = false
   export let readonly: boolean = false
 
-  export function scroll () {
+  export function scroll() {
     elem?.scrollIntoView({ behavior: 'auto', block: 'nearest' })
   }
 
@@ -42,21 +42,21 @@
 
   const dispatch = createEventDispatcher()
 
-  export function getDoc () {
+  export function getDoc() {
     return docObject
   }
 
-  export function getElement () {
+  export function getElement() {
     return elem
   }
 
   const client = getClient()
 
-  function onChange (value: any, doc: Doc, key: string, attribute: AnyAttribute) {
+  function onChange(value: any, doc: Doc, key: string, attribute: AnyAttribute) {
     updateAttribute(client, doc, doc._class, { key, attr: attribute }, value)
   }
 
-  function getOnChange (docObject: Doc, attribute: AttributeModel) {
+  function getOnChange(docObject: Doc, attribute: AttributeModel) {
     const attr = attribute.attribute
     if (attr === undefined) return
     if (attribute.collectionAttr) return
@@ -67,7 +67,6 @@
     }
   }
 
-  $: mobile = $deviceInfo.isCompact
   $: needCompact =
     model.filter((m) => m.displayProps?.optional || m.displayProps?.compression || m.displayProps?.suffix).length > 0
 
@@ -128,7 +127,7 @@
     {@const displayProps = attributeModel.displayProps}
     {#if !groupByKey || displayProps?.excludeByKey !== groupByKey}
       {#if displayProps?.grow}
-        {#if !(compactMode && mobile)}
+        {#if !compactMode}
           {#each model.filter((p) => p.displayProps?.suffix === true) as attrModel}
             <ListPresenter
               {docObject}
@@ -200,7 +199,7 @@
         <IconCircles size={'small'} />
       </div>
       <div class="scroll-box gap-2">
-        {#if mobile}
+        {#if compactMode}
           {#each model.filter((p) => p.displayProps?.suffix === true) as attrModel}
             <ListPresenter
               {docObject}

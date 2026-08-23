@@ -28,6 +28,7 @@ import SharingStateIndicator from './components/SharingStateIndicator.svelte'
 import MeetingScheduleData from './components/MeetingScheduleData.svelte'
 import EditMeetingScheduleData from './components/EditMeetingScheduleData.svelte'
 import InviteEmployeeButton from './components/meeting/invites/InviteEmployeeButton.svelte'
+import GuidedTourDemo from './components/GuidedTourDemo.svelte'
 
 import {
   copyGuestLink,
@@ -70,7 +71,8 @@ export default async (): Promise<Resources> => ({
     SharingStateIndicator,
     MeetingScheduleData,
     EditMeetingScheduleData,
-    InviteEmployeeButton
+    InviteEmployeeButton,
+    GuidedTourDemo
   },
   function: {
     CreateMeeting: createMeeting,

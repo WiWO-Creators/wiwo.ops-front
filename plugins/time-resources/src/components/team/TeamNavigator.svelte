@@ -88,7 +88,7 @@
     </Scroller>
     <NavFooter />
   </div>
-  {#if !($deviceInfo.isCompact && $deviceInfo.isPortrait && $deviceInfo.minWidth)}
+  {#if !($deviceInfo.isPortrait && $deviceInfo.docWidth <= 480)}
     <Separator
       name={'time'}
       float={$deviceInfo.navigator.float ? 'navigator' : true}

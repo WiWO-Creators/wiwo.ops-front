@@ -51,7 +51,7 @@ export const dockStore = derived(modalStore, (modals) => {
   return (modals.filter((m) => m.type === 'popup') as CompAndProps[]).find((popup: CompAndProps) => popup.dock)
 })
 
-export function updatePopup (id: string, props: Partial<CompAndProps>): void {
+export function updatePopup(id: string, props: Partial<CompAndProps>): void {
   modalStore.update((modals) => {
     const popupIndex = (modals.filter((m) => m.type === 'popup') as CompAndProps[]).findIndex(
       (p: CompAndProps) => p.id === id
@@ -63,14 +63,14 @@ export function updatePopup (id: string, props: Partial<CompAndProps>): void {
   })
 }
 
-function addPopup (props: CompAndProps): void {
+function addPopup(props: CompAndProps): void {
   modalStore.update((modals) => {
     modals.push(props)
     return modals
   })
 }
 
-function checkDockPosition (refId: string | undefined): boolean {
+function checkDockPosition(refId: string | undefined): boolean {
   if (refId !== undefined && localStorage.getItem('dock-popup') === refId) {
     const docked = get(dockStore)
     if (docked === undefined) {
@@ -81,7 +81,7 @@ function checkDockPosition (refId: string | undefined): boolean {
 }
 
 let popupId: number = 0
-export function showPopup (
+export function showPopup(
   component: AnySvelteComponent | AnyComponent | ComponentType,
   props: any,
   element?: PopupAlignment,
@@ -148,7 +148,7 @@ export function showPopup (
   }
 }
 
-export function closePopup (category?: string): void {
+export function closePopup(category?: string): void {
   modalStore.update((popups) => {
     if (category !== undefined) {
       popups = popups.filter((p) => p.type === 'popup' && p.options.category !== category)
@@ -182,7 +182,7 @@ export function closePopup (category?: string): void {
  *
  * return boolean to show or not modal overlay.
  */
-export function fitPopupPositionedElement (
+export function fitPopupPositionedElement(
   modalHTML: HTMLElement,
   alignment: PopupPositionElement,
   newProps: Record<string, string | number>
@@ -258,7 +258,7 @@ export function fitPopupPositionedElement (
  *
  * return boolean to show or not modal overlay.
  */
-export function fitPopupElement (
+export function fitPopupElement(
   modalHTML: HTMLElement,
   device: DeviceOptions,
   element?: PopupAlignment,
@@ -322,16 +322,18 @@ export function fitPopupElement (
       newProps.maxHeight = 'calc(100vh - 5.5rem)'
       show = true
     } else if (element === 'logo-mini') {
-      newProps.top = '2.5rem'
+      newProps.top = 'calc(var(--status-bar-height) + var(--safe-top) + var(--app-panel-width) + .5rem)'
       newProps.left = '.5rem'
-      newProps.maxWidth = '42rem'
-      newProps.maxHeight = 'calc(100vh - 5.5rem)'
+      newProps.maxWidth = 'calc(100vw - 1rem - var(--safe-left) - var(--safe-right))'
+      newProps.maxHeight =
+        'calc(100dvh - var(--status-bar-height) - var(--safe-top) - var(--safe-bottom) - var(--app-panel-width) - 1rem)'
       show = true
     } else if (element === 'logo-portrait') {
-      newProps.bottom = 'calc(var(--app-panel-width) + .75rem)'
+      newProps.top = 'calc(var(--status-bar-height) + var(--safe-top) + var(--app-panel-width) + .5rem)'
       newProps.left = '.5rem'
-      newProps.maxWidth = 'calc(100vw - 1rem)'
-      newProps.maxHeight = 'calc(100vh - var(--app-panel-width) - 1.5rem)'
+      newProps.maxWidth = 'calc(100vw - 1rem - var(--safe-left) - var(--safe-right))'
+      newProps.maxHeight =
+        'calc(100dvh - var(--status-bar-height) - var(--safe-top) - var(--safe-bottom) - var(--app-panel-width) - 1rem)'
       show = true
     } else if (element === 'account') {
       newProps.bottom = '2.75rem'
@@ -340,10 +342,11 @@ export function fitPopupElement (
       newProps.maxHeight = 'calc(100vh - 5.5rem)'
       show = true
     } else if (element === 'account-portrait') {
-      newProps.bottom = 'calc(var(--app-panel-width) + .75rem)'
+      newProps.top = 'calc(var(--status-bar-height) + var(--safe-top) + var(--app-panel-width) + .5rem)'
       newProps.right = '.5rem'
-      newProps.maxWidth = 'calc(100vw - 1rem)'
-      newProps.maxHeight = 'calc(100vh - var(--app-panel-width) - 1.5rem)'
+      newProps.maxWidth = 'calc(100vw - 1rem - var(--safe-left) - var(--safe-right))'
+      newProps.maxHeight =
+        'calc(100dvh - var(--status-bar-height) - var(--safe-top) - var(--safe-bottom) - var(--app-panel-width) - 1rem)'
       show = true
     } else if (element === 'account-mobile') {
       newProps.bottom = '.5rem'
@@ -364,12 +367,11 @@ export function fitPopupElement (
       newProps.maxHeight = 'calc(100vh - var(--app-panel-width) - 1.5rem)'
       show = true
     } else if (element === 'full' && contentPanel === undefined) {
-      newProps.top = '0'
-      newProps.bottom = '0'
-      newProps.left = '0'
-      newProps.right = '0'
-      // newProps.width = '100vw'
-      newProps.height = '100vh'
+      newProps.top = 'var(--safe-top)'
+      newProps.bottom = 'var(--safe-bottom)'
+      newProps.left = 'var(--safe-left)'
+      newProps.right = 'var(--safe-right)'
+      newProps.height = 'auto'
       show = false
     } else if (element === 'full' && contentPanel !== undefined) {
       const rect = contentPanel.getBoundingClientRect()
@@ -435,13 +437,13 @@ export function fitPopupElement (
   return { props: newProps, showOverlay: show, direction: '' }
 }
 
-export function eventToHTMLElement (evt: MouseEvent | TouchEvent): HTMLElement {
+export function eventToHTMLElement(evt: MouseEvent | TouchEvent): HTMLElement {
   return evt.target as HTMLElement
 }
 
-export function getEventPopupPositionElement (
+export function getEventPopupPositionElement(
   e?: Event,
-  position?: { v: VerticalAlignment, h: HorizontalAlignment }
+  position?: { v: VerticalAlignment; h: HorizontalAlignment }
 ): PopupAlignment | undefined {
   if (e?.target == null) {
     return undefined
@@ -450,9 +452,9 @@ export function getEventPopupPositionElement (
   return getPopupPositionElement(target, position)
 }
 
-export function getPopupPositionElement (
+export function getPopupPositionElement(
   el: HTMLElement | undefined,
-  position?: { v: VerticalAlignment, h: HorizontalAlignment }
+  position?: { v: VerticalAlignment; h: HorizontalAlignment }
 ): PopupAlignment | undefined {
   if (el?.getBoundingClientRect != null) {
     const result = el.getBoundingClientRect()
@@ -464,14 +466,14 @@ export function getPopupPositionElement (
 
   return undefined
 }
-export function getEventPositionElement (evt: MouseEvent): PopupAlignment | undefined {
+export function getEventPositionElement(evt: MouseEvent): PopupAlignment | undefined {
   const rect = DOMRect.fromRect({ width: 1, height: 1, x: evt.clientX, y: evt.clientY })
   return {
     getBoundingClientRect: () => rect
   }
 }
 
-export function pin (id: string): void {
+export function pin(id: string): void {
   modalStore.update((popups) => {
     const currentPopups = popups.filter((m) => m.type === 'popup') as CompAndProps[]
     const current = currentPopups.find((p) => p.id === id) as CompAndProps
@@ -483,7 +485,7 @@ export function pin (id: string): void {
   })
 }
 
-export function unpin (): void {
+export function unpin(): void {
   modalStore.update((popups) => {
     ;(popups.filter((m) => m.type === 'popup') as CompAndProps[]).forEach((p) => (p.dock = false))
     return popups

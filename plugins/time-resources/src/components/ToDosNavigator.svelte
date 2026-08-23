@@ -114,7 +114,7 @@
 
   $: actions = getHeaderMenuActions()
 
-  function getHeaderMenuActions (): Action[] {
+  function getHeaderMenuActions(): Action[] {
     const actions: Action[] = []
     if (getMetadata(calendar.metadata.CalDavServerURL)) {
       actions.push({
@@ -130,7 +130,7 @@
     return actions
   }
 
-  function menuButtonClicked (ev: MouseEvent): void {
+  function menuButtonClicked(ev: MouseEvent): void {
     pressed = true
     showPopup(Menu, { actions }, ev.target as HTMLElement, () => {
       pressed = false
@@ -245,7 +245,7 @@
     </Scroller>
     <NavFooter />
   </div>
-  {#if !($deviceInfo.isCompact && $deviceInfo.isPortrait && $deviceInfo.minWidth)}
+  {#if !($deviceInfo.isPortrait && $deviceInfo.docWidth <= 480)}
     <Separator
       name={'time'}
       float={$deviceInfo.navigator.float ? 'navigator' : true}

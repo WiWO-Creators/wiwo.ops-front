@@ -41,15 +41,15 @@
   let search: string = ''
   let selectedIds: Ref<Employee>[] = selected
 
-  function handleCancel (): void {
+  function handleCancel(): void {
     dispatch('close')
   }
 
-  function okAction (): void {
+  function okAction(): void {
     dispatch('close', selectedIds)
   }
 
-  function handleSelectionChanged (event: CustomEvent): void {
+  function handleSelectionChanged(event: CustomEvent): void {
     selectedIds = event.detail ?? []
   }
 </script>
@@ -70,7 +70,7 @@
         icon={IconSearch}
         size="large"
         width="100%"
-        autoFocus={!$deviceOptionsStore.isMobile}
+        autoFocus={!$deviceOptionsStore.hasCoarsePointer}
         bind:value={search}
         on:change={() => dispatch('search', search)}
         on:input={() => dispatch('search', search)}

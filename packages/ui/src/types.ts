@@ -33,7 +33,7 @@ export interface ResolvedLocation {
 /**
  * Returns true if locations are equal.
  */
-export function areLocationsEqual (loc1: Location, loc2: Location): boolean {
+export function areLocationsEqual(loc1: Location, loc2: Location): boolean {
   if (loc1 === loc2) {
     return true
   }
@@ -239,7 +239,7 @@ export const posAlignment = [
 
 export type PopupPosAlignment = (typeof posAlignment)[number]
 
-export function isPopupPosAlignment (x: any): x is PopupPosAlignment {
+export function isPopupPosAlignment(x: any): x is PopupPosAlignment {
   return typeof x === 'string' && (posAlignment as typeof posAlignment).includes(x as PopupPosAlignment)
 }
 
@@ -270,7 +270,7 @@ export interface IconProps {
   filled?: boolean
 }
 
-export function getIconSize2x (size: IconSize): IconSize {
+export function getIconSize2x(size: IconSize): IconSize {
   switch (size) {
     case 'inline':
     case 'tiny':
@@ -384,21 +384,38 @@ export type WidthType = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl'
 export const deviceSizes: WidthType[] = ['xs', 'sm', 'md', 'lg', 'xl', 'xxl']
 export const deviceWidths = [480, 680, 760, 1024, 1208, -1]
 
+/**
+ * Devuelve el breakpoint inclusivo correspondiente a un ancho de viewport válido.
+ *
+ * @param width - Ancho en píxeles.
+ * @returns Breakpoint que contiene el ancho.
+ * @throws {RangeError} Si el ancho es negativo o no es finito.
+ */
+export function getDeviceSize(width: number): WidthType {
+  if (!Number.isFinite(width) || width < 0) {
+    throw new RangeError('Device width must be a finite non-negative number')
+  }
+
+  const index = deviceWidths.findIndex((limit) => limit === -1 || width <= limit)
+  return deviceSizes[index]
+}
+
 export interface DeviceOptions {
   docWidth: number
   docHeight: number
   isPortrait: boolean
+  /** User-agent móvil. Compatibilidad para comportamiento específico de plataforma; no usar para layout. */
   isMobile: boolean
-  // Pantalla angosta: es `isMobile` o un ancho de hasta 680px (el breakpoint `sm`). Es la señal que
-  // manda en el layout; `isMobile` sigue significando "dispositivo tactil" y decide cosas como el
-  // autofocus, que abriria el teclado virtual.
+  /** Pantalla de hasta 680px. Única señal global para composición compacta. */
   isCompact: boolean
-  navigator: { visible: boolean, float: boolean, direction: 'vertical' | 'horizontal' }
+  /** El dispositivo de entrada principal requiere objetivos táctiles amplios. */
+  hasCoarsePointer: boolean
+  /** El dispositivo de entrada principal puede mantener hover. */
+  canHover: boolean
+  navigator: { visible: boolean; float: boolean; direction: 'vertical' | 'horizontal' }
   fontSize: number
   size: WidthType | null
   sizes: Record<WidthType, boolean>
-  minWidth: boolean
-  twoRows: boolean
   firstDayOfWeek: number
   theme?: string
   language?: string

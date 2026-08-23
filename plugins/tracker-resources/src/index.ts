@@ -84,6 +84,7 @@ import EditMilestone from './components/milestones/EditMilestone.svelte'
 import MilestoneDatePresenter from './components/milestones/MilestoneDatePresenter.svelte'
 import MyIssues from './components/myissues/MyIssues.svelte'
 import NewIssueHeader from './components/NewIssueHeader.svelte'
+import GuidedTourDemo from './components/GuidedTourDemo.svelte'
 import NopeComponent from './components/NopeComponent.svelte'
 import MembersArrayEditor from './components/projects/MembersArrayEditor.svelte'
 import ProjectFilterValuePresenter from './components/projects/ProjectFilterValuePresenter.svelte'
@@ -431,6 +432,7 @@ export default async (): Promise<Resources> => ({
     DueDatePresenter,
     EditIssue,
     NewIssueHeader,
+    GuidedTourDemo,
     IconPresenter,
     LeadPresenter,
     SetDueDateActionPopup,

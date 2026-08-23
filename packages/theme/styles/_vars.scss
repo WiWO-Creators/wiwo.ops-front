@@ -1,14 +1,14 @@
 //
 // Copyright © 2021 Anticrm Platform Contributors.
-// 
+//
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
 // obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
-// 
+//
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// 
+//
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
@@ -16,42 +16,42 @@
 * {
   /** Neo brand palette — https://neo.wiwo.me **/
 
-  --wiwo-blue: #4242FF;
-  --wiwo-blue-700: #2525C8;
-  --wiwo-blue-300: #6E6EFF;
-  --wiwo-green: #3BFF00;
-  --wiwo-lime: #8AF84F;
-  --wiwo-mint: #9ADBB0;
-  --wiwo-purple: #8D7CFF;
+  --wiwo-blue: #4242ff;
+  --wiwo-blue-700: #2525c8;
+  --wiwo-blue-300: #6e6eff;
+  --wiwo-green: #3bff00;
+  --wiwo-lime: #8af84f;
+  --wiwo-mint: #9adbb0;
+  --wiwo-purple: #8d7cff;
   // Variante clara del purpura: #8D7CFF sobre la tinta #292929 se queda en
   // 4.48:1, justo por debajo del AA de texto normal.
-  --wiwo-purple-300: #A99BFF;
+  --wiwo-purple-300: #a99bff;
   --wiwo-ink: #292929;
-  --wiwo-beige: #F8FAD7;
+  --wiwo-beige: #f8fad7;
   // Rampa de superficies del tema claro. El beige de marca quedo fuera de los
   // paneles grandes: teñia toda la app. Son blancos con un sesgo violeta minimo
   // (hue 230, saturacion muy baja), el mismo que usa WiwoLab, mas un 300 para
   // bordes y divisores.
-  --wiwo-surface-0: #FFFFFF;
-  --wiwo-surface-50: #FBFBFE;
-  --wiwo-surface-100: #F5F6FB;
-  --wiwo-surface-300: #E6E8F1;
-  --wiwo-ok: #1C7A38;
-  --wiwo-warning: #D88719;
-  --wiwo-danger: #C3463D;
-  --wiwo-error: #B3261E;
+  --wiwo-surface-0: #ffffff;
+  --wiwo-surface-50: #fbfbfe;
+  --wiwo-surface-100: #f5f6fb;
+  --wiwo-surface-300: #e6e8f1;
+  --wiwo-ok: #1c7a38;
+  --wiwo-warning: #d88719;
+  --wiwo-danger: #c3463d;
+  --wiwo-error: #b3261e;
 
-  --wiwo-gradient-primary: linear-gradient(103deg, #3BFF00, #4242FF);
-  --wiwo-gradient-soft: linear-gradient(135deg, rgba(59, 255, 0, .12), rgba(66, 66, 255, .10));
+  --wiwo-gradient-primary: linear-gradient(103deg, #3bff00, #4242ff);
+  --wiwo-gradient-soft: linear-gradient(135deg, rgba(59, 255, 0, 0.12), rgba(66, 66, 255, 0.1));
   // Version en bucle del degrade de marca, para animarlo desplazando el
   // background-position: arranca y termina en azul, asi ninguna posicion deja
   // el texto entero en verde claro (ilegible sobre blanco).
-  --wiwo-gradient-flow: linear-gradient(103deg, #4242FF, #3BFF00, #8D7CFF, #4242FF);
+  --wiwo-gradient-flow: linear-gradient(103deg, #4242ff, #3bff00, #8d7cff, #4242ff);
 
   /** Neo motion **/
 
-  --wiwo-ease-emphasized: cubic-bezier(.2, 0, 0, 1);
-  --wiwo-ease-expressive: cubic-bezier(.2, .8, .2, 1);
+  --wiwo-ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --wiwo-ease-expressive: cubic-bezier(0.2, 0.8, 0.2, 1);
   --wiwo-motion-fast: 160ms;
   --wiwo-motion-medium: 280ms;
   --wiwo-motion-slow: 420ms;
@@ -118,12 +118,16 @@
   --global-modal-ShadowY: 1.5rem;
 }
 
-// Areas tactiles: en pantalla compacta los controles llegan a 44px (2.75rem), el minimo comodo para
-// el dedo. Va tambien sobre los descendientes porque la escala de arriba se declara con `*`: sin
-// eso, cada hijo se vuelve a pisar el valor con el de escritorio.
-.mobile-theme,
-.mobile-theme * {
+// El método de entrada, no el ancho, decide la densidad táctil. También cubre tablets con teclado,
+// móviles en landscape y notebooks táctiles.
+.coarse-pointer,
+.coarse-pointer * {
   --global-extra-small-Size: 2.25rem;
   --global-small-Size: 2.75rem;
   --global-medium-Size: 2.75rem;
+}
+
+// Safari amplía automáticamente campos menores a 16px y rompe el viewport durante la edición.
+.coarse-pointer :is(input, textarea, select, [contenteditable='true']) {
+  font-size: 1rem !important;
 }

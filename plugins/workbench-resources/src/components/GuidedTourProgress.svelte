@@ -1,7 +1,6 @@
 <script lang="ts">
   import contact, { type Employee } from '@hcengineering/contact'
-  import type { Class, Ref } from '@hcengineering/core'
-  import { createQuery } from '@hcengineering/presentation'
+  import { createQuery, getClient } from '@hcengineering/presentation'
   import { closePopup, Label, Scroller } from '@hcengineering/ui'
   import workbenchModel from '@hcengineering/workbench'
   import type { GuidedTourPreference } from '@hcengineering/workbench/src/types'
@@ -11,16 +10,17 @@
   let preferences: GuidedTourPreference[] = []
   const employeesQuery = createQuery()
   const preferencesQuery = createQuery()
-  const guidedTourPreferenceClass = (workbenchModel.class as typeof workbenchModel.class & {
-    GuidedTourPreference: Ref<Class<GuidedTourPreference>>
-  }).GuidedTourPreference
+  const client = getClient()
+  const guidedTourPreferenceClass = workbenchModel.class.GuidedTourPreference
 
   employeesQuery.query(contact.mixin.Employee, { active: true }, (records) => {
     employees = records
   })
-  preferencesQuery.query(guidedTourPreferenceClass, {}, (records) => {
-    preferences = records
-  })
+  if (client.getHierarchy().hasClass(guidedTourPreferenceClass) === true) {
+    preferencesQuery.query(guidedTourPreferenceClass, {}, (records) => {
+      preferences = records
+    })
+  }
 
   $: trackedEmployees = employees.filter((employee) => employee.personUuid !== undefined)
   $: completedAccounts = new Set(preferences.filter((preference) => preference.completedOn !== undefined).map((preference) => preference.attachedTo))
@@ -36,7 +36,7 @@
       <h2 id="guided-tour-progress-title"><Label label={workbench.string.GuidedTourProgress} /></h2>
       <p><Label label={workbench.string.GuidedTourProgressDescription} /></p>
     </div>
-    <button type="button" on:click={() => closePopup()}>Cerrar</button>
+    <button type="button" on:click={() => { closePopup() }}>Cerrar</button>
   </div>
   <div class="guided-tour-summary">
     <span><strong>{completedEmployees.length}</strong> <Label label={workbench.string.GuidedTourCompleted} /></span>
