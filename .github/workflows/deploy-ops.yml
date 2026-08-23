@@ -68,13 +68,19 @@ jobs:
               node ../../common/scripts/install-run-rushx.js bundle
               docker build -t wiwo/ops-workspace:${VERSION} -t wiwo/ops-workspace:latest .
 
+              # Bundle migrador: contiene el centro de control y la lógica de
+              # importación, por lo que debe recrearse con cada deploy.
+              cd ../../dev/perfex-clients
+              node ../../common/scripts/install-run-rushx.js bundle
+              docker build -t wiwo/perfex-migration:${VERSION} -t wiwo/perfex-migration:latest .
+
               # Restart containers. compose.testops.yml está versionado en el
-              # repo de configuración y fija las cuatro imágenes a `latest`;
+              # repo de configuración y fija las imágenes a `latest`;
               # `up -d` recrea el contenedor porque cambió el id de la imagen.
-              # Los cuatro van juntos: el front y el transactor tienen que
-              # hablar la misma versión de modelo.
+              # Todos van juntos: el front, las APIs y el migrador tienen que
+              # hablar la misma versión.
               cd /root/huly-selfhost
-              docker compose -f compose.yml -f compose.testops.yml up -d front account transactor workspace
+              docker compose -f compose.yml -f compose.testops.yml up -d front account transactor workspace perfex-migration
 
               # nginx resuelve las IPs de los upstream al arrancar y las cachea:
               # tras recrear front y account apunta a IPs que ya no existen y
@@ -86,6 +92,7 @@ jobs:
               docker image prune -f --filter "label=com.docker.compose.service=account" 2>/dev/null || true
               docker image prune -f --filter "label=com.docker.compose.service=transactor" 2>/dev/null || true
               docker image prune -f --filter "label=com.docker.compose.service=workspace" 2>/dev/null || true
+              docker image prune -f --filter "label=com.docker.compose.service=perfex-migration" 2>/dev/null || true
 
-              echo "✅ Deployed front, account, transactor y workspace: ${VERSION}"
+              echo "✅ Deployed front, account, transactor, workspace y perfex-migration: ${VERSION}"
           DEPLOY
