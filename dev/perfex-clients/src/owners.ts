@@ -12,32 +12,37 @@ export interface OwnersOptions {
   dryRun: boolean
 }
 
+export interface OwnersPlan {
+  promover: AccountUuid[]
+  invitar: string[]
+}
+
 /**
- * Valida los correos pedidos y devuelve sólo las cuentas que todavía no son owner.
+ * Separa cuentas promovibles de correos que todavía deben aceptar una invitación Owner.
  *
- * @throws si no se indicó un correo, no existe una cuenta o la cuenta no es miembro del workspace.
+ * @throws si no se indicó ningún correo.
  */
 export function planificarOwners (
   correos: string[],
   cuentas: Cuentas,
   miembros: WorkspaceMemberInfo[]
-): AccountUuid[] {
+): OwnersPlan {
   const solicitados = [...new Set(correos.map((correo) => correo.trim().toLowerCase()).filter((correo) => correo !== ''))]
   if (solicitados.length === 0) throw new Error('Indicá al menos un --owner <correo>')
 
-  const faltanCuenta = solicitados.filter((correo) => !cuentas.porCorreo.has(correo))
-  if (faltanCuenta.length > 0) {
-    throw new Error(`Los owners no tienen cuenta en el workspace: ${faltanCuenta.join(', ')}`)
-  }
-
-  const cuentasSolicitadas = solicitados.map((correo) => cuentas.porCorreo.get(correo) as AccountUuid)
   const miembrosPorCuenta = new Map(miembros.map((miembro) => [miembro.person, miembro]))
-  const faltanMiembros = cuentasSolicitadas.filter((account) => !miembrosPorCuenta.has(account))
-  if (faltanMiembros.length > 0) {
-    throw new Error(`Los owners deben ser miembros del workspace antes de promoverlos: ${faltanMiembros.join(', ')}`)
+  const promover: AccountUuid[] = []
+  const invitar: string[] = []
+  for (const correo of solicitados) {
+    const account = cuentas.porCorreo.get(correo)
+    const miembro = account === undefined ? undefined : miembrosPorCuenta.get(account)
+    if (account === undefined || miembro === undefined) {
+      invitar.push(correo)
+    } else if (miembro.role !== AccountRole.Owner) {
+      promover.push(account)
+    }
   }
-
-  return cuentasSolicitadas.filter((account) => miembrosPorCuenta.get(account)?.role !== AccountRole.Owner)
+  return { promover, invitar }
 }
 
 /**
@@ -54,20 +59,33 @@ export async function asignarOwners (
 ): Promise<number> {
   const cuentas = await cargarCuentas(client)
   const accountClient = getAccountClient(token)
-  const cambios = planificarOwners(correos, cuentas, await accountClient.getWorkspaceMembers())
+  const plan = planificarOwners(correos, cuentas, await accountClient.getWorkspaceMembers())
+  const cambios = plan.promover.length + plan.invitar.length
 
-  if (cambios.length === 0) {
+  if (cambios === 0) {
     logger.log('Los owners indicados ya están configurados.')
     return 0
   }
 
-  const nombres = cambios.map((account) => cuentas.nombres.get(account) ?? account).join(', ')
-  logger.log(`${cambios.length} accounts a promover a owner: ${nombres}${options.dryRun ? ' (simulado)' : ''}`)
-  if (options.dryRun) return cambios.length
+  const nombres = plan.promover.map((account) => cuentas.nombres.get(account) ?? account).join(', ')
+  if (plan.promover.length > 0) {
+    logger.log(`${plan.promover.length} accounts a promover a owner: ${nombres}${options.dryRun ? ' (simulado)' : ''}`)
+  }
+  if (plan.invitar.length > 0) {
+    logger.log(
+      `${plan.invitar.length} owners sin cuenta o membresía: se enviará invitación Owner a ${plan.invitar.join(', ')}` +
+        (options.dryRun ? ' (simulado)' : '')
+    )
+  }
+  if (options.dryRun) return cambios
 
-  for (const account of cambios) {
+  for (const account of plan.promover) {
     await accountClient.updateWorkspaceRole(account, AccountRole.Owner)
     logger.log(`  owner promovido: ${cuentas.nombres.get(account) ?? account}`)
   }
-  return cambios.length
+  for (const correo of plan.invitar) {
+    await accountClient.resendInvite(correo, AccountRole.Owner)
+    logger.log(`  invitación owner enviada: ${correo}; la cuenta se activa al aceptarla`)
+  }
+  return cambios
 }
